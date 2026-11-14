@@ -161,6 +161,24 @@ export async function buildVillage(base: string) {
     // the lane from the asylum, down the outside of the field's right-hand wall, to the front street
     { pts: [V(7, -6), V(26, -16), V(41.5, -36), V(42, -84), V(41, -92)], half: 1.4 },
   ];
+  // Old lanes are never ruled lines. Every street is cut into short lengths
+  // and each point drifts a little by where it lies, so streets wander and
+  // still meet exactly at their junctions. The lane beside the field wanders less.
+  const drift = (p: THREE.Vector2, k: number) =>
+    V(
+      p.x + k * (1.5 * Math.sin(p.y * 0.105 + 1.3) + 0.9 * Math.sin(p.y * 0.043 + p.x * 0.031)),
+      p.y + k * (1.5 * Math.sin(p.x * 0.088 + 0.7) + 0.9 * Math.sin(p.x * 0.039 + p.y * 0.027 + 2.0)),
+    );
+  roads.forEach((rd, i) => {
+    const k = i === roads.length - 1 ? 0.3 : 1;
+    const out: THREE.Vector2[] = [];
+    for (let j = 0; j < rd.pts.length - 1; j++) {
+      const n = Math.max(1, Math.round(rd.pts[j].distanceTo(rd.pts[j + 1]) / 5));
+      for (let m = 0; m < n; m++) out.push(drift(rd.pts[j].clone().lerp(rd.pts[j + 1], m / n), k));
+    }
+    out.push(drift(rd.pts[rd.pts.length - 1], k));
+    rd.pts = out;
+  });
   const distToRoad = (p: THREE.Vector2, rd: Road) => {
     let best = Infinity;
     for (let i = 0; i < rd.pts.length - 1; i++) {
@@ -269,28 +287,42 @@ export async function buildVillage(base: string) {
       }
     }
     // Walls on three sides only: the near side was closed by the asylum itself.
-    // About 1.2 m high, so you can see the wheat over it from the lane, which
-    // runs a little below it. (A photograph of today's wall suggests 2 to
-    // 2.5 m; no 1889 figure was found. Owner chose to look over the wall.)
+    // One continuous low wall that rides the ground, as he painted it: pale
+    // blue-grey, about waist high (F720, F735). Beside the lane, which lies
+    // lower, it is kept to waist height as seen from the lane.
+    const WALL = [0.4, 0.42, 0.5];
     for (let i = 1; i < 4; i++) {
       const a = c[i], b = c[(i + 1) % 4];
-      const len = a.distanceTo(b), n = Math.ceil(len / 3);
+      const len = a.distanceTo(b), n = Math.ceil(len / 1.2);
+      const nrm = V(-(b.y - a.y), b.x - a.x).normalize().multiplyScalar(0.28);
+      const post = (t: number) => {
+        const m = a.clone().lerp(b, t);
+        const g = terrain(m.x, m.y);
+        const top = (i === 1 ? Math.max(g + 0.35, terrain(m.x + 3.6, m.y) + 0.95) : g + 0.95) + 0.06 * Math.sin(t * len * 0.9);
+        return { m, lo: g - 0.6, top };
+      };
       for (let k = 0; k < n; k++) {
-        const m = a.clone().lerp(b, (k + 0.5) / n);
-        const seg: Footprint = { x: m.x, z: m.y, yaw: Math.atan2(b.y - a.y, b.x - a.x), w: len / n + 0.15, d: 0.55 };
-        const y0 = terrain(m.x, m.y) - 0.6;
-        // Beside the lane, which lies lower, the wall is kept to chest height as seen from the lane.
-        const hgt = i === 1 ? Math.max(1.0, terrain(m.x + 3.6, m.y) + 1.15 - y0) : 1.8;
-        walls(seg, y0, hgt, STONE);
-        const P = frame(seg, y0 + hgt);
-        quad(P(-seg.w / 2, 0, -0.28), P(-seg.w / 2, 0, 0.28), P(seg.w / 2, 0, 0.28), P(seg.w / 2, 0, -0.28), STONE);
-        footprints.push(seg);
+        const p = post(k / n), q = post((k + 1) / n);
+        for (const sg of [-1, 1]) {
+          quad(
+            [p.m.x + nrm.x * sg, p.lo, p.m.y + nrm.y * sg], [p.m.x + nrm.x * sg, p.top, p.m.y + nrm.y * sg],
+            [q.m.x + nrm.x * sg, q.top, q.m.y + nrm.y * sg], [q.m.x + nrm.x * sg, q.lo, q.m.y + nrm.y * sg], WALL,
+          );
+        }
+        quad(
+          [p.m.x - nrm.x, p.top, p.m.y - nrm.y], [p.m.x + nrm.x, p.top, p.m.y + nrm.y],
+          [q.m.x + nrm.x, q.top, q.m.y + nrm.y], [q.m.x - nrm.x, q.top, q.m.y - nrm.y], WALL.map((v) => v * 1.12),
+        );
+      }
+      for (let k = 0; k < Math.ceil(len / 4); k++) { // you cannot walk through it
+        const m = a.clone().lerp(b, (k + 0.5) / Math.ceil(len / 4));
+        footprints.push({ x: m.x, z: m.y, yaw: Math.atan2(b.y - a.y, b.x - a.x), w: len / Math.ceil(len / 4) + 0.2, d: 0.56 });
       }
     }
     const hut: Footprint = { x: 33.5, z: -83.5, yaw: Math.atan2(c[2].y - c[3].y, c[2].x - c[3].x), w: 4.2, d: 3.2 };
     const yh = groundUnder(hut);
     walls(hut, yh, 2.7, STONE);
-    gable(hut, yh, 2.7, 1.1, [0.4, 0.27, 0.22], STONE);
+    gable(hut, yh, 2.7, 1.1, [0.42, 0.2, 0.15], STONE); // a red tiled roof, as in F720
     panel(hut, yh, 0, 0.3, 0.9, 1.8, -1, DOOR);
     footprints.push(hut);
   }
@@ -301,23 +333,30 @@ export async function buildVillage(base: string) {
   const wallsBorrowed = data.houses.map((h) => h.wallColour);
   const roofsBorrowed = data.houses.map((h) => h.roofColour);
   let extra = 0;
-  for (const rd of roads) {
-    for (let i = 0; i < rd.pts.length - 1; i++) {
-      const a = rd.pts[i], ab = rd.pts[i + 1].clone().sub(a);
-      const len = ab.length(), dir = ab.clone().normalize(), side = V(-dir.y, dir.x);
-      const yaw = Math.atan2(dir.y, dir.x);
-      for (const sgn of [-1, 1]) {
-        let along = r.range(1, 5);
-        while (along < len - 5 && extra < 26) {
-          const w = r.range(7, 11.5), d = r.range(6, 7.6);
-          const c = a.clone().addScaledVector(dir, along + w / 2).addScaledVector(side, sgn * (rd.half + d / 2 + 0.5));
-          const fp: Footprint = { x: c.x, z: c.y, yaw, w, d };
-          along += w + (r.next() < 0.25 ? r.range(3, 9) : 0.25);
-          const wallH = r.next() < 0.55 ? r.range(5.4, 6.4) : r.range(3.2, 4.1);
-          if (seenFromStart(c.x, terrain(c.x, c.y) + wallH + 2, c.y) || overlaps(fp, 0.2) || onRoad(fp)) continue;
-          house(fp, wallH, r.range(1.6, 3.0), r.pick(wallsBorrowed), r.pick(roofsBorrowed), r.next() < 0.35 ? 1 : 0, -sgn);
-          extra++;
-        }
+  for (const rd of roads.slice(0, -1)) {
+    const cum = [0];
+    for (let i = 1; i < rd.pts.length; i++) cum.push(cum[i - 1] + rd.pts[i].distanceTo(rd.pts[i - 1]));
+    const len = cum[cum.length - 1];
+    /** The street's position and heading after walking `d` metres along it. */
+    const along = (d: number) => {
+      let i = 1;
+      while (i < cum.length - 1 && cum[i] < d) i++;
+      const a = rd.pts[i - 1], b = rd.pts[i];
+      const dir = b.clone().sub(a).normalize();
+      return { p: a.clone().lerp(b, (d - cum[i - 1]) / Math.max(cum[i] - cum[i - 1], 1e-3)), dir };
+    };
+    for (const sgn of [-1, 1]) {
+      let d0 = r.range(1, 5);
+      while (d0 < len - 5 && extra < 26) {
+        const w = r.range(7, 11.5), d = r.range(6, 7.6);
+        const { p: on, dir } = along(d0 + w / 2);
+        const c = on.clone().addScaledVector(V(-dir.y, dir.x), sgn * (rd.half * 1.2 + d / 2 + 0.6));
+        const fp: Footprint = { x: c.x, z: c.y, yaw: Math.atan2(dir.y, dir.x), w, d };
+        d0 += w + (r.next() < 0.25 ? r.range(3, 9) : 0.3);
+        const wallH = r.next() < 0.55 ? r.range(5.4, 6.4) : r.range(3.2, 4.1);
+        if (seenFromStart(c.x, terrain(c.x, c.y) + wallH + 2, c.y) || overlaps(fp, 0.2) || onRoad(fp)) continue;
+        house(fp, wallH, r.range(1.6, 3.0), r.pick(wallsBorrowed), r.pick(roofsBorrowed), r.next() < 0.35 ? 1 : 0, -sgn);
+        extra++;
       }
     }
   }
@@ -326,12 +365,14 @@ export async function buildVillage(base: string) {
   const strip = (pts: THREE.Vector2[], half: number, colour: number[]) => {
     for (let i = 0; i < pts.length - 1; i++) {
       const a = pts[i], b = pts[i + 1];
-      const n = Math.max(1, Math.ceil(a.distanceTo(b) / 5));
+      const n = Math.max(1, Math.ceil(a.distanceTo(b) / 2.5));
       for (let k = 0; k < n; k++) {
         const p = a.clone().lerp(b, k / n), q = a.clone().lerp(b, (k + 1) / n);
         const side = V(-(q.y - p.y), q.x - p.x).normalize().multiplyScalar(half);
         const v = (m: THREE.Vector2, sg: number) => {
-          const x = m.x + side.x * sg, z = m.y + side.y * sg;
+          // each edge wanders on its own, so the street is wider here, narrower there
+          const e = 1 + 0.2 * Math.sin(m.x * 0.31 + m.y * 0.23 + sg * 1.7) + 0.1 * Math.sin(m.x * 0.83 - m.y * 0.61 + sg);
+          const x = m.x + side.x * sg * e, z = m.y + side.y * sg * e;
           return [x, terrain(x, z) + 0.06, z];
         };
         quad(v(p, -1), v(p, 1), v(q, 1), v(q, -1), colour);
@@ -380,34 +421,60 @@ export async function buildVillage(base: string) {
     tree(x, z, wide, high, r.pick(greens));
   }
 
-  // --- the asylum behind the start: the men's wing with his window, and the chapel tower
+  // --- the asylum behind the start, from his own paintings of it.
+  // The men's wing follows "Hospital at Saint-Remy" (1889): yellow-ochre
+  // walls, two storeys, tall pale windows with green shutters, a red tiled
+  // roof, a central door between pilasters with a balcony above. The chapel
+  // follows "View of the Asylum and Chapel" (F803): blue-grey walls and
+  // roofs, a tall nave with a lower aisle and a rounded east end, and a short
+  // square tower with paired openings under a pyramid roof. Colours are his
+  // daytime ones brought down for night.
   {
-    const wing: Footprint = { x: 4, z: 18, yaw: 0, w: 84, d: 12 }; // the men's east wing measures about 84 x 12 m on the map
+    const OCHRE = [0.5, 0.42, 0.23], TILE = [0.42, 0.17, 0.12], SHUTTER = [0.24, 0.4, 0.3], TRIM = [0.56, 0.52, 0.4];
+    const wing: Footprint = { x: 4, z: 18, yaw: 0, w: 84, d: 12 }; // about 84 x 12 m on the map
     const y0 = groundUnder(wing);
-    const pale = [0.5, 0.5, 0.46];
-    // two storeys under a low tiled roof; his room was on the upper one
-    walls(wing, y0, 8.6, pale);
-    gable(wing, y0, 8.6, 2.4, [0.33, 0.27, 0.24], pale);
-    for (let f = 0; f < 2; f++) {
-      for (let i = 0; i < 21; i++) {
-        const x = -40 + i * 4;
-        const his = f === 1 && i === 9; // the lit upper window, straight behind the start
-        panel(wing, y0, x, 1.5 + f * 3.9, 1.1, 1.9, -1, his ? LIT : DARK);
-        panel(wing, y0, x, 1.5 + f * 3.9, 1.1, 1.9, 1, DARK);
+    walls(wing, y0, 8.6, OCHRE);
+    gable(wing, y0, 8.6, 2.2, TILE, OCHRE);
+    for (const side of [-1, 1]) {
+      panel(wing, y0, 0, 4.25, 84, 0.22, side, TRIM); // the band between the storeys
+      for (let f = 0; f < 2; f++) {
+        for (let i = 0; i < 21; i++) {
+          const x = -40 + i * 4;
+          if (f === 0 && i === 10) continue; // the door
+          const his = side === -1 && f === 1 && i === 8;
+          const y = 1.3 + f * 4.0;
+          panel(wing, y0, x, y - 0.12, 1.5, 2.34, side, TRIM);
+          panel({ ...wing, d: wing.d + 0.06 }, y0, x, y, 1.15, 2.1, side, his ? LIT : DARK);
+          for (const sh of [-1, 1]) panel({ ...wing, d: wing.d + 0.06 }, y0, x + sh * 1.05, y, 0.55, 2.1, side, SHUTTER);
+        }
       }
+      // the entrance: pilasters, an arched door, a balcony above
+      panel(wing, y0, 0, 0.2, 3.6, 3.9, side, TRIM);
+      panel({ ...wing, d: wing.d + 0.08 }, y0, 0, 0.2, 1.5, 3.0, side, DOOR);
+      panel({ ...wing, d: wing.d + 1.2 }, y0, 0, 4.3, 4.2, 0.95, side, [0.2, 0.2, 0.22]);
     }
-    const chapel: Footprint = { x: 58, z: 28, yaw: Math.PI / 2, w: 24, d: 10 };
-    const yc = groundUnder(chapel);
-    walls(chapel, yc, 9, pale);
-    gable(chapel, yc, 9, 3, [0.33, 0.27, 0.24], pale);
-    const belfry: Footprint = { x: 50, z: 22, yaw: 0, w: 6, d: 6 };
-    walls(belfry, yc, 21, pale);
+    // the chapel, to the right of the wing
+    const GREY = [0.36, 0.43, 0.42], SLATE = [0.27, 0.34, 0.4];
+    const nave: Footprint = { x: 62, z: 30, yaw: Math.PI / 2, w: 26, d: 9 };
+    const yc = groundUnder(nave);
+    walls(nave, yc, 10, GREY);
+    gable(nave, yc, 10, 3.2, SLATE, GREY);
+    const aisle: Footprint = { x: 55.5, z: 30, yaw: Math.PI / 2, w: 22, d: 5 };
+    walls(aisle, yc, 5.5, GREY);
+    gable(aisle, yc, 5.5, 1.8, SLATE, GREY);
+    const apse: Footprint = { x: 62, z: 15.5, yaw: 0, w: 6.5, d: 4.5 };
+    walls(apse, yc, 6.5, GREY);
+    gable(apse, yc, 6.5, 2.2, SLATE, GREY);
+    const belfry: Footprint = { x: 54, z: 21, yaw: 0, w: 5.4, d: 5.4 };
+    walls(belfry, yc, 15.5, GREY);
     const P = frame(belfry, yc);
-    const t = 3.3;
+    const t = 3.05;
     const cs = [[-t, -t], [t, -t], [t, t], [-t, t]];
-    for (let i = 0; i < 4; i++) tri(P(cs[i][0], 21, cs[i][1]), P(0, 26, 0), P(cs[(i + 1) % 4][0], 21, cs[(i + 1) % 4][1]), STONE);
-    for (const side of [-1, 1]) panel(belfry, yc, 0, 15.5, 1.6, 2.6, side, DARK);
-    footprints.push(wing, chapel, belfry);
+    for (let i = 0; i < 4; i++) tri(P(cs[i][0], 15.5, cs[i][1]), P(0, 19.5, 0), P(cs[(i + 1) % 4][0], 15.5, cs[(i + 1) % 4][1]), SLATE);
+    for (const side of [-1, 1]) {
+      for (const lvl of [8.6, 12]) for (const dx of [-0.75, 0.75]) panel(belfry, yc, dx, lvl, 0.9, 2.1, side, DARK);
+    }
+    footprints.push(wing, nave, aisle, apse, belfry);
   }
 
   const g = new THREE.BufferGeometry();

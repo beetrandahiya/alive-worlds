@@ -421,6 +421,30 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
         near right corner, down outside its right wall to the front street.
       - Asylum wing 84 x 12 m, two storeys (8.6 m to the eave), 21 windows a
         row, his lit window on the upper row. Plain forms draw both faces.
+      Studies 13+14 (headset, 2026-11-14): town "looks okay"; streets too
+      straight ("give them character: a little wavy, a little uneven");
+      field walls "really jagged and weird", make them a little shorter; build
+      the asylum from his actual paintings of it.
+      Study 15 BUILT 2026-11-14, AWAITING HEADSET TEST (bare forms):
+      - His paintings fetched from Wikimedia Commons at 1280 px (the API and
+        1280 px thumbnails work with plain curl; larger sizes are refused) and
+        saved in `reference/vangogh/`: F803 View of the Asylum and Chapel,
+        Hospital at Saint-Remy, Garden of Saint-Paul Hospital, F720 Enclosed
+        Wheat Field with Rising Sun, F735 Wheat Sheaves and Rising Moon, F611
+        Landscape behind Saint-Paul.
+      - Asylum from them: wing 84 x 12 m, yellow-ochre, two storeys, 21 pale
+        windows a row with green shutters, a band between storeys, red tiled
+        roof, central door with pilasters and balcony (Hospital at Saint-Remy);
+        chapel blue-grey with slate-blue roofs, nave + lower aisle + east end,
+        square tower 15.5 m with paired openings and a pyramid roof (F803).
+        Day colours darkened by eye for night.
+      - Field wall: one continuous wall following the ground, 0.95 m high,
+        pale blue-grey (as in F720/F735), three sides; hut roof red tile.
+      - Streets: each road is cut into 5 m lengths and every point drifts by a
+        smooth function of its position (`drift`, up to about 2.4 m), so
+        streets wander but still meet at junctions; edges wobble in width.
+        Houses are placed by distance walked along the bent street and turn
+        with it.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

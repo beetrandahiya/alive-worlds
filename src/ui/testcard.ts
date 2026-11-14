@@ -2,13 +2,12 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Still a bare model', 'New since the last version: the wheat field, the lane beside it, and the asylum corrected to two storeys.'],
-  ['The start view', 'The field should be invisible from here. Still the painting?'],
-  ['Step forward and look down', 'The walled wheat field lies on the slope below you: yellow wheat with darker patches where the storm laid it flat. Right place, right size (about 80 m across)?'],
-  ['Walk the lane', 'It runs down the outside of the field\'s right-hand wall, past a small stone hut, to the village. Can you see the wheat over the wall? Is the wall a good height?'],
-  ['The slope', 'The real field was nearly level; ours is on a steep hillside. Does that feel wrong?'],
-  ['Turn round at the start', 'The asylum is now two storeys, his lit window on the upper one. Better?'],
-  ['The town', 'Unchanged from Study 13. If you have not walked its streets yet, the questions from last time still stand.'],
+  ['Still a bare model', 'Changed: the field wall, the streets, and the asylum.'],
+  ['The field wall', 'Now one smooth low wall riding the ground, pale blue-grey as he painted it, about waist high. Is the jaggedness gone? Height right?'],
+  ['The streets', 'They wander now and their edges are uneven. Enough character, too much, or still too straight?'],
+  ['Houses and streets', 'Houses follow the bends. Does any street touch or run through a house?'],
+  ['The asylum', 'Turn round at the start and walk up to it. Built from his paintings: ochre walls, green shutters, red tiled roof, a door with a balcony; the grey chapel and its short square tower to the right. Does it read as his asylum?'],
+  ['The start view', 'Still the painting?'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */
