@@ -2,12 +2,12 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Only the hills changed', 'Everything else is as in Study 04. Judge the hills alone.'],
-  ['Frame rate', 'Wrist number. Should be 72 again.'],
-  ['Flicker', 'Is the shimmer from last time gone?'],
-  ['Turn a full circle', 'Do the hills carry on all the way round as one thing? Any edge where the painted view ends?'],
-  ['Enough paint?', 'Compared with the sky: closer? What is still missing?'],
-  ['Known flaws', 'A pale upright smear in the hills left of the cypress. The valley floor still ends in a hard dark edge on the right: that is the next piece.'],
+  ['Only the hills beyond the painting changed', 'Their outline is now the real skyline round Saint-Remy; their paint is made by rule, nothing repeated.'],
+  ['Frame rate', 'About 245,000 strokes, right at the limit. Still 72?'],
+  ['Bands', 'Are the odd vertical bands gone?'],
+  ['Turn a full circle', 'Mountains to your right, low rolling hills behind and to the left. Does the shape of the land feel right?'],
+  ['The paint on them', 'Next to the painted hills: same family, or clearly a different hand? Too regular?'],
+  ['The join', 'Where painted hills meet continued hills, right of the mountains and left of the cypress.'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

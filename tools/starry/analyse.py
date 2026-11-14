@@ -279,16 +279,32 @@ a1, e1 = line_to_az_el([(14, 735), (100, 750), (190, 760), (480, 742), (520, 702
                         (1200, 626), (1266, 616)])
 # far mountains: the dark Alpilles on the right
 a2, e2 = line_to_az_el([(900, 668), (1000, 640), (1100, 600), (1150, 570), (1172, 526), (1210, 518), (1266, 514)])
-ext = ridge_ext(az_t)
-el1 = np.where(az_t < a1[0], ext, np.interp(az_t, a1, e1))
-right_of = az_t > a1[-1]
-el1[right_of] = np.radians(1.5) + (e1[-1] - np.radians(1.5)) * np.exp(-(az_t[right_of] - a1[-1]) / np.radians(20))
-el1[right_of] += np.radians(1.0) * np.sin(az_t[right_of] * 7) * (1 - np.exp(-(az_t[right_of] - a1[-1]) / 0.2))
+# Beyond the frame the skyline is the real one round Saint-Paul-de-Mausole
+# (tools/starry/skyline.py): the Alpilles to the south-east, plain to the north
+# and west. The painting looks a little south of east. He painted the
+# mountains about half again as tall as they are, so the real ones are raised
+# to match; and the low horizon is lifted into gentle rolling hills.
+VIEW_BEARING = np.radians(100.0)
+_real = np.load(ROOT / "reference" / "real_skyline.npy").astype(np.float64)
+real = np.interp(az_t + VIEW_BEARING, np.arange(len(_real) + 1) / len(_real) * 2 * np.pi,
+                 np.append(_real, _real[0]), period=2 * np.pi)
+real = np.maximum(real, 0) * 1.55
+rolling = np.radians(1.5 + 0.55 * np.sin(az_t * 5 + 1.0) + 0.35 * np.sin(az_t * 11 + 4.0) + 0.2 * np.sin(az_t * 23))
+near_out = np.maximum(np.minimum(real, np.radians(3.4)), rolling)
+JOIN = np.radians(14.0)
+w_l = smoothstep(0, JOIN, a1[0] - az_t)
+w_r = smoothstep(0, JOIN, az_t - a1[-1])
+el1 = np.interp(az_t, a1, e1)
+el1 = np.where(az_t < a1[0], e1[0] * (1 - w_l) + near_out * w_l, el1)
+el1 = np.where(az_t > a1[-1], e1[-1] * (1 - w_r) + near_out * w_r, el1)
 el2 = np.full(NA, -1.0)
 inside2 = (az_t >= a2[0]) & (az_t <= a2[-1])
 el2[inside2] = np.interp(az_t[inside2], a2, e2)
-el2[az_t > a2[-1]] = ext[az_t > a2[-1]]
+w_r2 = smoothstep(0, JOIN, az_t - a2[-1])
+el2 = np.where(az_t > a2[-1], e2[-1] * (1 - w_r2) + real * w_r2, el2)
+el2 = np.where(az_t < a1[0], real * w_l, el2)
 el2 = np.where(el2 > el1 + np.radians(0.4), el2, -1.0)
+EL1 = el1.copy()
 EL_TOP = np.where(el2 > -0.5, np.maximum(el1, el2), el1)
 EL_BASE = np.radians(-3.2)      # foot of the hills, seen from the viewpoint
 
@@ -306,6 +322,9 @@ def dirs(az, el):
 # are still his paint, and the join is exact.
 _fold = unproject(np.array([INSET + FEATHER / 2, W - INSET - FEATHER / 2]), np.array([HORIZON_Y, HORIZON_Y]))
 AZ_L, AZ_R = np.arctan2(_fold[:, 0], -_fold[:, 2])
+
+_hr = np.random.default_rng(7)
+HATCH = [(int(k), float(sl), float(ph)) for k, sl, ph in zip(_hr.integers(30, 150, 7), _hr.uniform(0.5, 0.95, 7), _hr.uniform(0, 6.28, 7))]
 
 LIC = None
 FLOW_S = None
@@ -358,30 +377,34 @@ def field(d, colour_img, jitter=None, land=False):
     glow = (0.6 * w_x ** 2)[:, None]
     c_sky = c_sky * (1 - glow) + edge_col * glow
     r_el = el_top(az)
-    u_ = (az - AZ_L) / (AZ_R - AZ_L)
-    tri = 1 - np.abs(1 - np.mod(u_, 2))
-    flipped = np.mod(np.floor(u_), 2) != 0
-    az_m = AZ_L + tri * (AZ_R - AZ_L)
     frac = np.clip((el - EL_BASE) / np.maximum(r_el - EL_BASE, 1e-3), -0.4, 1.0)
-    d_m = dirs(az_m, EL_BASE + frac * (el_top(az_m) - EL_BASE))
-    pxm, pym, _ = project(d_m)
-    pym = np.maximum(pym, np.interp(pxm, np.arange(W), ridge_y) + 9 * SX)      # never the sky
-    hill_img = hills_soft if colour_img is scene_soft else hills_fine
-    hk = np.clip(0.55 + 0.25 * noise3(d * 9.0, 1) + jit * 0.8, 0, 0.999) * (len(hill_pal) - 1)
-    far_w = (0.45 * smoothstep(np.radians(60), np.radians(160), np.abs(az)))[:, None]
-    c_hill = samp(hill_img, pxm, pym) * (1 - far_w) + hill_pal[hk.astype(int)] * far_w
+    # Hills beyond the frame, painted by rule in the manner of the painted
+    # ones: diagonal hatching in his hill blues, light and dark running in
+    # bands along the hatching, a dark line along each ridge, the far
+    # mountains darker than the near hills. Nothing is repeated.
+    tone = np.zeros(n_)
+    for k_, sl_, ph_ in HATCH:
+        tone += np.sin(k_ * az - (k_ / sl_) * el + ph_)
+    tone = tone / np.sqrt(len(HATCH)) * 0.55
+    # broad drifts of lighter and deeper blue, and a rolling fold part-way up
+    # each hill drawn as a dark line, as where one painted hill overlaps another
+    tone += 0.45 * np.sin(4 * az + 9 * el + 1.3) + 0.3 * np.sin(9 * az - 22 * el + 4.0)
+    fold = np.abs(frac - (0.5 + 0.16 * np.sin(6 * az + 0.5) + 0.08 * np.sin(13 * az + 2.0)))
+    tone -= 1.1 * smoothstep(0.035, 0.0, fold)
+    tone += 0.5 * smoothstep(0.0, 0.12, fold) * smoothstep(0.3, 0.12, fold) * (frac < 0.5)
+    mountain = smoothstep(np.radians(0.2), np.radians(1.2), el - np.interp(az, az_t, EL1, period=2 * np.pi))
+    outline = smoothstep(0.9, 0.97, frac) + 0.6 * smoothstep(np.radians(0.5), 0.0, np.abs(el - np.interp(az, az_t, EL1, period=2 * np.pi)))
+    u_h = np.clip(0.6 + 0.3 * tone + jit * 0.5 - 0.28 * mountain - 0.5 * np.clip(outline, 0, 1), 0.0, 0.999)
+    hk = u_h * (len(hill_pal) - 1)
+    h0_ = hk.astype(int)
+    c_hill = hill_pal[h0_] * (1 - (hk - h0_))[:, None] + hill_pal[np.minimum(h0_ + 1, len(hill_pal) - 1)] * (hk - h0_)[:, None]
     bk = np.clip(0.3 + 0.12 * noise3(d * 6.0, 2) + jit * 0.5, 0, 0.999) * 5
     c_low = bush_pal[bk.astype(int)]
     c_land = c_hill + (c_low - c_hill) * smoothstep(0.0, np.radians(2.5), EL_BASE - el)[:, None]
     is_sky = smoothstep(-0.006, 0.006, el - r_el)
-    # ...and their strokes run as his do, mirrored where the span is folded.
-    lm = samp(line, pxm, pym)
-    t_m = norm(unproject(pxm + lm[:, 0] * 2, pym + lm[:, 1] * 2) - d_m)
-    east_m = np.stack([np.cos(az_m), np.zeros(n_), np.sin(az_m)], -1)
-    ce = (t_m * east_m).sum(-1) * np.where(flipped, -1.0, 1.0)
-    cn = (t_m * np.cross(d_m, east_m)).sum(-1)
+    lean = 0.55 + 0.32 * np.sin(3 * az + 0.7 + 8 * el) + 0.22 * np.sin(8 * az + 2.0 - 16 * el) + 0.3 * (jitter - 0.5 if jitter is not None else 0.0)
     east = np.stack([np.cos(az), np.zeros(n_), np.sin(az)], -1)
-    t_land = norm(ce[:, None] * east + cn[:, None] * np.cross(d, east))
+    t_land = norm(np.cos(lean)[:, None] * east + np.sin(lean)[:, None] * np.cross(east, d))
     t_ext = np.where(is_sky[:, None] > 0.5, t_ext, t_land)
     c_ext = c_land + (c_sky - c_land) * is_sky[:, None]
     s_ext = is_sky.copy()

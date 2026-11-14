@@ -168,6 +168,7 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
 
 - `tools/starry/lift_strokes.py` — lifts real strokes from the scan into the
   stroke atlas `public/starry/strokes.png` (replaces `make_strokes.py`).
+- `tools/starry/skyline.py` — real skyline from elevation data (run once).
 - `tools/starry/analyse.py` — measures the scan (stroke direction, flow sense,
   colour, palettes) and bakes `public/starry/*`. Re-run after changing it
   (needs numpy, scipy, opencv).
@@ -256,6 +257,25 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       in the hills left of the cypress; from the valley the hill strokes are
       still those laid for the viewpoint; valley floor ends in a hard dark
       edge right of the painted view (next piece: valley fields).
+      Study 06 (headset, 2026-11-14): 72 fps constant; hills "much better",
+      enough paint now, continuous all round, very good near the painted
+      view; but odd vertical bands of similar colour further round (from the
+      mirror-folding), and a slight flicker "everywhere a little, not so
+      noticeable". Owner asked not to repeat the painted hills: use a system
+      and/or the real topography. Chose: real skyline, low parts raised a
+      little into rolling hills.
+      Study 07 BUILT 2026-11-14, AWAITING HEADSET TEST: beyond the frame the
+      skyline is the real one round Saint-Paul-de-Mausole
+      (`tools/starry/skyline.py`, free AWS terrain tiles, cached result in
+      `reference/real_skyline.npy`; real: Alpilles up to 7 degrees at bearing
+      144, plain to north and west). Painting's centre is set to bearing 100;
+      real heights x1.55 to meet his exaggerated mountains; horizon floor
+      raised to about 1.5 degrees of rolling hills; 14 degree blend at the
+      frame's ends. Paint beyond the frame is by rule (in `field()`): his hill
+      palette, tone in bands along diagonal hatching (`HATCH`), broad drifts,
+      a dark fold line part-way up, dark ridge line, mountains darker. The
+      mirror-fold is gone. Hills about 53k strokes, total about 245k.
+      The slight general flicker is not yet investigated.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
