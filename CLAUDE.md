@@ -327,6 +327,24 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       around in circles; let's start from basics"; the town matters much
       more than the grass. AGREED: Studies 05-10 were all patches on one idea
       (project the painting onto land from the viewpoint). Stop that.
+- [ ] RESTART FROM BASICS (agreed with owner 2026-11-14). Kept: sky, cypress,
+      far hills. Method: (1) build the place in metres as plain forms and
+      judge it in the headset; (2) paint each surface in its own space with
+      his colours and his real stroke shapes; (3) add raised strokes near the
+      walker, as on the cypress. Town first. Owner's choices: a real small
+      village of 30-40 houses (the painted dozen as its heart; a square by the
+      church, a main street, a few lanes); surfaces painted, plus raised
+      strokes near you.
+      Study 11 BUILT 2026-11-14, AWAITING HEADSET TEST: bare forms
+      (`src/worlds/starry/village.ts`). Church where the painting puts it
+      (foot at scan px 726,866 -> 210 m from the viewpoint), nave 22 x 9.5 m,
+      tower 19 m, spire to 46 m (as tall as he painted it). 38 houses along a
+      main street, a cross street, a back lane and a lane behind the church;
+      191 round trees (groves to the right, scattered left); a lane from the
+      knoll. Walls block walking. Valley ground is a plain soft tone; all
+      valley strokes and foot grass are off (`?paint=old` restores them).
+      Hills now use the spire-free source inside the frame too. Walking limit
+      340 m. About 120k strokes (sky, cypress, hills only).
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

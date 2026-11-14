@@ -2,12 +2,13 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Only the valley floor changed', 'The standing strokes from last time are gone. The ground itself now carries his paint.'],
-  ['From the start, turn a full circle', 'Does the valley read as painted land? Is the base of the hills still empty?'],
-  ['Walk down and around', 'Nothing should stand taller than grass, and nothing should fade away as you near it. True?'],
-  ['Underfoot in the valley', 'The ground paint goes soft within about 25 m of you. Natural, or do you notice it change?'],
-  ['Flicker', 'More, less or the same on the valley floor?'],
-  ['Frame rate', 'Back to about 235,000 strokes. Still 72?'],
+  ['This is a bare model on purpose', 'Plain shapes, flat colours, no paint on the valley or village yet. Judge the PLACE, not the look.'],
+  ['From the start', 'Is the village in the right spot and about the right size against the painting in your memory? Church and spire right?'],
+  ['Walk down the lane into the village', 'About two minutes at full stick. Does the distance feel right?'],
+  ['In the streets', 'House sizes, door and window heights, street width: do they feel like a real village at your height?'],
+  ['Layout', 'Too regular? Too spread out? Should houses huddle closer round the church, as he painted them?'],
+  ['Trees', 'Olive trees are plain round blobs for now. Right size and number? In the right places?'],
+  ['Frame rate', 'Should be 72 with room to spare.'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import {
+  PLAIN_FRAG,
+  PLAIN_VERT,
   GROUND_FRAG,
   GROUND_VERT,
   SKY_FRAG,
@@ -153,6 +155,16 @@ export function undercoat(g: THREE.BufferGeometry): THREE.Mesh {
     polygonOffsetUnits: 12,
   });
   const mesh = new THREE.Mesh(g, m);
+  mesh.frustumCulled = false;
+  return mesh;
+}
+
+/** Plain solid forms (position, normal, color), before any paint. */
+export function plainForms(g: THREE.BufferGeometry): THREE.Mesh {
+  const mesh = new THREE.Mesh(
+    g,
+    new THREE.ShaderMaterial({ vertexShader: PLAIN_VERT, fragmentShader: PLAIN_FRAG, uniforms: { uMoon: shared.uMoon } }),
+  );
   mesh.frustumCulled = false;
   return mesh;
 }

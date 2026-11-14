@@ -82,4 +82,4 @@ float terrain(vec2 p) {
 }`;
 
 /** How far you can walk from the viewpoint in this study. */
-export const WALK_RADIUS = 260;
+export const WALK_RADIUS = 340;

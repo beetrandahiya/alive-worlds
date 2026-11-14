@@ -16,6 +16,7 @@ const TURN = THREE.MathUtils.degToRad(80); // per second, smooth turn
 export class Rig {
   readonly group = new THREE.Group();
   readonly head = new THREE.Vector3();
+  private was = new THREE.Vector3();
   private prev: Record<string, boolean> = {};
   private keys = new Set<string>();
   private yaw = 0;
@@ -28,6 +29,8 @@ export class Rig {
     private renderer: THREE.WebGLRenderer,
     private heightAt: (x: number, z: number) => number,
     private walkRadius: number,
+    /** True where something solid stands (a wall); you cannot walk into it. */
+    private blocked: (x: number, z: number) => boolean = () => false,
   ) {
     this.group.add(camera);
     camera.position.set(0, 1.6, 0);
@@ -115,6 +118,12 @@ export class Rig {
     this.group.updateMatrixWorld(true);
     this.camera.getWorldPosition(this.head);
     const far = Math.hypot(this.head.x, this.head.z);
+    if (this.blocked(this.head.x, this.head.z) && !this.blocked(this.was.x, this.was.z)) {
+      this.group.position.x += this.was.x - this.head.x;
+      this.group.position.z += this.was.z - this.head.z;
+      this.head.copy(this.was);
+    }
+    this.was.copy(this.head);
     if (far > this.walkRadius) {
       const pull = this.walkRadius / far - 1;
       this.group.position.x += this.head.x * pull;

@@ -4,6 +4,7 @@ import { TEST_LIST, testCard } from './ui/testcard';
 import { WristReadout } from './ui/wrist';
 import { buildCypress } from './worlds/starry/cypress';
 import { buildGround } from './worlds/starry/ground';
+import { buildVillage } from './worlds/starry/village';
 import { buildSky, type StarryMeta } from './worlds/starry/sky';
 import { loadTerrain, terrain, WALK_RADIUS } from './worlds/starry/terrain';
 import { Rig } from './xr/rig';
@@ -31,7 +32,8 @@ async function start() {
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 6000);
-  const rig = new Rig(camera, renderer, terrain, WALK_RADIUS);
+  let walls: (x: number, z: number) => boolean = () => false;
+  const rig = new Rig(camera, renderer, terrain, WALK_RADIUS, (x, z) => walls(x, z));
   scene.add(rig.group);
 
   const meta: StarryMeta = await fetch(BASE + 'starry.json').then((r) => r.json());
@@ -44,7 +46,10 @@ async function start() {
   const sky = await buildSky(BASE, meta);
   const cypress = buildCypress(meta);
   const ground = await buildGround(BASE, meta);
-  scene.add(sky.group, cypress.group, ground.group);
+  const village = buildVillage(meta);
+  walls = village.blocked;
+  console.info('village', village.houses, 'houses', village.trees, 'trees, church at', village.church);
+  scene.add(sky.group, cypress.group, ground.group, village.group);
 
   // ---- study controls
   const wrist = new WristReadout(__BUILD__);

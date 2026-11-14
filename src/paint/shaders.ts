@@ -70,8 +70,31 @@ void main() {
   // Seen from far off this is his paint, sharp. Close to you the same paint
   // would be stretched very large, so there it settles to its general tone
   // and the strokes at your feet do the painting.
-  float sharp = smoothstep(25.0, 90.0, distance(vWorld, cameraPosition));
+  // For now only the far hills carry sharp paint. The valley is being
+  // rebuilt as a real place and wears a plain soft tone until it is painted.
+  float sharp = smoothstep(380.0, 470.0, length(vWorld.xz));
   gl_FragColor = vec4(mix(textureLod(uGround, uv, 5.0).rgb, texture2D(uGround, uv).rgb, sharp), 1.0);
+}`;
+
+/** Plain solid forms, lit a little by the moon so their shapes read. */
+export const PLAIN_VERT = /* glsl */ `
+attribute vec3 color;
+varying vec3 vColor;
+varying vec3 vN;
+void main() {
+  vColor = color;
+  vN = normal;
+  gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+}`;
+
+export const PLAIN_FRAG = /* glsl */ `
+uniform vec3 uMoon;
+varying vec3 vColor;
+varying vec3 vN;
+void main() {
+  vec3 n = normalize(vN);
+  float light = 0.74 + 0.2 * max(dot(n, uMoon), 0.0) + 0.06 * n.y;
+  gl_FragColor = vec4(vColor * light, 1.0);
 }`;
 
 export const DOME_VERT = /* glsl */ `

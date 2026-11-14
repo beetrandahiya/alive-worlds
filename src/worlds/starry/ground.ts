@@ -21,7 +21,7 @@ import { terrain, TERRAIN_GLSL } from './terrain';
 export async function buildGround(base: string, meta: StarryMeta) {
   const { rMin, rMax } = meta.valley;
   const [strokeData, broadData, map] = await Promise.all([
-    fetch(base + 'terrain_strokes.bin').then((r) => r.arrayBuffer()),
+    fetch(base + 'hill_strokes.bin').then((r) => r.arrayBuffer()),
     fetch(base + 'terrain_broad.bin').then((r) => r.arrayBuffer()),
     new THREE.TextureLoader().loadAsync(base + 'ground_col.jpg'),
   ]);
@@ -115,15 +115,20 @@ export async function buildGround(base: string, meta: StarryMeta) {
   const layer = (data: Float32Array, tile: number, fade: [number, number], segments: number, near?: [number, number]) =>
     surfaceStrokes(data, { segments, tile, fade, near, terrain: TERRAIN_GLSL, tint: 0.7 });
 
+  const old = new URLSearchParams(location.search).get('paint') === 'old';
   const group = new THREE.Group();
   group.add(
     groundUndercoat(g),
-    surfaceStrokes(new Float32Array(broadData), { segments: 3, terrain: TERRAIN_GLSL, overlay: 0 }),
+    // The far hills: approved. Everything nearer is plain until the place
+    // itself is right (`paint=old` in the address brings the old layers back).
     surfaceStrokes(new Float32Array(strokeData), { segments: 2, terrain: TERRAIN_GLSL, overlay: 1 }),
-    layer(lying(9000, 120, [1.2, 2.8], [0.22, 0.4]), 120, [1e5, 2e5], 2, [9, 16]),
-    layer(lying(14000, 36, [0.35, 0.8], [0.06, 0.11]), 36, [12, 17], 2),
-    layer(tufts(12000, 72, [0.3, 0.65], [0.08, 0.14]), 72, [26, 35], 2),
-    layer(tufts(15000, 18, [0.16, 0.42], [0.022, 0.045]), 18, [5.5, 8.5], 2),
+    ...(old
+      ? [
+          surfaceStrokes(new Float32Array(broadData), { segments: 3, terrain: TERRAIN_GLSL, overlay: 0 }),
+          layer(lying(14000, 36, [0.35, 0.8], [0.06, 0.11]), 36, [12, 17], 2),
+          layer(tufts(15000, 18, [0.16, 0.42], [0.022, 0.045]), 18, [5.5, 8.5], 2),
+        ]
+      : []),
   );
   return { group };
 }

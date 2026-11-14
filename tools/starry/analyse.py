@@ -470,7 +470,7 @@ def field(d, colour_img, jitter=None, land=False):
         pxi, pyi = px[inside], py[inside]
         if land:   # ground that stands a little above the painted skyline still takes land paint
             pyi = np.maximum(pyi, np.interp(pxi, np.arange(W), ridge_y) + 5 * SX)
-        col = samp(colour_img, pxi, pyi)
+        col = samp(hill_img if land else colour_img, pxi, pyi)   # land: the hills without the painted spire (the church is now a real building)
         l2 = samp(line, pxi, pyi)
         a2 = samp(arrow, pxi, pyi)
         sgn = np.sign((l2 * a2).sum(-1, keepdims=True) + 1e-6)
@@ -878,6 +878,7 @@ valley = np.concatenate([
 ground = np.concatenate([hills, valley])
 broad.tofile(OUT / "terrain_broad.bin")
 ground.tofile(OUT / "terrain_strokes.bin")
+hills.tofile(OUT / "hill_strokes.bin")
 print("unseen ground", len(broad), "hills", len(hills), "valley", len(valley), "hills up to", float(h1.max() + FLOOR), float(h2.max() + FLOOR), "m")
 
 
