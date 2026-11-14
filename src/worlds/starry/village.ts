@@ -136,78 +136,88 @@ export async function buildVillage(base: string) {
   /** Yaw that turns a building's long side square to the start point, so it shows as painted. */
   const facingStart = (x: number, z: number) => Math.atan2(z, x) + Math.PI / 2;
   // ---------------------------------------------------------------- paint
-  // A house is painted as he painted: a dark outline, a few broad strokes on
-  // each plane, and, close to you, fine strokes over them. Every stroke is a
-  // real raised stroke placed once; none lie in rows. Colours are single
-  // strokes' colours taken from his paint of that building.
+  // A building is painted as he painted: a broken dark line round its edges,
+  // a few broad strokes on each plane, and, close to you, fine strokes over
+  // them. Every stroke is a real raised stroke placed once; none lie in rows.
+  // Colours are single strokes' colours taken from his paint of that building.
+  // Broad strokes and lines are always drawn. Each building's fine strokes are
+  // a separate set, drawn only while you are near it.
   const outlineCoat = new StrokeWriter();
   const broadCoat = new StrokeWriter();
-  const fineCoat = new StrokeWriter();
-  interface Plane { o: THREE.Vector3; u: THREE.Vector3; v: THREE.Vector3; w: number; h: number; inside?: (a: number, b: number) => boolean }
-  const paintHouse = (fp: Footprint, y0: number, wallH: number, rise: number, front: number, b: Built) => {
+  const fineSets: { w: StrokeWriter; x: number; z: number; reach: number }[] = [];
+  let fineCoat = new StrokeWriter();
+  let ink = [0.08, 0.1, 0.2];
+  /** Start painting a building: its own fine set, and its own dark line (his, lifted toward the blue he used). */
+  const beginPaint = (b: Built, x: number, z: number, reach: number) => {
+    fineCoat = new StrokeWriter();
+    fineSets.push({ w: fineCoat, x, z, reach });
+    ink = [b.outline[0] * 1.2 + 0.03, b.outline[1] * 1.2 + 0.04, b.outline[2] * 1.3 + 0.09];
+  };
+  interface Plane { o: THREE.Vector3; u: THREE.Vector3; v: THREE.Vector3; n: THREE.Vector3; w: number; h: number; inside?: (a: number, b: number) => boolean }
+  const plane = (a: THREE.Vector3, bb: THREE.Vector3, c: THREE.Vector3, inside?: Plane['inside'], outward?: THREE.Vector3): Plane => {
+    const u = bb.clone().sub(a), v = c.clone().sub(a);
+    const n = u.clone().cross(v).normalize();
+    if (outward ? n.dot(outward) < 0 : n.y < -0.2) n.negate(); // the paint goes on the outer, upper side
+    return { o: a, u: u.clone().normalize(), v: v.clone().normalize(), n, w: u.length(), h: v.length(), inside };
+  };
+  const lay = (out: StrokeWriter, pl: Plane, a: number, c: number, dir: number, len: number, wid: number, colour: number[], streak: number[], rise_: number) => {
+    const t = pl.u.clone().multiplyScalar(Math.cos(dir)).addScaledVector(pl.v, Math.sin(dir));
+    const root = pl.o.clone().addScaledVector(pl.u, a).addScaledVector(pl.v, c).addScaledVector(t, -len / 2).addScaledVector(pl.n, rise_);
+    out.add({ p: root, t, n: pl.n, length: len, width: wid, lift: 0, bend: r.range(-0.07, 0.07), colour, streak, seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0 });
+  };
+  const fill = (out: StrokeWriter, pl: Plane, pal: number[][], dir: number, len: [number, number], wid: [number, number], cover: number, rise_: number) => {
+    const along = Math.abs(Math.cos(dir)) > 0.7;
+    const count = Math.ceil((pl.w * pl.h * cover) / (((len[0] + len[1]) / 2) * ((wid[0] + wid[1]) / 2)));
+    for (let i = 0; i < count; i++) {
+      const L = Math.min(r.range(len[0], len[1]), (along ? pl.w : pl.h) * 0.96);
+      const a = along ? r.range(L / 2, pl.w - L / 2) : r.range(0.05, pl.w - 0.05);
+      const c = along ? r.range(0.05, pl.h - 0.05) : r.range(L / 2, pl.h - L / 2);
+      if (pl.inside && !pl.inside(a, c)) continue;
+      lay(out, pl, a, c, dir + r.range(-0.14, 0.14), L, r.range(wid[0], wid[1]), r.pick(pal), r.pick(pal), rise_ + r.range(0, 0.012));
+    }
+  };
+  /** His dark line, drawn in short strokes with small gaps, from one point of a plane to another. */
+  const line = (pl: Plane, a0: number, c0: number, a1: number, c1: number, wid = 0.13) => {
+    const L = Math.hypot(a1 - a0, c1 - c0), dir = Math.atan2(c1 - c0, a1 - a0);
+    const n = Math.max(1, Math.round(L / 1.5));
+    for (let i = 0; i < n; i++) {
+      if (r.next() < 0.14) continue; // the line breaks here and there
+      const k = (i + 0.5) / n;
+      lay(outlineCoat, pl, a0 + (a1 - a0) * k + r.range(-0.03, 0.03), c0 + (c1 - c0) * k + r.range(-0.03, 0.03), dir + r.range(-0.04, 0.04),
+        (L / n) * r.range(0.85, 1.05), wid * r.range(0.75, 1.2), ink.map((x) => x * r.range(0.85, 1.2)), ink, 0.075);
+    }
+  };
+  const paintBox = (fp: Footprint, y0: number, wallH: number, rise: number, front: number, b: Built, roofed = true) => {
     const P = (x: number, y: number, z: number) => new THREE.Vector3(...frame(fp, y0)(x, y, z));
     const w = fp.w / 2, d = fp.d / 2;
-    const plane = (a: THREE.Vector3, bb: THREE.Vector3, c: THREE.Vector3, inside?: Plane['inside']): Plane => {
-      const u = bb.clone().sub(a), v = c.clone().sub(a);
-      return { o: a, u: u.clone().normalize(), v: v.clone().normalize(), w: u.length(), h: v.length(), inside };
-    };
     const slope = Math.hypot(d + 0.35, rise + 0.25);
+    const ends = (a: number, c: number) => c < wallH + rise * (1 - Math.abs(a / d - 1));
     const wallsP = [
       plane(P(-w, 0, d), P(w, 0, d), P(-w, wallH, d)),
       plane(P(w, 0, -d), P(-w, 0, -d), P(w, wallH, -d)),
-      // the two ends, wall and gable together
-      plane(P(w, 0, d), P(w, 0, -d), P(w, wallH + rise, d), (a, c) => c < wallH + rise * (1 - Math.abs(a / d - 1))),
-      plane(P(-w, 0, -d), P(-w, 0, d), P(-w, wallH + rise, -d), (a, c) => c < wallH + rise * (1 - Math.abs(a / d - 1))),
+      plane(P(w, 0, d), P(w, 0, -d), P(w, wallH + rise, d), ends), // the two ends, wall and gable together
+      plane(P(-w, 0, -d), P(-w, 0, d), P(-w, wallH + rise, -d), ends),
     ];
-    const roofsP = [
-      plane(P(-w - 0.35, wallH + rise, 0), P(w + 0.35, wallH + rise, 0), P(-w - 0.35, wallH - 0.25, d + 0.35)),
-      plane(P(w + 0.35, wallH + rise, 0), P(-w - 0.35, wallH + rise, 0), P(w + 0.35, wallH - 0.25, -d - 0.35)),
-    ];
-    const lay = (out: StrokeWriter, pl: Plane, a: number, c: number, dir: number, len: number, wid: number, colour: number[], streak: number[], rise_: number) => {
-      const n = pl.u.clone().cross(pl.v).normalize();
-      if (n.y < -0.2) n.negate(); // roofs: the paint goes on the upper side
-      const t = pl.u.clone().multiplyScalar(Math.cos(dir)).addScaledVector(pl.v, Math.sin(dir));
-      const root = pl.o.clone().addScaledVector(pl.u, a).addScaledVector(pl.v, c).addScaledVector(t, -len / 2).addScaledVector(n, rise_);
-      out.add({ p: root, t, n, length: len, width: wid, lift: 0, bend: r.range(-0.07, 0.07), colour, streak, seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0 });
-    };
-    const fill = (out: StrokeWriter, pl: Plane, pal: number[][], dir: number, len: [number, number], wid: [number, number], cover: number, rise_: number) => {
-      const count = Math.ceil((pl.w * pl.h * cover) / (((len[0] + len[1]) / 2) * ((wid[0] + wid[1]) / 2)));
-      for (let i = 0; i < count; i++) {
-        const L = Math.min(r.range(len[0], len[1]), (Math.abs(Math.cos(dir)) > 0.7 ? pl.w : pl.h) * 0.96);
-        const along = Math.abs(Math.cos(dir)) > 0.7;
-        const a = along ? r.range(L / 2, pl.w - L / 2) : r.range(0.05, pl.w - 0.05);
-        const c = along ? r.range(0.05, pl.h - 0.05) : r.range(L / 2, pl.h - L / 2);
-        if (pl.inside && !pl.inside(a, c)) continue;
-        lay(out, pl, a, c, dir + r.range(-0.14, 0.14), L, r.range(wid[0], wid[1]), r.pick(pal), r.pick(pal), rise_ + r.range(0, 0.012));
-      }
-    };
-    /** A dark line drawn in a few overlapping strokes from one point of a plane to another. */
-    const line = (pl: Plane, a0: number, c0: number, a1: number, c1: number, wid = 0.2) => {
-      const L = Math.hypot(a1 - a0, c1 - c0), dir = Math.atan2(c1 - c0, a1 - a0);
-      const n = Math.max(1, Math.round(L / 1.7));
-      for (let i = 0; i < n; i++) {
-        const k = (i + 0.5) / n;
-        lay(outlineCoat, pl, a0 + (a1 - a0) * k + r.range(-0.04, 0.04), c0 + (c1 - c0) * k + r.range(-0.04, 0.04), dir + r.range(-0.03, 0.03),
-          (L / n) * r.range(1.1, 1.3), wid * r.range(0.8, 1.25), b.outline.map((x) => x * r.range(0.8, 1.15)), b.outline, 0.075);
-      }
-    };
     for (const pl of wallsP) {
       fill(broadCoat, pl, b.wallPal, 0, [1.6, 2.8], [0.5, 0.8], 1.5, 0.03);
       fill(fineCoat, pl, b.wallPal, 0, [0.4, 0.8], [0.09, 0.15], 1.7, 0.05);
+      line(pl, 0.06, 0, 0.06, wallH);
+      line(pl, pl.w - 0.06, 0, pl.w - 0.06, wallH);
     }
-    for (const pl of roofsP) {
-      // roofs: long strokes from ridge to eave, as he striped them
-      fill(broadCoat, pl, b.roofPal, Math.PI / 2, [slope * 0.75, slope * 0.95], [0.45, 0.8], 1.5, 0.03);
-      fill(fineCoat, pl, b.roofPal, Math.PI / 2, [0.5, 1.1], [0.09, 0.15], 1.7, 0.05);
-      line(pl, 0, 0.05, pl.w, 0.05, 0.24);          // the ridge
-      line(pl, 0, pl.h - 0.08, pl.w, pl.h - 0.08);   // the eave
-      line(pl, 0.08, 0, 0.08, pl.h);
-      line(pl, pl.w - 0.08, 0, pl.w - 0.08, pl.h);
-    }
-    for (const pl of wallsP.slice(0, 2)) {
-      line(pl, 0, 0.1, pl.w, 0.1);
-      line(pl, 0.08, 0, 0.08, pl.h);
-      line(pl, pl.w - 0.08, 0, pl.w - 0.08, pl.h);
+    if (roofed) {
+      const roofsP = [
+        plane(P(-w - 0.35, wallH + rise, 0), P(w + 0.35, wallH + rise, 0), P(-w - 0.35, wallH - 0.25, d + 0.35)),
+        plane(P(w + 0.35, wallH + rise, 0), P(-w - 0.35, wallH + rise, 0), P(w + 0.35, wallH - 0.25, -d - 0.35)),
+      ];
+      for (const pl of roofsP) {
+        // roofs: long strokes from ridge to eave, as he striped them
+        fill(broadCoat, pl, b.roofPal, Math.PI / 2, [slope * 0.75, slope * 0.95], [0.45, 0.8], 1.5, 0.03);
+        fill(fineCoat, pl, b.roofPal, Math.PI / 2, [0.5, 1.1], [0.09, 0.15], 1.7, 0.05);
+        line(pl, 0, 0.06, pl.w, 0.06, 0.16);          // the ridge
+        line(pl, 0, pl.h - 0.08, pl.w, pl.h - 0.08);   // the eave
+        line(pl, 0.08, 0, 0.08, pl.h);
+        line(pl, pl.w - 0.08, 0, pl.w - 0.08, pl.h);
+      }
     }
     // doors and windows: his few strokes of colour, ringed in the dark line
     const face = wallsP[front > 0 ? 0 : 1];
@@ -217,10 +227,11 @@ export async function buildVillage(base: string) {
         const jit = r.range(0.85, 1.12);
         lay(broadCoat, face, a + r.range(-0.3, 0.3) * ow, y + oh / 2, Math.PI / 2 + r.range(-0.1, 0.1), oh * 0.95, ow * 0.42, [cr * jit, cg * jit, cb * jit], [cr, cg, cb], 0.13);
       }
-      line(face, a - ow / 2, y, a - ow / 2, y + oh, 0.12);
-      line(face, a + ow / 2, y, a + ow / 2, y + oh, 0.12);
-      line(face, a - ow / 2, y + oh, a + ow / 2, y + oh, 0.12);
+      line(face, a - ow / 2, y, a - ow / 2, y + oh, 0.1);
+      line(face, a + ow / 2, y, a + ow / 2, y + oh, 0.1);
+      line(face, a - ow / 2, y + oh, a + ow / 2, y + oh, 0.1);
     }
+    opened = [];
   };
 
   const house = (fp: Footprint, wall: number, rise: number, wallColour: number[], roofColour: number[], lit: number, front: number, paint?: Built) => {
@@ -231,7 +242,10 @@ export async function buildVillage(base: string) {
     openings(fp, y0, wall, front, lit);
     const c = Math.cos(fp.yaw), s = Math.sin(fp.yaw), k = fp.w * r.range(-0.3, 0.3);
     walls({ x: fp.x + c * k, z: fp.z + s * k, yaw: fp.yaw, w: 0.7, d: 0.7 }, y0 + wall + rise * 0.45, rise * 0.55 + 1.1, [0.2, 0.18, 0.18]);
-    if (paint) paintHouse(fp, y0, wall + 0.3, rise, front, paint);
+    if (paint) {
+      beginPaint(paint, fp.x, fp.z, Math.hypot(fp.w, fp.d) / 2);
+      paintBox(fp, y0, wall + 0.3, rise, front, paint);
+    }
     footprints.push(fp);
   };
 
@@ -338,8 +352,8 @@ export async function buildVillage(base: string) {
   }
   for (const q of painted) {
     if (onRoad(q.fp, 0)) q.fp.d = 5.2; // a shallow house rather than one in the street
-    // STUDY: only the big dark house at the front is painted so far
-    house(q.fp, q.b.wall, q.b.rise, q.b.wallColour, q.b.roofColour, q.b.lit, 1, q.b === data.houses[9] ? q.b : undefined);
+    // every building he painted is painted; the houses he did not paint are still plain
+    house(q.fp, q.b.wall, q.b.rise, q.b.wallColour, q.b.roofColour, q.b.lit, 1, q.b);
   }
   {
     const y0 = groundUnder(nave);
@@ -359,6 +373,26 @@ export async function buildVillage(base: string) {
     panel(tower, y0, 0, towerH * 0.62, 0.9, 2.2, 1, DARK);
     walls(wing, y0, ch.wing.wall, ch.wing.wallColour);
     gable(wing, y0, ch.wing.wall, ch.wing.rise, ch.wing.roofColour, ch.wing.wallColour);
+    // the church, painted: nave, tower, spire and wing as one building
+    opened = [];
+    beginPaint(ch.nave, tower.x, tower.z, 16);
+    paintBox(nave, y0, ch.nave.wall, ch.nave.rise, 1, ch.nave);
+    ink = [ch.tower.outline[0] * 1.2 + 0.03, ch.tower.outline[1] * 1.2 + 0.04, ch.tower.outline[2] * 1.3 + 0.09];
+    paintBox(tower, y0, ch.tower.wall, 0, 1, ch.tower, false);
+    {
+      const PT = (x: number, y: number, z: number) => new THREE.Vector3(...frame(tower, y0)(x, y, z));
+      const tt = tower.w / 2 + 0.25, apex = PT(0, ch.spireTop, 0);
+      const c4 = [[-tt, -tt], [tt, -tt], [tt, tt], [-tt, tt]];
+      for (let i = 0; i < 4; i++) {
+        const a = PT(c4[i][0], ch.tower.wall, c4[i][1]), b = PT(c4[(i + 1) % 4][0], ch.tower.wall, c4[(i + 1) % 4][1]);
+        const mid = a.clone().lerp(b, 0.5);
+        const side = a.distanceTo(b), hgt = mid.distanceTo(apex);
+        const pl = plane(a, b, a.clone().add(apex).sub(mid), (aa, cc) => Math.abs(aa - side / 2) < (side / 2) * (1 - cc / hgt), mid.clone().sub(PT(0, ch.tower.wall, 0)));
+        fill(broadCoat, pl, ch.tower.roofPal, Math.PI / 2, [3.5, 7], [0.35, 0.6], 1.6, 0.03);
+        fill(fineCoat, pl, ch.tower.roofPal, Math.PI / 2, [0.5, 1.1], [0.09, 0.15], 1.7, 0.05);
+      }
+    }
+    paintBox(wing, y0, ch.wing.wall, ch.wing.rise, 1, ch.wing);
     footprints.push(nave, tower, wing);
   }
 
@@ -598,11 +632,23 @@ export async function buildVillage(base: string) {
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   const group = new THREE.Group();
   group.add(plainForms(g));
-  // broad strokes and outlines are always there; fine strokes come in as you approach
+  // broad strokes and lines are always there
   group.add(surfaceStrokes(broadCoat.data(), { segments: 3 }));
-  group.add(surfaceStrokes(outlineCoat.data(), { segments: 3 }));
-  group.add(surfaceStrokes(fineCoat.data(), { segments: 2, fade: [16, 30] }));
-  console.info('house paint: broad', broadCoat.data().length / 24, 'outline', outlineCoat.data().length / 24, 'fine', fineCoat.data().length / 24);
+  group.add(surfaceStrokes(outlineCoat.data(), { segments: 2 }));
+  // each building's fine strokes are drawn only while you are near it, and fade by distance
+  const FADE: [number, number] = [16, 30];
+  const fines = fineSets.map((f) => {
+    const mesh = surfaceStrokes(f.w.data(), { segments: 2, fade: FADE });
+    mesh.visible = false;
+    group.add(mesh);
+    return { mesh, x: f.x, z: f.z, reach: f.reach + FADE[1] + 2 };
+  });
+  const count = (w: StrokeWriter) => w.data().length / 24;
+  console.info('village paint: broad', count(broadCoat), 'lines', count(outlineCoat), 'fine in', fines.length, 'sets, total', fineSets.reduce((a, f) => a + count(f.w), 0));
+  /** Call every frame with where the walker's head is. */
+  const update = (head: THREE.Vector3) => {
+    for (const f of fines) f.mesh.visible = Math.hypot(head.x - f.x, head.z - f.z) < f.reach;
+  };
 
   /** True inside a building or wall: you cannot walk through it. */
   const blocked = (x: number, z: number) => {
@@ -613,5 +659,5 @@ export async function buildVillage(base: string) {
     }
     return false;
   };
-  return { group, blocked, houses: data.houses.length + extra, trees: treeAt.length };
+  return { group, blocked, update, houses: data.houses.length + extra, trees: treeAt.length };
 }

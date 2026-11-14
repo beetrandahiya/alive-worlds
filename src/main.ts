@@ -125,6 +125,7 @@ async function start() {
     if (pressed.x) wrist.mesh.visible = !wrist.mesh.visible;
     if (pressed.y) card.visible = !card.visible;
     shared.uCentre.value.copy(rig.head);
+    village.update(rig.head);
     const rate = renderer.xr.getSession()?.frameRate ?? TARGET_RATE;
     if (renderer.xr.isPresenting) wrist.tick(dt, rate);
     renderer.render(scene, camera);

@@ -506,6 +506,23 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       outlines 0.2 m wide along ridge, eaves, verges, corners, base; openings
       get four strokes of their colour and a dark ring. This house: 358 broad,
       78 outline, 7,666 fine. The plain wall beneath is the undercoat.
+      Study 19 (headset, 2026-11-14): METHOD APPROVED ("few strokes from far
+      away and more closer is good"); the house "looks okay" from afar; the
+      black border looked weird ("is it needed?"). Asked: paint every house
+      visible in the painting; movement five times faster.
+      Study 20 BUILT 2026-11-14, AWAITING HEADSET TEST:
+      - All 12 painted houses and the church (nave, tower, spire, wing)
+        painted by `paintBox` (was `paintHouse`). Broad 4,530 + lines 1,048
+        always drawn. Fine strokes: 13 separate sets, 105k in all, each set
+        visible only within its reach + 32 m of the walker (`village.update`,
+        called every frame from main.ts) and fading 30-16 m in the shader.
+      - Outline softened: his darkest colour lifted toward blue, 0.13 m wide,
+        short strokes with about one in seven left out. Owner to say whether
+        to keep it.
+      - Movement (study setting, `rig.ts`): 3 m/s up to three-quarter push,
+        15 m/s at full push.
+      - Unpainted still: the 26 houses he did not paint, asylum, field, lanes,
+        trees, valley ground.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

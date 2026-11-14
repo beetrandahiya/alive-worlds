@@ -2,13 +2,12 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['One painted house', 'Only the tall dark house at the front of the village is painted. Everything else is as in Study 17. Walk down the lane to it.'],
-  ['From the lane, 40 m away', 'You see its outline and broad strokes only. Does it read as one of his houses?'],
-  ['From the street, 15 m', 'Fine strokes have come in over the broad ones. Did they arrive smoothly? Does it look painted, not patterned?'],
-  ['At arm\'s length', 'Real raised strokes, like the cypress. Thick paint, or flat cards? Right size?'],
-  ['Shimmer', 'Any sparkle or crawling on the wall as you move your head? This is the first time raised strokes sit on a flat wall.'],
-  ['Windows and door', 'A few strokes of yellow or dark, ringed in his dark line. Right idea?'],
-  ['Colour', 'It is dark because he painted this house dark. Too dark to read?'],
+  ['Every building he painted is now painted', 'The church and the twelve houses. Houses he did not paint, and everything else, are still plain. Full stick now moves five times faster.'],
+  ['From the start', 'Does the village read as his, next to the painting in your memory?'],
+  ['Walk through it', 'Each house gains fine strokes as you come within about 30 m and loses them as you leave. Smooth? Any house that pops?'],
+  ['The dark line', 'Now thinner, broken and dark blue instead of a black border. Keep it, soften it more, or remove it?'],
+  ['The church', 'White walls with dark strokes in them, as his paint has. Right, or too blotchy?'],
+  ['Frame rate and shimmer', 'Wrist number in the middle of the village with several houses near you. Still 72?'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

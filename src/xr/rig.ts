@@ -5,8 +5,8 @@ export interface Buttons {
   a: boolean; b: boolean; x: boolean; y: boolean;
 }
 
-const WALK = 1.4;    // m/s up to three-quarter push
-const STRIDE = 3.0;  // m/s at full push
+const WALK = 3.0;    // m/s up to three-quarter push
+const STRIDE = 15.0; // STUDY: five times a brisk stride at full push, to reach the village quickly
 const TURN = THREE.MathUtils.degToRad(80); // per second, smooth turn
 
 /**
