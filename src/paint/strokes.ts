@@ -11,7 +11,6 @@ import {
 /** Uniforms every painted thing shares. One object, so one place to animate. */
 export const shared = {
   uTime: { value: 0 },
-  uCanvas: { value: 0 },
   uA2C: { value: 1 },
   uFlow: { value: 0.7 }, // owner, in headset: 70% of the first study's speed
   uRelief: { value: 0.5 },

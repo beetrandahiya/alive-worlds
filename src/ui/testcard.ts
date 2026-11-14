@@ -2,9 +2,7 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Gaps between strokes', 'A switches soft colour and bare canvas flecks. Which is better? Do the flecks sparkle when your head moves?'],
-  ['Sky speed', 'Now 70% of before. Right, or still too fast?'],
-  ['Frame rate', 'Wrist number with flecks on and off. Still 72?'],
+  ['Nothing new to judge', 'This build only removes the canvas flecks. The next study brings real hills and a village.'],
   ['Anything else', 'Whatever catches your eye, good or bad.'],
 ];
 

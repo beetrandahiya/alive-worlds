@@ -46,15 +46,10 @@ async function start() {
   scene.add(sky.group, cypress.group, ground.group);
 
   // ---- study controls
-  let flecks = Number(params.get('canvas') ?? 0);
   const wrist = new WristReadout(__BUILD__);
   const card = testCard();
   $('tests').innerHTML = TEST_LIST.map(([t, d]) => `<li><b>${t}.</b> ${d}</li>`).join('');
-  const apply = () => {
-    shared.uCanvas.value = flecks;
-    wrist.set([`A  gaps: ${flecks ? 'bare canvas flecks' : 'soft colour'}`, 'Y  what to test']);
-  };
-  apply();
+  wrist.set(['Y  what to test']);
 
   for (const i of [0, 1]) {
     const grip = renderer.xr.getControllerGrip(i);
@@ -119,7 +114,6 @@ async function start() {
     last = ms;
     shared.uTime.value = fixedTime ? Number(fixedTime) : ms / 1000;
     const pressed = rig.update(dt);
-    if (pressed.a) { flecks = 1 - flecks; apply(); }
     if (pressed.x) wrist.mesh.visible = !wrist.mesh.visible;
     if (pressed.y) card.visible = !card.visible;
     shared.uCentre.value.copy(rig.head);

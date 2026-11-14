@@ -61,6 +61,11 @@ follow; do not build for them yet. No museum yet.
   the village (slips away if approached), fireflies in the fields. (Moths: no.)
 - Colour: DECIDED in headset 2026-11-14 — the canvas as it hangs today. Not
   the deeper-night version ("dark gritty").
+- Gaps between strokes: DECIDED in headset 2026-11-14 — soft colour from the
+  painting. Bare-canvas flecks were tried and rejected: "they take away the
+  illusion of being inside the world of Van Gogh". Do not show raw canvas
+  inside the world. (Lesson: fidelity to the canvas as an object loses to
+  fidelity to the world it depicts.)
 - Paint amount: DECIDED in headset 2026-11-14 — always full. Medium and light
   did not look good; never thin the strokes to save frame rate.
 
@@ -142,13 +147,12 @@ Link: https://prakrisht.me/alive-worlds/ (the github.io address redirects there)
 press "Step inside". The build label at the bottom of the page and on the wrist
 readout (commit + time) confirms which version is loaded; reload if it is old.
 
-Study controls: left stick walk, right stick turn, A = gaps between strokes
-(soft colour / bare canvas flecks), X = hide wrist readout,
+Study controls: left stick walk, right stick turn, X = hide wrist readout,
 Y = show the what-to-test list above the left hand (also on the landing page;
 the list lives in `src/ui/testcard.ts` — update it for each study).
-On a computer: drag to look, W A S D to walk, C for the gaps toggle.
+On a computer: drag to look, W A S D to walk.
 URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
-(default 0.5), `?canvas=1`.
+(default 0.5).
 
 ## Code map
 
@@ -181,8 +185,8 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       right. Measured budget so far: ~42k moving sky strokes + ~58k static
       backdrop strokes + ~21k cypress + ~50k ground at 72 fps, default
       resolution, edge blur 0.5.
-- [ ] Study 02 (published 2026-11-14): sky at 70% speed; colour and paint
-      locked; A toggles bare-canvas flecks in the gaps. AWAITING HEADSET TEST.
+- [x] Study 02 (2026-11-14): sky at 70% speed confirmed good; 72 fps stable;
+      canvas flecks rejected and removed.
 - [ ] Step 2: terrain and composition matched from the viewpoint.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
@@ -210,9 +214,6 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
   finds single well-separated strokes, outline = shape, the photograph's light
   and shade on the paint = relief). Eight chosen by eye (candidates 4 6 10 1 19
   27 29 37). Relief is inferred from a flat photograph, not measured height.
-- Gaps between strokes: owner is comparing in headset (study 02) soft blurred
-  colour vs flecks of bare canvas (colour measured from the scan's unpainted
-  edge: 0.69, 0.64, 0.51). The real weave is too fine to draw at this distance.
 - Ground on the knoll is provisional: the painting does not show it. Colours
   come from the bushes at its bottom edge. Needs his field studies as reference.
 - Sky behind the cypress is filled in by diffusion; two star halos next to the

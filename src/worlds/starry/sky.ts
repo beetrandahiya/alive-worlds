@@ -41,7 +41,6 @@ export async function buildSky(base: string, meta: StarryMeta) {
       uniforms: {
         uUnder: { value: underTex },
         uElMin: { value: THREE.MathUtils.degToRad(meta.under.elMinDeg) },
-        uCanvas: shared.uCanvas,
         uA2C: shared.uA2C,
       },
       side: THREE.BackSide,
