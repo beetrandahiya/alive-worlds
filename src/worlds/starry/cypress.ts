@@ -128,13 +128,5 @@ export function buildCypress(meta: StarryMeta) {
   const fineMesh = surfaceStrokes(fine.data(), { segments: 3, fade: [7, 12] });
   const coarseMesh = surfaceStrokes(coarse.data(), { segments: 4 });
   group.add(undercoat(hullGeo), coarseMesh, fineMesh);
-  const fineGeo = fineMesh.geometry as THREE.InstancedBufferGeometry;
-  const fineTotal = fineGeo.instanceCount;
-  return {
-    group,
-    count: fineTotal + (coarseMesh.geometry as THREE.InstancedBufferGeometry).instanceCount,
-    setDensity(f: number) {
-      fineGeo.instanceCount = Math.floor(fineTotal * f);
-    },
-  };
+  return { group };
 }

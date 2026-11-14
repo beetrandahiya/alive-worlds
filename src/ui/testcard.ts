@@ -2,14 +2,10 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Frame rate', 'Wrist number at each paint amount (B): standing still, turning, close to the cypress.'],
-  ['Shimmer', 'Any sparkle or crawling in the sky or cypress as your head moves? Same in both eyes?'],
-  ['First view', 'From where you start, does it read as the painting?'],
-  ['The join', 'Look past the moon, up and to the sides. Does the sky carry on naturally?'],
-  ['Cypress up close', 'Walk down to it. Thick paint, or flat cards?'],
-  ['Sky motion', 'Too slow, too fast, or right? Easy to watch for a minute?'],
-  ['Colour', 'A switches: canvas as it hangs, or deeper night?'],
-  ['Comfort', 'Anything tiring or uneasy after a few minutes?'],
+  ['Gaps between strokes', 'A switches soft colour and bare canvas flecks. Which is better? Do the flecks sparkle when your head moves?'],
+  ['Sky speed', 'Now 70% of before. Right, or still too fast?'],
+  ['Frame rate', 'Wrist number with flecks on and off. Still 72?'],
+  ['Anything else', 'Whatever catches your eye, good or bad.'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

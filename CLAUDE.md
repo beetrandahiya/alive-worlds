@@ -66,8 +66,10 @@ follow; do not build for them yet. No museum yet.
 
 ### Aliveness
 - Sky: strokes flow slowly along the painted swirl; composition stays put.
+  Speed set in headset 2026-11-14: 70% of the first study (`uFlow` 0.7).
 - No hand-painted flicker. Smooth motion everywhere.
-- Wind: slow breathing sway (cypress, grass, wheat).
+- Wind: slow breathing sway (cypress, grass, wheat). Cypress sway confirmed
+  right in headset 2026-11-14.
 - Time: eternal night with small variations (windows going dark/lighting,
   shooting star, a gust, moon halo pulsing). No day, no cycle.
 
@@ -140,21 +142,21 @@ Link: https://prakrisht.me/alive-worlds/ (the github.io address redirects there)
 press "Step inside". The build label at the bottom of the page and on the wrist
 readout (commit + time) confirms which version is loaded; reload if it is old.
 
-Study controls: left stick walk, right stick turn, A = colour canvas / deeper
-night, B = paint amount light / medium / full, X = hide wrist readout,
+Study controls: left stick walk, right stick turn, A = gaps between strokes
+(soft colour / bare canvas flecks), X = hide wrist readout,
 Y = show the what-to-test list above the left hand (also on the landing page;
 the list lives in `src/ui/testcard.ts` — update it for each study).
-On a computer: drag to look, W A S D to walk, C / V for colour / paint.
+On a computer: drag to look, W A S D to walk, C for the gaps toggle.
 URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
-(default 0.5), `?paint=0..2`, `?night=1`.
+(default 0.5), `?canvas=1`.
 
 ## Code map
 
 - `tools/starry/lift_strokes.py` — lifts real strokes from the scan into the
   stroke atlas `public/starry/strokes.png` (replaces `make_strokes.py`).
 - `tools/starry/analyse.py` — measures the scan (stroke direction, flow sense,
-  colour, palettes) and bakes `public/starry/*`. `make_strokes.py` makes the
-  stroke shapes. Re-run both after changing them (needs numpy, scipy, opencv).
+  colour, palettes) and bakes `public/starry/*`. Re-run after changing it
+  (needs numpy, scipy, opencv).
 - `src/paint/` — the paint itself, shared by every world: `shaders.ts`
   (undercoat, sky strokes, surface strokes), `strokes.ts` (builders, shared
   uniforms, seeded random).
@@ -173,6 +175,14 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       Owner: "breathtaking", sky "amazing", cypress "beautiful", up close "so
       good", frame rate stable at full paint (exact wrist number not yet
       reported). Hills and village are still a flat backdrop at infinity.
+      Follow-up answers: 72 fps steady at full paint; no shimmer anywhere;
+      sharp enough at default resolution; continued sky "seamless and right"
+      (corner creases not noticed); sizes of cypress, sky and village all felt
+      right. Measured budget so far: ~42k moving sky strokes + ~58k static
+      backdrop strokes + ~21k cypress + ~50k ground at 72 fps, default
+      resolution, edge blur 0.5.
+- [ ] Study 02 (published 2026-11-14): sky at 70% speed; colour and paint
+      locked; A toggles bare-canvas flecks in the gaps. AWAITING HEADSET TEST.
 - [ ] Step 2: terrain and composition matched from the viewpoint.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
@@ -200,8 +210,9 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
   finds single well-separated strokes, outline = shape, the photograph's light
   and shade on the paint = relief). Eight chosen by eye (candidates 4 6 10 1 19
   27 29 37). Relief is inferred from a flat photograph, not measured height.
-- Gaps between strokes show a blurred-painting undercoat. On the real canvas
-  the gaps show bare beige canvas with weave. Taste question for the owner.
+- Gaps between strokes: owner is comparing in headset (study 02) soft blurred
+  colour vs flecks of bare canvas (colour measured from the scan's unpainted
+  edge: 0.69, 0.64, 0.51). The real weave is too fine to draw at this distance.
 - Ground on the knoll is provisional: the painting does not show it. Colours
   come from the bushes at its bottom edge. Needs his field studies as reference.
 - Sky behind the cypress is filled in by diffusion; two star halos next to the

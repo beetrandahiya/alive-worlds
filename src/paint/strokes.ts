@@ -11,9 +11,9 @@ import {
 /** Uniforms every painted thing shares. One object, so one place to animate. */
 export const shared = {
   uTime: { value: 0 },
-  uNight: { value: 0 },
+  uCanvas: { value: 0 },
   uA2C: { value: 1 },
-  uFlow: { value: 1 },
+  uFlow: { value: 0.7 }, // owner, in headset: 70% of the first study's speed
   uRelief: { value: 0.5 },
   uWind: { value: new THREE.Vector3(0.8, 0, 0.6).normalize() },
   uCentre: { value: new THREE.Vector3() },
@@ -67,7 +67,6 @@ export function skyStrokes(data: Float32Array, segments: number): THREE.Mesh {
   const m = paintMaterial(SKY_VERT, SKY_FRAG, {
     uTime: shared.uTime,
     uFlow: shared.uFlow,
-    uNight: shared.uNight,
     uA2C: shared.uA2C,
     uRelief: shared.uRelief,
     uCanvasLight: shared.uCanvasLight,
@@ -103,7 +102,6 @@ export function surfaceStrokes(data: Float32Array, o: SurfaceOptions): THREE.Mes
     SURFACE_FRAG,
     {
       uTime: shared.uTime,
-      uNight: shared.uNight,
       uA2C: shared.uA2C,
       uRelief: shared.uRelief,
       uWind: shared.uWind,
@@ -126,7 +124,7 @@ export function undercoat(g: THREE.BufferGeometry): THREE.Mesh {
   const m = new THREE.ShaderMaterial({
     vertexShader: UNDER_VERT,
     fragmentShader: UNDER_FRAG,
-    uniforms: { uTime: shared.uTime, uWind: shared.uWind, uNight: shared.uNight, uA2C: shared.uA2C },
+    uniforms: { uTime: shared.uTime, uWind: shared.uWind, uA2C: shared.uA2C },
     side: THREE.DoubleSide,
   });
   const mesh = new THREE.Mesh(g, m);

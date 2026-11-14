@@ -14,11 +14,6 @@ const params = new URLSearchParams(location.search);
 const $ = (id: string) => document.getElementById(id)!;
 const BASE = import.meta.env.BASE_URL + 'starry/';
 const TARGET_RATE = 72;
-const DENSITY = [
-  { name: 'light', f: 0.5 },
-  { name: 'medium', f: 0.75 },
-  { name: 'full', f: 1 },
-];
 
 async function start() {
   $('build').textContent = __BUILD__;
@@ -51,18 +46,13 @@ async function start() {
   scene.add(sky.group, cypress.group, ground.group);
 
   // ---- study controls
-  let density = Number(params.get('paint') ?? 2);
-  let night = Number(params.get('night') ?? 0);
+  let flecks = Number(params.get('canvas') ?? 0);
   const wrist = new WristReadout(__BUILD__);
   const card = testCard();
   $('tests').innerHTML = TEST_LIST.map(([t, d]) => `<li><b>${t}.</b> ${d}</li>`).join('');
   const apply = () => {
-    const d = DENSITY[density];
-    sky.setDensity(0.6 + 0.4 * d.f);
-    cypress.setDensity(d.f);
-    ground.setDensity(d.f);
-    shared.uNight.value = night;
-    wrist.set([`A  colour: ${night ? 'deeper night' : 'canvas as it hangs'}`, `B  paint: ${d.name}    Y  what to test`]);
+    shared.uCanvas.value = flecks;
+    wrist.set([`A  gaps: ${flecks ? 'bare canvas flecks' : 'soft colour'}`, 'Y  what to test']);
   };
   apply();
 
@@ -129,8 +119,7 @@ async function start() {
     last = ms;
     shared.uTime.value = fixedTime ? Number(fixedTime) : ms / 1000;
     const pressed = rig.update(dt);
-    if (pressed.a) { night = 1 - night; apply(); }
-    if (pressed.b) { density = (density + 1) % DENSITY.length; apply(); }
+    if (pressed.a) { flecks = 1 - flecks; apply(); }
     if (pressed.x) wrist.mesh.visible = !wrist.mesh.visible;
     if (pressed.y) card.visible = !card.visible;
     shared.uCentre.value.copy(rig.head);

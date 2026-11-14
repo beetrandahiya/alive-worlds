@@ -105,13 +105,5 @@ export function buildGround(meta: StarryMeta) {
   ];
   const group = new THREE.Group();
   group.add(undercoat(g), ...layers);
-  const geos = layers.map((m) => m.geometry as THREE.InstancedBufferGeometry);
-  const totals = geos.map((x) => x.instanceCount);
-  return {
-    group,
-    count: totals.reduce((a, b) => a + b, 0),
-    setDensity(f: number) {
-      geos.forEach((x, i) => (x.instanceCount = Math.floor(totals[i] * f)));
-    },
-  };
+  return { group };
 }

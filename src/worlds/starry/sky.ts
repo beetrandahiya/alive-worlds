@@ -41,7 +41,7 @@ export async function buildSky(base: string, meta: StarryMeta) {
       uniforms: {
         uUnder: { value: underTex },
         uElMin: { value: THREE.MathUtils.degToRad(meta.under.elMinDeg) },
-        uNight: shared.uNight,
+        uCanvas: shared.uCanvas,
         uA2C: shared.uA2C,
       },
       side: THREE.BackSide,
@@ -59,12 +59,5 @@ export async function buildSky(base: string, meta: StarryMeta) {
   land.renderOrder = 12;
   group.add(dome, sky, land);
 
-  const total = (sky.geometry as THREE.InstancedBufferGeometry).instanceCount;
-  return {
-    group,
-    count: total + (land.geometry as THREE.InstancedBufferGeometry).instanceCount,
-    setDensity(f: number) {
-      (sky.geometry as THREE.InstancedBufferGeometry).instanceCount = Math.floor(total * f);
-    },
-  };
+  return { group };
 }

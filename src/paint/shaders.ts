@@ -8,17 +8,9 @@
  * Colour is kept in display (sRGB) values end to end so it matches the scan.
  */
 
-/** Shared: colour mode, stroke coverage, relief. */
+/** Shared: stroke coverage and the atlas of stroke shapes. */
 const COMMON = /* glsl */ `
-uniform float uNight;   // 0 = the canvas as it hangs, 1 = deeper night
 uniform float uA2C;     // 1 when multisampling can soften stroke edges
-
-vec3 grade(vec3 c, float glow) {
-  float l = dot(c, vec3(0.299, 0.587, 0.114));
-  vec3 n = c * mix(0.46, 1.1, smoothstep(0.12, 0.8, l));
-  n = mix(n, c * 1.16, glow);
-  return mix(c, n, uNight);
-}
 
 // Turn the soft coverage stored in the atlas into a crisp, antialiased edge.
 float strokeCover(float a) {
@@ -52,7 +44,7 @@ export const UNDER_FRAG = /* glsl */ `
 ${COMMON}
 varying vec3 vColor;
 void main() {
-  gl_FragColor = vec4(grade(vColor, 0.0), 1.0);
+  gl_FragColor = vec4(vColor, 1.0);
 }`;
 
 export const DOME_VERT = /* glsl */ `
@@ -67,14 +59,33 @@ export const DOME_FRAG = /* glsl */ `
 ${COMMON}
 uniform sampler2D uUnder;
 uniform float uElMin;
+uniform float uCanvas;   // 1 = bare canvas flecks show between strokes
 varying vec3 vDir;
+float hash(vec3 p) {
+  p = fract(p * vec3(0.1031, 0.1030, 0.0973));
+  p += dot(p, p.yxz + 33.33);
+  return fract((p.x + p.y) * p.z);
+}
+float fleck(vec3 p) {
+  vec3 i = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(hash(i), hash(i + vec3(1, 0, 0)), f.x), mix(hash(i + vec3(0, 1, 0)), hash(i + vec3(1, 1, 0)), f.x), f.y),
+             mix(mix(hash(i + vec3(0, 0, 1)), hash(i + vec3(1, 0, 1)), f.x), mix(hash(i + vec3(0, 1, 1)), hash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
 void main() {
   vec3 d = normalize(vDir);
   float az = atan(d.x, -d.z);
   float el = asin(clamp(d.y, -1.0, 1.0));
   vec2 uv = vec2(az / 6.2831853 + 0.5, clamp((el - uElMin) / (1.5707963 - uElMin), 0.002, 0.998));
   vec3 c = texture2D(uUnder, uv).rgb;
-  gl_FragColor = vec4(grade(c, 0.0), 1.0);
+  // Bare primed canvas (colour measured at the unpainted edge of the scan)
+  // showing in flecks, as it does between strokes on the real painting. The
+  // real weave is too fine to draw at this distance, so only the flecks are.
+  float f = fleck(d * 190.0) * 0.65 + fleck(d * 410.0) * 0.35;
+  float w = fwidth(f) + 1e-4;
+  float bare = smoothstep(0.6 - w, 0.6 + w, f) * uCanvas;
+  c = mix(c, vec3(0.69, 0.64, 0.51) * (0.92 + 0.16 * fleck(d * 900.0)), bare);
+  gl_FragColor = vec4(c, 1.0);
 }`;
 
 /**
@@ -96,7 +107,6 @@ varying vec2 vUv;
 varying vec3 vCol;
 varying vec3 vCol2;
 varying vec2 vLight;
-varying float vGlow;
 varying float vShape;
 
 vec3 turn(vec3 p, vec3 k, float a) {
@@ -118,7 +128,6 @@ void main() {
   float pulse = sin(uTime * 0.7 + iE.y * 2.4) * 0.5 + 0.5;
   vCol = iC.rgb * (1.0 + iE.x * (0.16 * pulse - 0.05));
   vCol2 = iD.rgb;
-  vGlow = iE.x * (0.5 + 0.5 * pulse);
   vShape = iE.z;
   vUv = vec2(aQuad.x, aQuad.y * 0.5 + 0.5);
   vLight = vec2(dot(uCanvasLight, along), dot(uCanvasLight, side));
@@ -134,14 +143,13 @@ varying vec2 vUv;
 varying vec3 vCol;
 varying vec3 vCol2;
 varying vec2 vLight;
-varying float vGlow;
 varying float vShape;
 void main() {
   vec4 t = texture2D(uAtlas, atlasUv(vUv, vShape));
   float cov = strokeCover(t.a);
   vec3 c = mix(vCol, vCol2, smoothstep(0.56, 0.8, t.b) * 0.55);
   c *= 1.0 + uRelief * dot(t.rg * 2.0 - 1.0, vLight);
-  gl_FragColor = vec4(grade(c, vGlow), cov);
+  gl_FragColor = vec4(c, cov);
 }`;
 
 /**
@@ -231,5 +239,5 @@ void main() {
   float relief = dot(t.rg * 2.0 - 1.0, vLight);
   c *= vFace * (1.0 + uRelief * relief);
   c += uMoonTint * vSheen * (0.3 + 0.7 * t.b) * 0.12;
-  gl_FragColor = vec4(grade(c, 0.0), cov);
+  gl_FragColor = vec4(c, cov);
 }`;
