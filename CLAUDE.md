@@ -210,6 +210,27 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       outlines from the viewpoint. Village is still only strokes standing on
       the valley floor (church about 190 m away). Walking limit 260 m. Load now
       about 240k strokes; frame rate at this load unmeasured.
+      Study 04 (headset, 2026-11-14): 72 fps always; town sharp again; strokes
+      fade smoothly when approached; hills still "do not have enough paint".
+      Owner: the sky is the only thing with enough paint ("I can imagine a
+      true Van Gogh admirer crying looking at this"); make the hills as good
+      as the sky. THIS IS THE QUALITY BAR FOR ALL LAND.
+      Study 05 (headset, 2026-11-14): FAILED AND ROLLED BACK. It painted the
+      land in six distance bands of strokes following the walker, widened
+      live for the walker's view, about 300k strokes. Owner's report:
+      55-63 fps (below target); clear shimmer/flicker; a clear edge between
+      the painted hills and the continued hills; valley "grass" became
+      human-height strands; live resizing "not convincing". The published
+      link is back on Study 04. Commit 2cc988a holds Study 05's code; parts
+      worth keeping from it: hills beyond the frame in the painted hills'
+      blues with a gradual join in the colour map, the mottled undercoat, the
+      slope map `land_shape.png`.
+- [ ] REBUILD AS MODULES (owner's direction, 2026-11-14, agreed): build the
+      sky, hills, valley fields, grass, roads/tracks, village and cypress each
+      as its own thing with its own rules, reference and stroke budget, with
+      designed joins between them; base the land on the real geography of
+      Saint-Remy and extend from it; build systems that do not break and are
+      smooth across. Plan to be approved by owner before code.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
@@ -274,15 +295,37 @@ All Saint-Remy period, all on Wikimedia Commons unless noted.
 
 ## Next
 
-- Get owner's headset report on step 1 (frame rate at each paint amount,
-  shimmer, colour A vs B, flow speed, cypress up close) and act on it.
-- Get owner's headset report on Study 03 (frame rate above all).
+- Agree the modular rebuild plan with the owner, then build it one module
+  per study.
 - Step 3: the village in 3D. Before building, research real Saint-Rémy
   houses and streets and bring the owner a layout proposal. The reference
   paintings still need to be brought into `reference/` (Wikimedia refuses
   larger downloads from the cloud machine; Cleveland's open-access copy of
   The Large Plane Trees may be reachable; otherwise ask the owner as before).
 - Rework the ground's manner from the two chosen ground paintings.
+
+## Lessons (do not repeat)
+
+- Measured budget on Quest 3 in the Quest browser, default resolution: about
+  240k strokes holds 72 fps; about 300k drops to 55-63. Every module gets a
+  share of roughly 240k and must stay inside it.
+- Strokes must be fixed in the world. Anything whose size, shape or presence
+  depends on where the head is (live widening, tipping toward the walker,
+  bands that follow the walker and fade by distance) shimmers and reads as
+  fake in the headset. This was the founding rule of the project and Study 05
+  broke it. Level of detail must be done some other way (fixed strokes at
+  several sizes, placed once).
+- One change per study. Study 05 changed colour, structure, density and
+  orientation of the land at once, so its faults could not be told apart.
+- Flat stills from this machine do not show shimmer, frame rate, or scale
+  (human-height "grass" looked fine in stills). Scale must be reasoned in
+  metres against a 1.7 m person before publishing.
+- A stroke standing upright is an object with a height. Only things that are
+  really that tall (grass 0.3 m, wheat 1 m, bushes 2 m) may stand.
+- Screenshots from the owner (2026-11-14) also show, in Study 04/05 alike: a
+  grey rectangular patch on the ground right of the cypress (the filled-in
+  area behind the tree, projected onto the land) and a pale triangular peak
+  right of the dark mountain. Both are bake faults in `analyse.py`.
 
 ## Known issues / open questions
 
