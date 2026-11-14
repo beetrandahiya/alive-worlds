@@ -230,7 +230,18 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       as its own thing with its own rules, reference and stroke budget, with
       designed joins between them; base the land on the real geography of
       Saint-Remy and extend from it; build systems that do not break and are
-      smooth across. Plan to be approved by owner before code.
+      smooth across. Owner's choices (2026-11-14):
+      - Geography: painting first, real land as inspiration (keep a valley
+        shaped to match the painting from the viewpoint; borrow real features
+        of Saint-Remy and the Alpilles to make the rest believable).
+      - Valley floor: fields, groves and hedges as painted: low wheat or
+        stubble in front, divided by hedges and a lane; rounded olive trees
+        and bushes in swirling strokes to the right, 3-5 m tall, each a real
+        3D form like the cypress.
+      - Order: hills first. One piece per test version from now on.
+      Pieces: sky (done, the standard), cypress (done), hills, valley fields,
+      grass underfoot, roads/tracks, village. Each: own rules, own reference,
+      a fixed share of ~240k strokes, a designed join with its neighbours.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
@@ -309,12 +320,12 @@ All Saint-Remy period, all on Wikimedia Commons unless noted.
 - Measured budget on Quest 3 in the Quest browser, default resolution: about
   240k strokes holds 72 fps; about 300k drops to 55-63. Every module gets a
   share of roughly 240k and must stay inside it.
-- Strokes must be fixed in the world. Anything whose size, shape or presence
-  depends on where the head is (live widening, tipping toward the walker,
-  bands that follow the walker and fade by distance) shimmers and reads as
-  fake in the headset. This was the founding rule of the project and Study 05
-  broke it. Level of detail must be done some other way (fixed strokes at
-  several sizes, placed once).
+- Strokes must be fixed in the world. Anything whose size or shape depends
+  on where the head is (live widening, tipping toward the walker) shimmers
+  and reads as fake in the headset. This was the founding rule of the project
+  and Study 05 broke it. What IS fine (confirmed smooth in Study 04): a fixed
+  stroke fading out as the walker comes near it, and fine strokes on a tile
+  round the walker's feet.
 - One change per study. Study 05 changed colour, structure, density and
   orientation of the land at once, so its faults could not be told apart.
 - Flat stills from this machine do not show shimmer, frame rate, or scale
