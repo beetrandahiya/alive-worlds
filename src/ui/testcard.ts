@@ -2,13 +2,13 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Still a bare model', 'Plain shapes and flat colours. Judge the place and the start view, not the look.'],
-  ['The start view', 'Each building he painted now stands where he painted it. Does the village read as the painting: church, red roof on the left, lit windows, grove behind, big bushes on the right?'],
-  ['Turn round', 'The asylum stands behind you: the long wing with one lit upper window (his), and the chapel tower to the right. Right distance? Too close, too big?'],
-  ['Below you, to the left', 'The walled wheat field. Right place and size?'],
-  ['Walk into the village', 'The painted houses were sized from the canvas. Do any feel wrong at your height: too tall, too small, oddly turned?'],
-  ['Behind the cypress and beyond the frame', 'The village carries on round a ring lane there. Does it feel like one village?'],
-  ['Frame rate', 'Should still be 72.'],
+  ['Still a bare model', 'Only the town plan and the asylum size changed.'],
+  ['The start view', 'Still close to the painting?'],
+  ['Walk the streets', 'Down the lane to the front street, then along each street and cross lane. Does any road still run through a house, or any house into another or into the church?'],
+  ['Is it a town?', 'Houses face the streets with doors on them. Does it feel like a place people built, or still like scattered boxes? Too straight and grid-like?'],
+  ['Street widths', 'Church street is narrow (under 4 m); the front street is about 5 m. Right?'],
+  ['The asylum', 'Now 78 m long, nearer its real size. Better, or too much?'],
+  ['Wheat field', 'Moved left of the lane as a stand-in. Its real place is being researched; ignore it for now.'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

@@ -375,6 +375,32 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
         Asylum and Chapel or photographs.
       - Walled wheat field 68 x 52 m at the foot of the knoll, left of the
         lane; 1.7 m stone wall (blocks walking; no gate yet).
+      Study 12 (headset, 2026-11-14): 72 fps; start view "looks good, quite
+      close to the painting"; house sizes good; asylum outside "alright";
+      hidden part "just all right". FAULTS: the lane ran through houses; some
+      houses collided with the church. Owner: from far it must look like the
+      painting, up close it must be a real town where everything works. Asked
+      whether the asylum is real size (it was a guess) and for proper research
+      on the wheat field (where it is, how it looks).
+      Study 13 BUILT 2026-11-14, AWAITING HEADSET TEST (bare forms):
+      - Town plan rebuilt in `village.ts`. Streets are explicit (`roads`): a
+        front street (z -92), a street between the front and middle painted
+        rows (z -126), church street (z -168.6), two cross lanes (x -8, x 41)
+        and a ring lane. All are laid where no painted building stands.
+      - Nothing can be built into anything: true oriented-rectangle overlap
+        test (`overlap`), and `onRoad` for streets. Painted neighbours that he
+        drew touching give up width until they form a terrace. Extra houses
+        (26) line the streets, doors to the street, only where the start view
+        cannot see, borrowing wall and roof colours from the painted houses.
+        Painted trees step aside if a street or house needs their spot.
+      - Asylum wing 78 x 12 m. Measured on OpenStreetMap, the real complex is
+        about 150 m across with wings 75-100 m long, so the first 64 m guess
+        was too small, not exaggerated.
+      - Wheat field moved to a provisional spot left of the lane (-58, -52),
+        52 x 40 m, pending research.
+      - `?up=230&pitch=89.9&x=5&z=-150` gives an overhead plan view for checks.
+      Known: the plan is a straight grid inside the ring, not the winding
+      lanes of the real old town.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

@@ -30,8 +30,6 @@ interface VillageData {
 }
 interface Footprint { x: number; z: number; yaw: number; w: number; d: number }
 
-const WALLS = [[0.45, 0.5, 0.55], [0.3, 0.36, 0.45], [0.55, 0.57, 0.55], [0.24, 0.29, 0.38]];
-const ROOFS = [[0.17, 0.23, 0.42], [0.25, 0.34, 0.5], [0.2, 0.28, 0.33], [0.42, 0.28, 0.22]];
 const LIT = [0.93, 0.78, 0.22];
 const DARK = [0.08, 0.1, 0.18];
 const DOOR = [0.16, 0.14, 0.14];
@@ -126,36 +124,107 @@ export async function buildVillage(base: string) {
     footprints.push(fp);
   };
 
+  // --- two oriented rectangles overlap? (so nothing is ever built into anything else)
+  const cornersOf = (fp: Footprint, grow = 0) => {
+    const c = Math.cos(fp.yaw), s = Math.sin(fp.yaw), w = fp.w / 2 + grow, d = fp.d / 2 + grow;
+    return [[-w, -d], [w, -d], [w, d], [-w, d]].map(([x, z]) => new THREE.Vector2(fp.x + x * c - z * s, fp.z + x * s + z * c));
+  };
+  const overlap = (a: Footprint, b: Footprint, gap: number) => {
+    const A = cornersOf(a, gap / 2), B = cornersOf(b, gap / 2);
+    for (const fp of [a, b]) {
+      for (const ang of [fp.yaw, fp.yaw + Math.PI / 2]) {
+        const ax = new THREE.Vector2(Math.cos(ang), Math.sin(ang));
+        const pa = A.map((p) => p.dot(ax)), pb = B.map((p) => p.dot(ax));
+        if (Math.max(...pa) < Math.min(...pb) || Math.max(...pb) < Math.min(...pa)) return false;
+      }
+    }
+    return true;
+  };
+  const overlaps = (fp: Footprint, gap: number) => footprints.some((o) => overlap(fp, o, gap));
+
+  // --- the streets. The painted buildings stand in three rows across the
+  // view; the streets run between the rows, two lanes cross them, and a lane
+  // on the line of old walls rings the whole, as the boulevards ring the real
+  // old town. Every street is laid where no painted building stands.
+  type Road = { pts: THREE.Vector2[]; half: number };
+  const V = (x: number, z: number) => new THREE.Vector2(x, z);
+  const roads: Road[] = [
+    { pts: [V(-78, -92), V(76, -92)], half: 2.6 },      // the front street, where the lane from the asylum arrives
+    { pts: [V(-78, -126), V(88, -126)], half: 2.4 },    // between the front and middle rows
+    { pts: [V(-78, -168.6), V(90, -168.6)], half: 1.9 }, // church street, between the middle row and the church's row
+    { pts: [V(-8, -92), V(-8, -168.6)], half: 1.8 },    // west cross lane
+    { pts: [V(41, -92), V(41, -168.6)], half: 1.8 },    // east cross lane
+    { // the ring lane
+      pts: [V(-78, -92), V(-84, -110), V(-84, -186), V(-70, -204), V(72, -204), V(90, -190), V(90, -108), V(76, -92)],
+      half: 2.2,
+    },
+  ];
+  const distToRoad = (p: THREE.Vector2, rd: Road) => {
+    let best = Infinity;
+    for (let i = 0; i < rd.pts.length - 1; i++) {
+      const a = rd.pts[i], ab = rd.pts[i + 1].clone().sub(a);
+      const t = THREE.MathUtils.clamp(p.clone().sub(a).dot(ab) / ab.lengthSq(), 0, 1);
+      best = Math.min(best, p.distanceTo(a.clone().addScaledVector(ab, t)));
+    }
+    return best;
+  };
+  /** Does a building stand in a street? */
+  const onRoad = (fp: Footprint, gap = 0.3) => {
+    const pts = cornersOf(fp);
+    pts.push(V(fp.x, fp.z), ...pts.map((p, i) => p.clone().lerp(pts[(i + 1) % 4], 0.5)));
+    return roads.some((rd) => pts.some((p) => distToRoad(p, rd) < rd.half + gap));
+  };
+
   // --- the heart: what he painted, where he painted it
-  for (const h of data.houses) {
-    // `front` -1: the side toward the start carries the doors and lit windows
-    house({ x: h.x, z: h.z, yaw: facingStart(h.x, h.z), w: h.w, d: r.range(6.4, 8.2) }, h.wall, h.rise, h.wallColour, h.roofColour, h.lit, 1);
-  }
+  const DEPTH = 6.5;
+  const painted: { fp: Footprint; b: Built }[] = data.houses.map((h) => ({
+    fp: { x: h.x, z: h.z, yaw: facingStart(h.x, h.z), w: h.w, d: DEPTH },
+    b: h,
+  }));
   const ch = data.church;
+  const cyaw = facingStart(ch.nave.x, ch.nave.z);
+  // the nave runs away from the start, showing its gable end, as he painted it
+  const nave: Footprint = { x: ch.nave.x, z: ch.nave.z, yaw: cyaw + Math.PI / 2, w: 18, d: ch.nave.w };
   {
-    const yaw = facingStart(ch.nave.x, ch.nave.z);
-    // the nave runs away from the start, showing its gable end, as he painted it
-    const nave: Footprint = { x: ch.nave.x, z: ch.nave.z, yaw: yaw + Math.PI / 2, w: 20, d: ch.nave.w };
-    const back = new THREE.Vector2(ch.nave.x, ch.nave.z).normalize().multiplyScalar(nave.w / 2 - 4);
+    const back = V(ch.nave.x, ch.nave.z).normalize().multiplyScalar(nave.w / 2 - 2.5);
     nave.x += back.x;
     nave.z += back.y;
+  }
+  const tw = Math.max(ch.tower.w, 4.4);
+  const tower: Footprint = { x: ch.tower.x, z: ch.tower.z, yaw: cyaw, w: tw, d: tw };
+  const wing: Footprint = { x: ch.wing.x, z: ch.wing.z, yaw: cyaw, w: ch.wing.w, d: DEPTH };
+  // He drew neighbours touching or overlapping. Standing in a real street they
+  // become a terrace: each gives up a little width until none is inside another.
+  const fixed = [nave, tower, wing, ...painted.map((q) => q.fp)];
+  for (let pass = 0; pass < 12; pass++) {
+    for (let i = 0; i < fixed.length; i++) {
+      for (let j = i + 1; j < fixed.length; j++) {
+        if (!overlap(fixed[i], fixed[j], 0.05)) continue;
+        for (const f of [fixed[i], fixed[j]]) if (f !== nave && f !== tower) f.w *= 0.93;
+        if (fixed[i] === nave || fixed[j] === nave) nave.d *= 0.96;
+      }
+    }
+  }
+  for (const q of painted) {
+    if (onRoad(q.fp, 0)) q.fp.d = 5.2; // a shallow house rather than one in the street
+    house(q.fp, q.b.wall, q.b.rise, q.b.wallColour, q.b.roofColour, q.b.lit, 1);
+  }
+  {
     const y0 = groundUnder(nave);
     walls(nave, y0, ch.nave.wall, ch.nave.wallColour);
     gable(nave, y0, ch.nave.wall, ch.nave.rise, ch.nave.roofColour, ch.nave.wallColour);
     for (const side of [-1, 1]) for (const x of [-5, 0, 5]) panel(nave, y0, x, 2.6, 1.0, 3.0, side, DARK);
-    const tower: Footprint = { x: ch.tower.x, z: ch.tower.z, yaw, w: Math.max(ch.tower.w, 4.4), d: Math.max(ch.tower.w, 4.4) };
     const towerH = ch.tower.wall;
     walls(tower, y0, towerH, ch.tower.wallColour);
     const P = frame(tower, y0);
     const t = tower.w / 2 + 0.25;
-    const corners = [[-t, -t], [t, -t], [t, t], [-t, t]];
+    const cs = [[-t, -t], [t, -t], [t, t], [-t, t]];
     for (let i = 0; i < 4; i++) {
-      const a = corners[i], b = corners[(i + 1) % 4];
+      const a = cs[i], b = cs[(i + 1) % 4];
       tri(P(a[0], towerH, a[1]), P(0, ch.spireTop, 0), P(b[0], towerH, b[1]), ch.tower.roofColour);
     }
     panel(tower, y0, 0, 0, 1.5, 2.5, 1, DOOR);
     panel(tower, y0, 0, towerH * 0.62, 0.9, 2.2, 1, DARK);
-    const wing: Footprint = { x: ch.wing.x, z: ch.wing.z, yaw, w: ch.wing.w + 1, d: 7 };
     walls(wing, y0, ch.wing.wall, ch.wing.wallColour);
     gable(wing, y0, ch.wing.wall, ch.wing.rise, ch.wing.roofColour, ch.wing.wallColour);
     footprints.push(nave, tower, wing);
@@ -172,57 +241,54 @@ export async function buildVillage(base: string) {
     if (px < -30 || px > cam.W + 30 || py < 0 || py > cam.H + 40) return false;
     return !(px > 185 && px < 520); // the cypress stands in front of this part
   };
-  const overlaps = (fp: Footprint, margin: number) => {
-    const reach = Math.hypot(fp.w, fp.d) / 2;
-    return footprints.some((o) => Math.hypot(fp.x - o.x, fp.z - o.z) < reach + Math.hypot(o.w, o.d) / 2 + margin);
-  };
 
-  // --- the rest of the village, in the manner of the real old town: a ring
-  // lane on the line of old walls, houses shoulder to shoulder along it
-  const heart = new THREE.Vector2(ch.nave.x, ch.nave.z);
-  const away = heart.clone().normalize();
-  const across = new THREE.Vector2(-away.y, away.x);
-  const centre = heart.clone().addScaledVector(across, -58).addScaledVector(away, -18);
-  const ring = (a: number, grow = 0) =>
-    centre.clone().addScaledVector(across, Math.cos(a) * (78 + grow)).addScaledVector(away, Math.sin(a) * (58 + grow));
+  // --- the rest of the village: houses shoulder to shoulder along the same
+  // streets, their doors on the street, only where the start view cannot see
+  // them, and never in a street or inside another building
+  const wallsBorrowed = data.houses.map((h) => h.wallColour);
+  const roofsBorrowed = data.houses.map((h) => h.roofColour);
   let extra = 0;
-  for (const grow of [-7.5, 7.5]) {
-    for (let a = 0; a < Math.PI * 2 && extra < 26; ) {
-      const w = r.range(7.5, 12), d = r.range(6.2, 8);
-      const p = ring(a, grow), q = ring(a + 0.02, grow);
-      const yaw = Math.atan2(q.y - p.y, q.x - p.x);
-      a += (w + r.range(0.6, 5)) / 70;
-      const fp: Footprint = { x: p.x, z: p.y, yaw, w, d };
-      const wallH = r.next() < 0.5 ? r.range(5.4, 6.4) : r.range(3.2, 4.1);
-      if (seenFromStart(p.x, terrain(p.x, p.y) + wallH, p.y) || overlaps(fp, 1.2)) continue;
-      house(fp, wallH, r.range(1.6, 3.2), r.pick(WALLS), r.pick(ROOFS), r.next() < 0.35 ? 1 : 0, grow < 0 ? 1 : -1);
-      extra++;
+  for (const rd of roads) {
+    for (let i = 0; i < rd.pts.length - 1; i++) {
+      const a = rd.pts[i], ab = rd.pts[i + 1].clone().sub(a);
+      const len = ab.length(), dir = ab.clone().normalize(), side = V(-dir.y, dir.x);
+      const yaw = Math.atan2(dir.y, dir.x);
+      for (const sgn of [-1, 1]) {
+        let along = r.range(1, 5);
+        while (along < len - 5 && extra < 26) {
+          const w = r.range(7, 11.5), d = r.range(6, 7.6);
+          const c = a.clone().addScaledVector(dir, along + w / 2).addScaledVector(side, sgn * (rd.half + d / 2 + 0.5));
+          const fp: Footprint = { x: c.x, z: c.y, yaw, w, d };
+          along += w + (r.next() < 0.25 ? r.range(3, 9) : 0.25);
+          const wallH = r.next() < 0.55 ? r.range(5.4, 6.4) : r.range(3.2, 4.1);
+          if (seenFromStart(c.x, terrain(c.x, c.y) + wallH + 2, c.y) || overlaps(fp, 0.2) || onRoad(fp)) continue;
+          house(fp, wallH, r.range(1.6, 3.0), r.pick(wallsBorrowed), r.pick(roofsBorrowed), r.next() < 0.35 ? 1 : 0, -sgn);
+          extra++;
+        }
+      }
     }
   }
 
-  // --- lanes, lying on the ground
+  // --- streets and the lane, lying on the ground
   const strip = (pts: THREE.Vector2[], half: number, colour: number[]) => {
     for (let i = 0; i < pts.length - 1; i++) {
       const a = pts[i], b = pts[i + 1];
-      const side = new THREE.Vector2(-(b.y - a.y), b.x - a.x).normalize().multiplyScalar(half);
-      const v = (p: THREE.Vector2, s: number) => {
-        const x = p.x + side.x * s, z = p.y + side.y * s;
-        return [x, terrain(x, z) + 0.06, z];
-      };
-      quad(v(a, -1), v(a, 1), v(b, 1), v(b, -1), colour);
+      const n = Math.max(1, Math.ceil(a.distanceTo(b) / 5));
+      for (let k = 0; k < n; k++) {
+        const p = a.clone().lerp(b, k / n), q = a.clone().lerp(b, (k + 1) / n);
+        const side = V(-(q.y - p.y), q.x - p.x).normalize().multiplyScalar(half);
+        const v = (m: THREE.Vector2, sg: number) => {
+          const x = m.x + side.x * sg, z = m.y + side.y * sg;
+          return [x, terrain(x, z) + 0.06, z];
+        };
+        quad(v(p, -1), v(p, 1), v(q, 1), v(q, -1), colour);
+      }
     }
   };
   const roadColour = data.road.map((c) => c * 0.8);
-  strip(Array.from({ length: 73 }, (_, i) => ring((i / 72) * Math.PI * 2)), 2.2, roadColour);
-  // the lane from the start, round the walled field, to the church
-  const lane: THREE.Vector2[] = [];
-  for (let i = 0; i <= 60; i++) {
-    const t = i / 60;
-    const p = new THREE.Vector2(7, -6).lerp(heart.clone().addScaledVector(away, -22), t);
-    p.x += Math.sin(t * Math.PI) * 26 + Math.sin(t * Math.PI * 3) * 3;
-    lane.push(p);
-  }
-  strip(lane, 1.4, roadColour);
+  for (const rd of roads) strip(rd.pts, rd.half, roadColour);
+  // the lane from the asylum down the slope to the front street
+  strip([V(7, -6), V(15, -30), V(12, -58), V(0, -80), V(-8, -92)], 1.4, roadColour);
 
   // --- trees: the ones he painted, where he painted them, then groves beyond the frame
   const ico = new THREE.IcosahedronGeometry(1, 1);
@@ -240,22 +306,34 @@ export async function buildVillage(base: string) {
     for (let i = 0; i < ip.count; i += 3) tri(v(i), v(i + 1), v(i + 2), colour);
     treeAt.push(new THREE.Vector3(x, 0, z));
   };
-  for (const t of data.trees) tree(t.x, t.z, t.r, t.h, t.colour.map((c) => c * 0.85));
+  for (const t of data.trees) {
+    // a painted tree keeps its place unless a street or house needs it; then it steps aside
+    let x = t.x, z = t.z;
+    for (let k = 0; k < 14; k++) {
+      const spot: Footprint = { x, z, yaw: 0, w: t.r * 1.2, d: t.r * 1.2 };
+      if (!overlaps(spot, 0) && !onRoad(spot, 0)) break;
+      const a = k * 2.4;
+      x = t.x + Math.cos(a) * (1.5 + k * 0.9);
+      z = t.z + Math.sin(a) * (1.5 + k * 0.9);
+    }
+    tree(x, z, t.r, t.h, t.colour.map((c) => c * 0.85));
+  }
   const greens = data.trees.slice(0, 5).map((t) => t.colour.map((c) => c * 0.8));
   for (let k = 0; k < 420 && treeAt.length < 190; k++) {
     const a = r.range(0, Math.PI * 2), d = r.range(110, 330);
     const x = Math.sin(a) * d, z = -Math.cos(a) * d;
     const wide = r.range(2.2, 4.2), high = r.range(3.4, 6);
     if (seenFromStart(x, terrain(x, z) + high, z)) continue;
-    if (overlaps({ x, z, yaw: 0, w: wide * 2, d: wide * 2 }, 1) || treeAt.some((t) => Math.hypot(t.x - x, t.z - z) < wide * 2.2)) continue;
-    if (Math.abs(ring(Math.atan2((z - centre.y) / 58, (x - centre.x) / 78)).distanceTo(new THREE.Vector2(x, z))) < 6) continue;
+    const spot: Footprint = { x, z, yaw: 0, w: wide * 2, d: wide * 2 };
+    if (overlaps(spot, 1) || onRoad(spot, 0.5) || treeAt.some((t) => Math.hypot(t.x - x, t.z - z) < wide * 2.2)) continue;
     tree(x, z, wide, high, r.pick(greens));
   }
 
   // --- the walled wheat field below the start (letter 776: "an enclosed square of wheat")
   {
-    const c = new THREE.Vector2(-34, -118);
-    const half = [34, 26];
+    // PROVISIONAL place and size, on the slope left of the lane; research on the real field is under way
+    const c = new THREE.Vector2(-58, -52);
+    const half = [26, 20];
     const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => new THREE.Vector2(c.x + a * half[0], c.y + b * half[1]));
     const fieldColour = data.field.map((v, i) => v * [1.35, 1.25, 0.8][i]);
     const N = 12;
@@ -284,31 +362,31 @@ export async function buildVillage(base: string) {
 
   // --- the asylum behind the start: the men's wing with his window, and the chapel tower
   {
-    const wing: Footprint = { x: 6, z: 17, yaw: 0, w: 64, d: 10.5 };
+    const wing: Footprint = { x: 4, z: 18, yaw: 0, w: 78, d: 12 }; // the map shows wings 75 to 100 m long
     const y0 = groundUnder(wing);
     const pale = [0.5, 0.5, 0.46];
     walls(wing, y0, 11.5, pale);
     gable(wing, y0, 11.5, 2.4, [0.33, 0.27, 0.24], pale);
     for (let f = 0; f < 3; f++) {
-      for (let i = 0; i < 16; i++) {
-        const x = -30 + i * 4;
-        const his = f === 2 && i === 6; // the lit upper window, straight behind the start
+      for (let i = 0; i < 19; i++) {
+        const x = -36 + i * 4;
+        const his = f === 2 && i === 8; // the lit upper window, straight behind the start
         panel(wing, y0, x, 1.4 + f * 3.5, 1.1, 1.9, -1, his ? LIT : DARK);
         panel(wing, y0, x, 1.4 + f * 3.5, 1.1, 1.9, 1, DARK);
       }
     }
-    const chapel: Footprint = { x: 49, z: 26, yaw: Math.PI / 2, w: 24, d: 10 };
+    const chapel: Footprint = { x: 58, z: 28, yaw: Math.PI / 2, w: 24, d: 10 };
     const yc = groundUnder(chapel);
     walls(chapel, yc, 9, pale);
     gable(chapel, yc, 9, 3, [0.33, 0.27, 0.24], pale);
-    const tower: Footprint = { x: 41, z: 20, yaw: 0, w: 6, d: 6 };
-    walls(tower, yc, 21, pale);
-    const P = frame(tower, yc);
+    const belfry: Footprint = { x: 50, z: 22, yaw: 0, w: 6, d: 6 };
+    walls(belfry, yc, 21, pale);
+    const P = frame(belfry, yc);
     const t = 3.3;
     const cs = [[-t, -t], [t, -t], [t, t], [-t, t]];
     for (let i = 0; i < 4; i++) tri(P(cs[i][0], 21, cs[i][1]), P(0, 26, 0), P(cs[(i + 1) % 4][0], 21, cs[(i + 1) % 4][1]), STONE);
-    for (const side of [-1, 1]) panel(tower, yc, 0, 15.5, 1.6, 2.6, side, DARK);
-    footprints.push(wing, chapel, tower);
+    for (const side of [-1, 1]) panel(belfry, yc, 0, 15.5, 1.6, 2.6, side, DARK);
+    footprints.push(wing, chapel, belfry);
   }
 
   const g = new THREE.BufferGeometry();

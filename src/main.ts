@@ -82,6 +82,7 @@ async function start() {
   resize();
   rig.look(Number(params.get('yaw') ?? 0), Number(params.get('pitch') ?? -meta.pitchDeg));
   if (params.has('x')) rig.group.position.set(Number(params.get('x')), 0, Number(params.get('z') ?? 0));
+  if (params.has('up')) camera.position.y = Number(params.get('up')); // a bird's-eye view, for checking plans off-headset
 
   const veil = $('veil');
   const note = $('note');
