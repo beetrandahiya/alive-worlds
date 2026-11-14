@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { shared } from './paint/strokes';
+import { TEST_LIST, testCard } from './ui/testcard';
 import { WristReadout } from './ui/wrist';
 import { buildCypress } from './worlds/starry/cypress';
 import { buildGround } from './worlds/starry/ground';
@@ -53,20 +54,22 @@ async function start() {
   let density = Number(params.get('paint') ?? 2);
   let night = Number(params.get('night') ?? 0);
   const wrist = new WristReadout(__BUILD__);
+  const card = testCard();
+  $('tests').innerHTML = TEST_LIST.map(([t, d]) => `<li><b>${t}.</b> ${d}</li>`).join('');
   const apply = () => {
     const d = DENSITY[density];
     sky.setDensity(0.6 + 0.4 * d.f);
     cypress.setDensity(d.f);
     ground.setDensity(d.f);
     shared.uNight.value = night;
-    wrist.set([`A  colour: ${night ? 'deeper night' : 'canvas as it hangs'}`, `B  paint: ${d.name}`]);
+    wrist.set([`A  colour: ${night ? 'deeper night' : 'canvas as it hangs'}`, `B  paint: ${d.name}    Y  what to test`]);
   };
   apply();
 
   for (const i of [0, 1]) {
     const grip = renderer.xr.getControllerGrip(i);
     grip.addEventListener('connected', (e) => {
-      if ((e as unknown as { data: XRInputSource }).data.handedness === 'left') grip.add(wrist.mesh);
+      if ((e as unknown as { data: XRInputSource }).data.handedness === 'left') grip.add(wrist.mesh, card);
     });
     rig.group.add(grip);
   }
@@ -99,7 +102,7 @@ async function start() {
   const xr = navigator.xr;
   if (xr && (await xr.isSessionSupported('immersive-vr').catch(() => false))) {
     enter.hidden = false;
-    note.textContent = 'Left stick to walk, right stick to turn. Readout is on your left wrist.';
+    note.textContent = 'Left stick to walk, right stick to turn. Frame rate is on your left wrist; Y shows the test list.';
     enter.onclick = async () => {
       const session = await xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] });
       await renderer.xr.setSession(session);
@@ -129,6 +132,7 @@ async function start() {
     if (pressed.a) { night = 1 - night; apply(); }
     if (pressed.b) { density = (density + 1) % DENSITY.length; apply(); }
     if (pressed.x) wrist.mesh.visible = !wrist.mesh.visible;
+    if (pressed.y) card.visible = !card.visible;
     shared.uCentre.value.copy(rig.head);
     const rate = renderer.xr.getSession()?.frameRate ?? TARGET_RATE;
     if (renderer.xr.isPresenting) wrist.tick(dt, rate);

@@ -244,6 +244,10 @@ while len(stars) < 17:
     stars.append(dict(c=c, e=e, n=np.cross(c, e), rot=srng.uniform(0, 6.28), src=STAR_SRC[len(stars) % len(STAR_SRC)]))
 
 
+LIC = None
+FLOW_S = None
+
+
 def field(d, colour_img, jitter=None):
     """Colour, travel direction (3D tangent), speed 0..1 for sky directions d."""
     n_ = len(d)
@@ -257,14 +261,39 @@ def field(d, colour_img, jitter=None):
     vl, vr = d - pl, pr - d
     t0 = vl / (vl * vl).sum(-1, keepdims=True) + vr / (vr * vr).sum(-1, keepdims=True)
     t0 = norm(t0 - (t0 * d).sum(-1, keepdims=True) * d)
-    ang = 0.5 * noise3(d * 2.2, 0) + 0.22 * noise3(d * 5.0, 1)
+    ang = 0.75 * noise3(d * 2.2, 0) + 0.25 * noise3(d * 5.0, 1)
     t_ext = norm(t0 * np.cos(ang)[:, None] + np.cross(d, t0) * np.sin(ang)[:, None])
-    u = np.clip(0.36 + 0.18 * noise3(d * 3.4, 2) + jit * 0.8, 0.001, 0.999)
+
+    # The painting's currents carry on past its frame and settle gradually:
+    # each place outside takes the direction and tone of the nearest painted
+    # sky, less and less the further away it is.
+    pxa, pya, _ = project(d)
+    front = (d @ CAM_F) > 0.2
+    cx = np.where(front, np.clip(pxa, INSET + FEATHER, W - INSET - FEATHER), W / 2)
+    cy = np.where(front, np.clip(pya, INSET + FEATHER, H - INSET - FEATHER), H / 2)
+    dc = unproject(cx, cy)
+    apart = np.arccos(np.clip((dc * d).sum(-1), -1, 1))
+    w_x = np.exp(-apart / np.radians(20)) * front * samp(sky_mask, cx, cy)
+    l2 = samp(line, cx, cy)
+    l2 = norm(l2) * np.sign((l2 * samp(arrow, cx, cy)).sum(-1, keepdims=True) + 1e-6)
+    tc = norm(unproject(cx + l2[:, 0] * 2, cy + l2[:, 1] * 2) - dc)
+    tc = norm(tc - (tc * d).sum(-1, keepdims=True) * d)
+    t_ext = norm(t_ext * (1 - w_x)[:, None] + tc * w_x[:, None])
+    edge_col = samp(scene_soft, cx, cy)
+    if FLOW_S is not None:  # the same directions, with corners and creases eased out
+        ts = eq_sample(FLOW_S, d)
+        t_ext = norm(ts - (ts * d).sum(-1, keepdims=True) * d)
+
+    # Light and dark run in bands along the currents (see LIC below).
+    band = eq_sample(LIC, d) if LIC is not None else np.full(n_, 0.5, np.float32)
+    u = np.clip(0.4 + (band - 0.5) * 0.8 + jit * 0.42, 0.001, 0.999)
     c_sky = sky_pal[np.searchsorted(sky_cdf, u).clip(0, len(sky_pal) - 1)]
-    if jitter is None:  # undercoat: a calm mean, the strokes carry the contrast
-        lo = sky_pal[np.searchsorted(sky_cdf, 0.18)]
-        hi = sky_pal[np.searchsorted(sky_cdf, 0.5)]
-        c_sky = lo + (hi - lo) * np.clip(0.5 + 0.5 * noise3(d * 3.4, 2), 0, 1)[:, None]
+    if jitter is None:  # undercoat: a calmer version, the strokes carry the contrast
+        lo = sky_pal[np.searchsorted(sky_cdf, 0.12)]
+        hi = sky_pal[np.searchsorted(sky_cdf, 0.6)]
+        c_sky = lo + (hi - lo) * band[:, None]
+    glow = (0.6 * w_x ** 2)[:, None]
+    c_sky = c_sky * (1 - glow) + edge_col * glow
     r_el = ridge_ext(az)
     hk = np.clip(0.45 + 0.2 * noise3(d * 9.0, 1) + jit * 0.8, 0, 0.999) * (len(hill_pal) - 1)
     c_hill = hill_pal[hk.astype(int)]
@@ -329,6 +358,62 @@ def field(d, colour_img, jitter=None):
 def dirs(az, el):
     return np.stack([np.sin(az) * np.cos(el), np.sin(el), -np.cos(az) * np.cos(el)], -1)
 
+
+def eq_sample(grid, d):
+    """Look up a sky map (azimuth across, elevation down) in directions d."""
+    gh_, gw_ = grid.shape[:2]
+    x = (np.arctan2(d[:, 0], -d[:, 2]) + np.pi) / (2 * np.pi) * gw_ - 0.5
+    y = np.clip((np.pi / 2 - np.arcsin(np.clip(d[:, 1], -1, 1))) / (np.pi / 2 - EL_MIN) * gh_ - 0.5, 0, gh_ - 1.001)
+    x0 = np.floor(x).astype(np.int64)
+    y0 = y.astype(np.int64)
+    fx, fy = x - x0, y - y0
+    if grid.ndim == 3:
+        fx, fy = fx[:, None], fy[:, None]
+    xa, xb = x0 % gw_, (x0 + 1) % gw_
+    top = grid[y0, xa] * (1 - fx) + grid[y0, xb] * fx
+    bot = grid[y0 + 1, xa] * (1 - fx) + grid[y0 + 1, xb] * fx
+    return (top * (1 - fy) + bot * fy).astype(np.float32)
+
+
+# ------------------------------------------ bands of light and dark (LIC)
+# In the painting, light and dark strokes lie in bands that follow the
+# currents. To continue that beyond the frame, tone is smeared along the flow
+# (line integral convolution). Inside the frame the tone smeared is the
+# painting's own, so its bands run on out of the frame along the currents.
+GW, GH = 1440, 480
+gaz, gel = np.meshgrid((np.arange(GW) + 0.5) / GW * 2 * np.pi - np.pi,
+                       np.pi / 2 - (np.arange(GH) + 0.5) / GH * (np.pi / 2 - EL_MIN))
+gd = dirs(gaz.ravel(), gel.ravel())
+_, gt0, _, _ = field(gd, scene_fine)
+PAD = 40
+g0 = gt0.reshape(GH, GW, 3)
+g0 = np.concatenate([g0[:, -PAD:], g0, g0[:, :PAD]], 1)
+FLOW_S = norm(cv2.GaussianBlur(g0, (0, 0), 11)[:, PAD:-PAD])
+gcol, gt, gsp, _ = field(gd, scene_fine)
+gpx, gpy, gvalid = project(gd)
+gwp = smoothstep(0, FEATHER, np.minimum.reduce([gpx - INSET, W - INSET - gpx, gpy - INSET, H - INSET - gpy])) * gvalid
+LUMW = np.array([0.299, 0.587, 0.114], np.float32)
+tone_painting = np.interp(gcol @ LUMW, sky_pal @ LUMW, sky_cdf)
+grain = noise3(gd * 60.0, 0) + noise3(gd * 95.0, 1)
+grain = np.argsort(np.argsort(grain)) / len(grain)
+seed_g = (tone_painting * gwp + grain * (1 - gwp)).astype(np.float32).reshape(GH, GW)
+live_g = (gsp > 0.3).astype(np.float32).reshape(GH, GW)
+flow_g = (gt * (gsp > 0.3)[:, None]).reshape(GH, GW, 3)
+KSTEP, HSTEP = 22, np.radians(0.5)
+acc = seed_g.ravel().copy()
+wsum = np.ones(len(gd), np.float32)
+for sgn in (1.0, -1.0):
+    p_ = gd.copy()
+    for k in range(1, KSTEP + 1):
+        p_ = norm(p_ + sgn * eq_sample(flow_g, p_) * HSTEP)
+        wk = (0.5 + 0.5 * np.cos(np.pi * k / (KSTEP + 1))) * eq_sample(live_g, p_)
+        acc += eq_sample(seed_g, p_) * wk
+        wsum += wk
+lic = acc / wsum
+is_live = gsp > 0.3
+rank = np.full(len(gd), 0.5, np.float32)
+rank[is_live] = np.argsort(np.argsort(lic[is_live])) / max(is_live.sum(), 1)
+LIC = cv2.GaussianBlur(rank.reshape(GH, GW), (0, 0), 0.8)
 
 # ------------------------------------------------------------------ undercoat
 UW, UH = 4096, 1366

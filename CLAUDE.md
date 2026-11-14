@@ -108,6 +108,10 @@ follow; do not build for them yet. No museum yet.
   (natural view, not monumental).
 - Sky beyond the painting's frame: the same sky continues all round — same
   blues, a few more stars copied from the painting's own. No second swirl or moon.
+- The join between the painted sky and the continued sky must be coherent
+  (owner, 2026-11-14, after seeing a visible seam): the painting's currents and
+  its bands of light and dark carry on past the frame and settle gradually.
+  A fan of strokes rising from the horizon is fine.
 - Owner asked (2026-11-13) that published studies of Van Gogh's brushwork and
   of this painting inform the stroke model. A research pass was started and
   did not finish; redo it (see Next).
@@ -135,7 +139,9 @@ press "Step inside". The build label at the bottom of the page and on the wrist
 readout (commit + time) confirms which version is loaded; reload if it is old.
 
 Study controls: left stick walk, right stick turn, A = colour canvas / deeper
-night, B = paint amount light / medium / full, X = hide wrist readout.
+night, B = paint amount light / medium / full, X = hide wrist readout,
+Y = show the what-to-test list above the left hand (also on the landing page;
+the list lives in `src/ui/testcard.ts` — update it for each study).
 On a computer: drag to look, W A S D to walk, C / V for colour / paint.
 URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
 (default 0.5), `?paint=0..2`, `?night=1`.
@@ -194,8 +200,11 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
   come from the bushes at its bottom edge. Needs his field studies as reference.
 - Sky behind the cypress is filled in by diffusion; two star halos next to the
   tree smear into rectangles there (visible if you walk sideways).
-- Extended sky: the flow rises from a point below the horizon to the left and
-  sets to the right; a faint fan is visible low on the left and right horizons.
+- Extended sky: outside the frame each place takes direction and tone from
+  the nearest painted sky, fading over about 20°, and tone is smeared along the
+  flow so bands continue (`analyse.py`, "LIC"). Remaining flaw: herringbone
+  creases run diagonally out from the frame's upper corners, where "nearest
+  painted sky" jumps from one edge to another. Checked only in flat stills.
 - Small stars near the top edge of the painting are soft smudges.
 - Walking is limited to 55 m from the viewpoint; walking downhill shows the
   backdrop village sliding with you (it is at infinity until step 3).
