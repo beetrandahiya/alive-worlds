@@ -122,8 +122,7 @@ follow; do not build for them yet. No museum yet.
   its bands of light and dark carry on past the frame and settle gradually.
   A fan of strokes rising from the horizon is fine.
 - Owner asked (2026-11-13) that published studies of Van Gogh's brushwork and
-  of this painting inform the stroke model. A research pass was started and
-  did not finish; redo it (see Next).
+  of this painting inform the stroke model. Done 2026-11-14: see Research.
 
 ## Technology (chosen by Claude, approved by owner 2026-11-13)
 
@@ -195,15 +194,67 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
 - [ ] Step 7: entry room and frame, painted hands, menu card, settings.
 - [ ] Step 8: polish and performance passes.
 
+## Research (2026-11-14)
+
+What published sources add to what the scan shows. Items marked (unverified)
+were recalled by the researcher, not read on a page.
+
+- Stroke sizes on this canvas (Ma et al. 2024, Physics of Fluids 36, 095140,
+  arxiv.org/abs/2310.03415, measured on the Google scan): width 0.09-1.5 cm,
+  length 1.2-6 cm, median 3.6 cm. At our 65 degree view 1 cm of canvas is about
+  0.71 degrees, so the median stroke is about 2.5 degrees long. Our sky strokes
+  (1.8-3.7 degrees long, 0.45-0.78 wide) sit inside that range, slightly long.
+- The sky's 14 eddies are 4.2-27.6 cm across (3-19.5 degrees), and its
+  brightness follows turbulence scaling (Kolmogorov -5/3 over 4.3-15 cm). Use
+  these sizes if eddies are ever added to the continued sky.
+- What marks his strokes statistically (Li, Yao, Hendriks, Wang 2012, TPAMI):
+  many tightly packed, regular, elongated, straight strokes. Exact numbers
+  not obtained (paywalled).
+- Order of painting: stars were painted last, over everything else (Naifeh &
+  Smith 2011; biography, not a technical study). We draw star dabs on top.
+- Pigments (Zhao, Berns et al. 2008, spectral imaging): ultramarine in the
+  deep sky, cobalt blue in the bright swirls and round the moon, emerald
+  green round the moon, Indian and zinc yellow in moon and stars, burnt umber
+  in the cypress branches.
+- Colour change since 1889: no source found for this painting. Nothing
+  supports any particular "original" look. (Owner chose the canvas as it hangs.)
+- Impasto height in mm: no published figure found. His "Cypresses" (Met) has
+  sand and pebbles up to 6 mm in the paint; letter 783: cypress foregrounds
+  "painted very thick".
+- Real vs imagined: view is from the east-facing asylum window; the Alpilles
+  are real; the village was not visible from there and comes from a sketch
+  made on a hillside above Saint-Remy (F1541v); the steeple is more Dutch
+  than Provencal; the cypress is pulled forward and enlarged; the bright star
+  right of the cypress is Venus; the moon was really gibbous, painted crescent.
+- MoMA's own technical notes and the full Li 2012 numbers were not reachable.
+- Possible larger scan on Commons (44567 x 35291) reported; unchecked, may be
+  an upscale.
+
+### Candidate references for unseen parts (owner to choose)
+
+All Saint-Remy period, all on Wikimedia Commons unless noted.
+- Ground at night: Landscape with Wheat Sheaves and Rising Moon (F735,
+  Kroller-Muller; the same enclosed field at moonrise); Road with Cypress and
+  Star (F683, May 1890; night road, verge, wheat); Green Wheat Field with
+  Cypress (F719); Long Grass with Butterflies (National Gallery).
+- Village street and houses: The Large Plane Trees / Road Menders (F657,
+  Cleveland, open access; the only close street view of Saint-Remy); The Road
+  Menders (F658, Phillips); A Road at Saint-Remy with Female Figure (JH1875);
+  View of the Church of Saint-Paul-de-Mausole (JH2124). Thinnest category: he
+  painted very few houses there.
+- Hills up close: Les Peiroulets Ravine (F662, MFA Boston); Entrance to a
+  Quarry (F744); Mountains at Saint-Remy (F622, Guggenheim).
+- Olive trees: Olive Trees with the Alpilles (F712, MoMA; painted as the
+  daytime pendant to Starry Night); Olive Trees (F714, Edinburgh).
+- Cypress up close: Cypresses (F613, Met); Wheat Field with Cypresses
+  (National Gallery and Met versions).
+
 ## Next
 
 - Get owner's headset report on step 1 (frame rate at each paint amount,
   shimmer, colour A vs B, flow speed, cypress up close) and act on it.
-- Redo the research pass: Li et al. 2012 (TPAMI, rhythmic brushstrokes), the
-  Starry Night turbulence papers (Aragón 2008; Ma et al. 2024), MoMA technical
-  notes, his letters on cypresses and night, Loving Vincent's method, and which
-  Saint-Rémy paintings to use for ground, village streets and hills. Put the
-  usable numbers here.
+- Owner to choose references for the unseen parts (list above), then build
+  step 2 (real hills and terrain) and step 3 (village).
 
 ## Known issues / open questions
 
