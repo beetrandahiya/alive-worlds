@@ -59,8 +59,10 @@ follow; do not build for them yet. No museum yet.
 - Unseen parts come only from his other Saint-Rémy works.
 - Inhabitants: no people. Small signs of life: a bird crossing the sky, a cat in
   the village (slips away if approached), fireflies in the fields. (Moths: no.)
-- Colour reference: undecided — owner compares in headset: (A) canvas as it
-  hangs today vs (B) same hues, deeper and more luminous for night.
+- Colour: DECIDED in headset 2026-11-14 — the canvas as it hangs today. Not
+  the deeper-night version ("dark gritty").
+- Paint amount: DECIDED in headset 2026-11-14 — always full. Medium and light
+  did not look good; never thin the strokes to save frame rate.
 
 ### Aliveness
 - Sky: strokes flow slowly along the painted swirl; composition stays put.
@@ -167,10 +169,10 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
 - [x] Interview complete, decisions logged.
 - [x] Plan approved by owner (2026-11-13).
 - [x] Step 0: project skeleton + deploy pipeline.
-- [ ] Step 1: proof of look — BUILT 2026-11-14, AWAITING OWNER'S HEADSET TEST.
-      Cypress (real 3D), knoll, flowing sky; hills and village are a flat
-      painted backdrop at infinity for now. Never yet run on a Quest: frame
-      rate, stereo stability and comfort are all unmeasured.
+- [x] Step 1: proof of look — PASSED in headset 2026-11-14 (build 077130e).
+      Owner: "breathtaking", sky "amazing", cypress "beautiful", up close "so
+      good", frame rate stable at full paint (exact wrist number not yet
+      reported). Hills and village are still a flat backdrop at infinity.
 - [ ] Step 2: terrain and composition matched from the viewpoint.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
@@ -214,6 +216,5 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
 - Wrap-around vs distant climbable hills: design needed at step 4 (village must
   be hidden by ridges from outside the valley so repeats are never seen; sky
   does not wrap). Fallback if it reads badly: ask owner again.
-- Colour A/B to be decided in headset at step 1.
 - Quest browser refresh-rate and sharpness controls are used as documented by
   the WebXR standard but have not been confirmed on the device.
