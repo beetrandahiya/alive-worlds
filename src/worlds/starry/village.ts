@@ -1,3 +1,4 @@
+import { VER } from '../../version';
 import * as THREE from 'three';
 import { plainForms, rng } from '../../paint/strokes';
 import { terrain } from './terrain';
@@ -36,7 +37,7 @@ const DOOR = [0.16, 0.14, 0.14];
 const STONE = [0.5, 0.5, 0.47];
 
 export async function buildVillage(base: string) {
-  const data: VillageData = await fetch(base + 'village.json').then((r) => r.json());
+  const data: VillageData = await fetch(base + 'village.json' + VER).then((r) => r.json());
   const r = rng(1890);
   const pos: number[] = [];
   const nor: number[] = [];

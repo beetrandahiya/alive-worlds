@@ -1,3 +1,4 @@
+import { VER } from '../../version';
 import * as THREE from 'three';
 import { groundUndercoat, rng, shared, StrokeWriter, surfaceStrokes } from '../../paint/strokes';
 import type { StarryMeta } from './sky';
@@ -21,9 +22,9 @@ import { terrain, TERRAIN_GLSL } from './terrain';
 export async function buildGround(base: string, meta: StarryMeta) {
   const { rMin, rMax } = meta.valley;
   const [strokeData, broadData, map] = await Promise.all([
-    fetch(base + 'hill_strokes.bin').then((r) => r.arrayBuffer()),
-    fetch(base + 'terrain_broad.bin').then((r) => r.arrayBuffer()),
-    new THREE.TextureLoader().loadAsync(base + 'ground_col.jpg'),
+    fetch(base + 'hill_strokes.bin' + VER).then((r) => r.arrayBuffer()),
+    fetch(base + 'terrain_broad.bin' + VER).then((r) => r.arrayBuffer()),
+    new THREE.TextureLoader().loadAsync(base + 'ground_col.jpg' + VER),
   ]);
   // The ground's colour as a map: compass direction across, distance from
   // the viewpoint (logarithmic) down.

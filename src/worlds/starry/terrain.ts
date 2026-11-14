@@ -1,3 +1,4 @@
+import { VER } from '../../version';
 import * as THREE from 'three';
 
 /**
@@ -51,7 +52,7 @@ export function terrain(x: number, z: number): number {
 
 /** Load the hill heights. Returns the texture the shaders read them from. */
 export async function loadTerrain(base: string): Promise<THREE.DataTexture> {
-  const buf: ArrayBuffer = await fetch(base + 'ridge.bin').then((r) => r.arrayBuffer());
+  const buf: ArrayBuffer = await fetch(base + 'ridge.bin' + VER).then((r) => r.arrayBuffer());
   ridge = new Float32Array(buf);
   NA = ridge.length / 4;
   const half = new Uint16Array(ridge.length);

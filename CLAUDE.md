@@ -475,6 +475,18 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
         ground in front must fall about 0.3 m per metre to stay under the
         painted view's bottom edge.
       - Cypress base lowered 0.335 m to keep it exactly where it stood.
+      Study 18 (2026-11-14): REJECTED from the stills ("horrible, weird
+      tiled wallpaper, horrendous"), and it would not load in the headset:
+      "Cannot read properties of undefined (reading 'slice')". Cause: the new
+      app ran against a cached older village.json. Fixed: every data file is
+      now fetched with the build's tag (`src/version.ts`, `VER`). The link is
+      back on Study 17. Commit 7ac1aa4 holds Study 18's code.
+      WHY IT FAILED: strokes drawn as a pattern in regular staggered rows, all
+      one size and direction, coloured from a small patch folded back and
+      forth. Any rule that tiles reads as wallpaper. (Same lesson as Study 07.)
+      OWNER'S DIRECTION: do not get carried away; build a CONCEPT for the
+      paint first, as was done for the place (bare forms before detail), and
+      agree it before building.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
@@ -674,6 +686,13 @@ tiles, not an 1889 survey. Offsets are metres east/north of the cloister.
 - Rework the ground's manner from the two chosen ground paintings.
 
 ## Lessons (do not repeat)
+
+- Paint is never a repeating pattern on a surface (Study 18) and never an
+  invented rule (Study 07). What the owner has loved every time (sky, cypress,
+  hills) is individually placed, real, overlapping strokes whose colour and
+  direction come from the canvas.
+- Agree a concept with the owner before building any new kind of thing.
+- When the app and its data change together, the data must be versioned.
 
 - Measured budget on Quest 3 in the Quest browser, default resolution: about
   240k strokes holds 72 fps; about 300k drops to 55-63. Every module gets a

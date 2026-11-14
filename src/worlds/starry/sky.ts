@@ -1,3 +1,4 @@
+import { VER } from '../../version';
 import * as THREE from 'three';
 import { DOME_FRAG, DOME_VERT } from '../../paint/shaders';
 import { shared, skyStrokes } from '../../paint/strokes';
@@ -25,9 +26,9 @@ export interface StarryMeta {
 export async function buildSky(base: string, meta: StarryMeta) {
   const group = new THREE.Group();
   const [underTex, skyData, landData] = await Promise.all([
-    new THREE.TextureLoader().loadAsync(base + 'sky_under.jpg'),
-    fetch(base + 'sky_strokes.bin').then((r) => r.arrayBuffer()),
-    fetch(base + 'land_strokes.bin').then((r) => r.arrayBuffer()),
+    new THREE.TextureLoader().loadAsync(base + 'sky_under.jpg' + VER),
+    fetch(base + 'sky_strokes.bin' + VER).then((r) => r.arrayBuffer()),
+    fetch(base + 'land_strokes.bin' + VER).then((r) => r.arrayBuffer()),
   ]);
   underTex.colorSpace = THREE.NoColorSpace;
   underTex.generateMipmaps = false;

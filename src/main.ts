@@ -1,3 +1,4 @@
+import { VER } from './version';
 import * as THREE from 'three';
 import { shared } from './paint/strokes';
 import { TEST_LIST, testCard } from './ui/testcard';
@@ -36,8 +37,8 @@ async function start() {
   const rig = new Rig(camera, renderer, terrain, WALK_RADIUS, (x, z) => walls(x, z));
   scene.add(rig.group);
 
-  const meta: StarryMeta = await fetch(BASE + 'starry.json').then((r) => r.json());
-  const atlas = await new THREE.TextureLoader().loadAsync(BASE + 'strokes.png');
+  const meta: StarryMeta = await fetch(BASE + 'starry.json' + VER).then((r) => r.json());
+  const atlas = await new THREE.TextureLoader().loadAsync(BASE + 'strokes.png' + VER);
   atlas.colorSpace = THREE.NoColorSpace;
   atlas.anisotropy = 4;
   shared.uAtlas.value = atlas;
