@@ -26,7 +26,9 @@ const bump = (d: number, D: number, start: number) => smooth(start * D, D, d) * 
 function knoll(x: number, z: number, d: number): number {
   const fwd = -z / Math.max(d, 1e-3);
   const slope = 0.07 + 0.29 * smooth(-0.2, 0.75, fwd);
-  const q = Math.max(d - 4, 0);
+  // In front, the hill falls as one even tilted plane (see analyse.py).
+  const de = d + (Math.max(-z, 0) - d) * smooth(0.35, 0.7, fwd);
+  const q = Math.max(de - 4, 0);
   const f = q < 4 ? (q * q) / 8 : q - 2;
   const und = 0.12 * Math.sin(x * 0.31 + 1.3) * Math.sin(z * 0.27) + 0.05 * Math.sin(x * 1.1) * Math.sin(z * 0.9 + 2);
   return -slope * f + und * smooth(3, 8, d);
@@ -70,7 +72,8 @@ float terrain(vec2 p) {
   float d = length(p);
   float fwd = -p.y / max(d, 1e-3);
   float slope = mix(0.07, 0.36, smoothstep(-0.2, 0.75, fwd));
-  float q = max(d - 4.0, 0.0);
+  float de = mix(d, max(-p.y, 0.0), smoothstep(0.35, 0.7, fwd));
+  float q = max(de - 4.0, 0.0);
   float f = q < 4.0 ? q * q / 8.0 : q - 2.0;
   float und = 0.12 * sin(p.x * 0.31 + 1.3) * sin(p.y * 0.27) + 0.05 * sin(p.x * 1.1) * sin(p.y * 0.9 + 2.0);
   float a = -slope * f + und * smoothstep(3.0, 8.0, d);

@@ -639,7 +639,10 @@ def knoll(x, z):
     d = np.hypot(x, z)
     fwd = -z / np.maximum(d, 1e-3)
     slope = 0.07 + 0.29 * smoothstep(-0.2, 0.75, fwd)
-    q = np.maximum(d - 4, 0)
+    # In front, the hill falls as one even tilted plane (measured straight
+    # ahead, not outward from the top), so the field on it is not a bulge.
+    de = d + (np.maximum(-z, 0) - d) * smoothstep(0.35, 0.7, fwd)
+    q = np.maximum(de - 4, 0)
     f = np.where(q < 4, q * q / 8, q - 2)
     und = 0.12 * np.sin(x * 0.31 + 1.3) * np.sin(z * 0.27) + 0.05 * np.sin(x * 1.1) * np.sin(z * 0.9 + 2)
     return -slope * f + und * smoothstep(3, 8, d)

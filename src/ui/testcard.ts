@@ -2,11 +2,12 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Still a bare model', 'Changed: the asylum now stands on the ground, and the field wall keeps one height.'],
-  ['The asylum', 'Both storeys should be clear of the ground, on a low stone base where the ground falls away. Any floor still buried?'],
-  ['The field wall', 'It should stay waist high above the wheat the whole way up the slope. Does it still vanish anywhere?'],
-  ['From the lane', 'The lane now runs close beside the wall. Can you still see wheat over it, or is it too tall from down there?'],
-  ['The start view', 'Unchanged, pixel for pixel. Still the painting?'],
+  ['Still a bare model', 'Changed: the hillside in front is now one even tilted slope; the asylum stands on the ground; the field wall keeps one height.'],
+  ['The wheat field', 'It should read as one tilted field now, not a bulge. Stand above it, beside it and below it: can you take it in whole? Still feel too high?'],
+  ['From the bottom of the field', 'Look back up: the field, then the asylum above it. Right?'],
+  ['The field wall', 'Waist high above the wheat all the way up. Does it still vanish anywhere?'],
+  ['The asylum', 'Both storeys clear of the ground, on a low stone base. Any floor still buried?'],
+  ['The start view and the cypress', 'Should be as before. Still the painting?'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

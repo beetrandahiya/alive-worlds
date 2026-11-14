@@ -463,6 +463,18 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       front (the slope must fall 0.3 m per metre to stay under the frame).
       Church: houses cannot be added behind it without showing in the painted
       view, so it stays near the village's far edge.
+      Owner (2026-11-14): keep the field on the slope but soften it; leave
+      the church where it is.
+      Study 17 BUILT 2026-11-14, AWAITING HEADSET TEST (Study 16 was never
+      seen live: GitHub's publish queue stalled; 17 includes it):
+      - The knoll's front is now one even tilted plane: in `knoll()` the
+        distance used for the fall is blended from radial `d` to straight-ahead
+        `-z` where `fwd` > 0.35-0.7 (changed in all three copies: analyse.py,
+        terrain.ts JS and GLSL; data rebaked). Before, the hill was a cone, so
+        an 80 m wide field crowned by about 6 m. Steepness (36%) is unchanged:
+        ground in front must fall about 0.3 m per metre to stay under the
+        painted view's bottom edge.
+      - Cypress base lowered 0.335 m to keep it exactly where it stood.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

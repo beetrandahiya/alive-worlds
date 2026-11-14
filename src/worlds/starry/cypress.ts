@@ -31,7 +31,7 @@ export function buildCypress(meta: StarryMeta) {
   const view = new THREE.Vector3(Math.sin(AZIMUTH), 0, -Math.cos(AZIMUTH));
   const right = new THREE.Vector3(-view.z, 0, view.x);
   const up = new THREE.Vector3(0, 1, 0);
-  const baseY = terrain(CYPRESS_POS.x, CYPRESS_POS.z) - 0.4;
+  const baseY = terrain(CYPRESS_POS.x, CYPRESS_POS.z) - 0.735; // keeps the tree where it stood before the hillside was evened out
   const tallest = FLAMES[0].h;
 
   const profile = (s: number) => Math.pow(1 - s, 0.95) * (0.72 + 0.28 * Math.min(1, s / 0.12));
