@@ -567,6 +567,23 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
         reuse the wall map. Broad+middling 14.8k, lines 1.0k, fine 105k.
       - On painted houses the added window/door shapes are removed: the
         windows are his yellow strokes.
+      Study 22 (owner, 2026-11-14): "not really helping". Owner asked for
+      the method of the very first town (the painting, seen from the start,
+      turned into strokes) and, tired of the test cycle, for several
+      approaches built in parallel and shown side by side as stills (far and
+      close) on one page before anything goes to the headset.
+      FOUR APPROACHES BUILT 2026-11-14, AWAITING OWNER'S PICK (stills only,
+      nothing published; code saved as `experiments/*.patch`, each applies to
+      commit f6f6317): A the painting's strokes cast from the start onto the
+      real buildings; B his individual strokes segmented from the scan and
+      laid one for one (weakest: strokes too short, bare walls); C the canvas
+      itself projected as each building's and tree's surface colour, plus
+      raised strokes within about 50 m (sharpest from the start; murky a few
+      metres from a wall); D strokes laid on each surface, each reading the
+      canvas pixel it sits behind from the start (most even up close; near
+      the stroke limit). Claude's recommendation: C with D's closer coat.
+      In all four the ground between houses is still plain, and unseen walls
+      mirror seen ones (his windows reappear on backs).
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

@@ -1,0 +1,446 @@
+diff --git a/src/worlds/starry/projected.ts b/src/worlds/starry/projected.ts
+new file mode 100644
+index 0000000..aac65e0
+--- /dev/null
++++ b/src/worlds/starry/projected.ts
+@@ -0,0 +1,261 @@
++import { rng, StrokeWriter } from '../../paint/strokes';
++
++/**
++ * The painting, seen from the start, turned into strokes that land on the
++ * real buildings.
++ *
++ * A point of the canvas gives a stroke its colour and the way it runs. A
++ * line of sight from the start eye through that point finds the wall, roof or
++ * tree it falls on; the stroke is laid there, flat on that surface, as big as
++ * his stroke looks from the start. Nothing is averaged per building and
++ * nothing repeats: every stroke is one point of his canvas.
++ *
++ * Surfaces the start cannot see (backs, ends) are covered in the same way,
++ * but each point there first swings round the building to the side that is
++ * seen, and reads the canvas from there.
++ */
++export interface PaintObj { x: number; y: number; z: number; reach: number; round: boolean; from: number; to: number }
++export interface Pixels { w: number; h: number; d: Uint8ClampedArray }
++interface Cam { F: number; pitch: number; W: number; H: number }
++
++export async function loadPixels(url: string): Promise<Pixels> {
++  const blob = await fetch(url).then((r) => r.blob());
++  const bmp = await createImageBitmap(blob, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
++  const c = document.createElement('canvas');
++  c.width = bmp.width;
++  c.height = bmp.height;
++  const g = c.getContext('2d', { willReadFrequently: true })!;
++  g.drawImage(bmp, 0, 0);
++  return { w: bmp.width, h: bmp.height, d: g.getImageData(0, 0, bmp.width, bmp.height).data };
++}
++
++const CM = 13.9; // one centimetre of his canvas, in pixels of the 1280-wide painting
++const EYE = [0, 1.6, 0];
++// the part of the canvas that is the village
++const X0 = 520, X1 = 1268, Y0 = 770, Y1 = 1004;
++
++/** His stroke is 2.2-3.6 cm long and 0.6-0.95 cm wide. Each coat is that, scaled. */
++const COATS = [
++  { s: 1.0, cover: 2.0, rise: 0.03, set: 0 },   // his own strokes, always drawn
++  { s: 0.42, cover: 1.8, rise: 0.045, set: 0 }, // always drawn
++  { s: 0.16, cover: 1.3, rise: 0.06, set: 1 },  // near you
++  { s: 0.065, cover: 1.15, rise: 0.07, set: 2 }, // at arm's length (buildings only)
++];
++
++export function paintFromCanvas(cam: Cam, rect: number[], canvas: Pixels, run: Pixels, pos: number[], objs: PaintObj[]) {
++  const r = rng(1889);
++  const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
++
++  // ---- the solid forms, as triangles to find lines of sight against
++  const T = objs.map((o) => {
++    const n = (o.to - o.from) / 9;
++    const t = new Float64Array(n * 12);
++    let cx = 0, cy = 0, cz = 0;
++    for (let i = 0; i < n; i++) {
++      const k = o.from + i * 9;
++      const ax = pos[k], ay = pos[k + 1], az = pos[k + 2];
++      const e1 = [pos[k + 3] - ax, pos[k + 4] - ay, pos[k + 5] - az], e2 = [pos[k + 6] - ax, pos[k + 7] - ay, pos[k + 8] - az];
++      let nx = e1[1] * e2[2] - e1[2] * e2[1], ny = e1[2] * e2[0] - e1[0] * e2[2], nz = e1[0] * e2[1] - e1[1] * e2[0];
++      const l = Math.hypot(nx, ny, nz) || 1;
++      nx /= l; ny /= l; nz /= l;
++      t.set([ax, ay, az, ...e1, ...e2, nx, ny, nz], i * 12);
++      cx += ax + (e1[0] + e2[0]) / 3; cy += ay + (e1[1] + e2[1]) / 3; cz += az + (e1[2] + e2[2]) / 3;
++    }
++    cx /= n; cy /= n; cz /= n;
++    let R = 0;
++    for (let k = o.from; k < o.to; k += 3) R = Math.max(R, Math.hypot(pos[k] - cx, pos[k + 1] - cy, pos[k + 2] - cz));
++    return { t, n, cx, cy, cz, R };
++  });
++  let hT = 0, hObj = -1, hTri = 0;
++  const cast = (ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, maxT = 1e9) => {
++    hT = maxT; hObj = -1;
++    for (let o = 0; o < T.length; o++) {
++      const B = T[o];
++      const lx = B.cx - ox, ly = B.cy - oy, lz = B.cz - oz;
++      const b = lx * dx + ly * dy + lz * dz;
++      if (b + B.R < 0 || b - B.R > hT) continue;
++      if (lx * lx + ly * ly + lz * lz - b * b > B.R * B.R) continue;
++      const t = B.t;
++      for (let i = 0; i < B.n; i++) {
++        const k = i * 12;
++        const e1x = t[k + 3], e1y = t[k + 4], e1z = t[k + 5], e2x = t[k + 6], e2y = t[k + 7], e2z = t[k + 8];
++        const px = dy * e2z - dz * e2y, py = dz * e2x - dx * e2z, pz = dx * e2y - dy * e2x;
++        const det = e1x * px + e1y * py + e1z * pz;
++        if (det > -1e-9 && det < 1e-9) continue;
++        const inv = 1 / det;
++        const sx = ox - t[k], sy = oy - t[k + 1], sz = oz - t[k + 2];
++        const u = (sx * px + sy * py + sz * pz) * inv;
++        if (u < 0 || u > 1) continue;
++        const qx = sy * e1z - sz * e1y, qy = sz * e1x - sx * e1z, qz = sx * e1y - sy * e1x;
++        const v = (dx * qx + dy * qy + dz * qz) * inv;
++        if (v < 0 || u + v > 1) continue;
++        const tt = (e2x * qx + e2y * qy + e2z * qz) * inv;
++        if (tt > 1e-4 && tt < hT) { hT = tt; hObj = o; hTri = i; }
++      }
++    }
++    return hObj >= 0;
++  };
++
++  // ---- the canvas
++  const dirOf = (px: number, py: number) => {
++    const x = (px - cam.W / 2) / cam.F, y = -(py - cam.H / 2) / cam.F;
++    const d = [x, y * cp + sp, -(cp - y * sp)];
++    const l = Math.hypot(d[0], d[1], d[2]);
++    return [d[0] / l, d[1] / l, d[2] / l];
++  };
++  const pixOf = (x: number, y: number, z: number) => {
++    const dy = y - EYE[1];
++    const fwd = Math.max(1, -z * cp + dy * sp), upv = dy * cp + z * sp;
++    return [cam.W / 2 + (cam.F * x) / fwd, cam.H / 2 - (cam.F * upv) / fwd];
++  };
++  const colourAt = (px: number, py: number) => {
++    const u = Math.min(canvas.w - 1, Math.max(0, Math.round((px - rect[0]) * 3)));
++    const v = Math.min(canvas.h - 1, Math.max(0, Math.round((py - rect[1]) * 3)));
++    const k = (v * canvas.w + u) * 4;
++    return [canvas.d[k] / 255, canvas.d[k + 1] / 255, canvas.d[k + 2] / 255];
++  };
++  const runAt = (px: number, py: number) => {
++    const u = Math.min(run.w - 1, Math.max(0, Math.round(px - rect[0])));
++    const v = Math.min(run.h - 1, Math.max(0, Math.round(py - rect[1])));
++    const k = (v * run.w + u) * 4;
++    const agree = run.d[k + 1] / 255;
++    return (run.d[k] / 255 - 0.5) * Math.PI + r.range(-1, 1) * (0.04 + 0.28 * (1 - agree));
++  };
++  const inFrame = (px: number, py: number) => px > X0 && px < X1 && py > Y0 && py < Y1;
++
++  const always = new StrokeWriter();
++  const sets = objs.map((o) => ({ x: o.x, z: o.z, reach: o.reach, fine: new StrokeWriter(), finest: new StrokeWriter() }));
++  const writer = (set: number, obj: number) => (set === 0 ? always : set === 1 ? sets[obj].fine : sets[obj].finest);
++  const mid = objs.map(() => [0, 0, 0]); // where on the canvas each thing is seen
++  const count = [0, 0, 0];
++  const put = (coat: (typeof COATS)[number], obj: number, a: number[], b: number[], n: number[], width: number, px: number, py: number) => {
++    const L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
++    if (L < 0.04) return;
++    const tone = r.range(0.99, 1.13); // the stroke shader shades every face a little; this gives it back
++    const off = 3 + 9 * coat.s;
++    // on a round tree a straight stroke is a chord: raise it so it neither sinks in nor stands off
++    const rise = coat.rise + r.range(0, 0.012) + (objs[obj].round ? (L * L) / (16 * objs[obj].reach) : 0);
++    writer(coat.set, obj).add({
++      p: { x: a[0] + n[0] * rise, y: a[1] + n[1] * rise, z: a[2] + n[2] * rise } as never,
++      t: { x: (b[0] - a[0]) / L, y: (b[1] - a[1]) / L, z: (b[2] - a[2]) / L } as never,
++      n: { x: n[0], y: n[1], z: n[2] } as never,
++      length: L, width, lift: 0, bend: r.range(-0.07, 0.07),
++      colour: colourAt(px, py).map((c) => c * tone),
++      streak: colourAt(px + r.range(-off, off), py + r.range(-off, off)), // the paint just beside it
++      seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0,
++    });
++    count[coat.set]++;
++  };
++  const SHRINK = [1, 0.72, 0.5, 0.32, 0.18, 0.09];
++
++  // ---- 1. what the start sees: one line of sight per stroke of the canvas
++  for (const coat of COATS) {
++    const cell = Math.sqrt((2.9 * 0.78 * coat.s * coat.s * CM * CM) / coat.cover);
++    for (let gy = Y0; gy < Y1; gy += cell) {
++      for (let gx = X0; gx < X1; gx += cell) {
++        const px = gx + r.next() * cell, py = gy + r.next() * cell;
++        const d = dirOf(px, py);
++        if (!cast(EYE[0], EYE[1], EYE[2], d[0], d[1], d[2])) continue;
++        const obj = hObj, dist = hT, B = T[obj], k = hTri * 12;
++        if (coat.set === 2 && objs[obj].round) continue;
++        const n = [B.t[k + 9], B.t[k + 10], B.t[k + 11]];
++        let c = n[0] * d[0] + n[1] * d[1] + n[2] * d[2];
++        if (c > 0) { n[0] = -n[0]; n[1] = -n[1]; n[2] = -n[2]; c = -c; }
++        if (c > -0.3) continue; // seen too much edge-on: left to the second pass
++        const P = [EYE[0] + d[0] * dist, EYE[1] + d[1] * dist, EYE[2] + d[2] * dist];
++        if (coat.s === 1 || coat.s > 0.3) { mid[obj][0] += px; mid[obj][1] += py; mid[obj][2]++; }
++        const ang = runAt(px, py), sg = r.next() < 0.5 ? 1 : -1;
++        let half = (r.range(2.2, 3.6) * coat.s * CM) / 2;
++        if (objs[obj].round) half = Math.min(half, (Math.sqrt(2.4 * objs[obj].reach) / 2) * (cam.F / dist));
++        const ux = Math.cos(ang) * sg, uy = -Math.sin(ang) * sg;
++        const width = (r.range(0.6, 0.95) * coat.s * CM * dist) / cam.F;
++        for (const s of SHRINK) {
++          const ends: number[][] = [];
++          for (const e of [-1, 1]) {
++            const de = dirOf(px + ux * half * s * e, py + uy * half * s * e);
++            if (!cast(EYE[0], EYE[1], EYE[2], de[0], de[1], de[2]) || hObj !== obj) break;
++            const q = [EYE[0] + de[0] * hT, EYE[1] + de[1] * hT, EYE[2] + de[2] * hT];
++            if (!objs[obj].round && Math.abs(n[0] * (q[0] - P[0]) + n[1] * (q[1] - P[1]) + n[2] * (q[2] - P[2])) > 0.06) break;
++            ends.push(q);
++          }
++          if (ends.length < 2) continue;
++          put(coat, obj, ends[0], ends[1], n, width * Math.min(1, 0.55 + 0.45 * s), px, py);
++          break;
++        }
++      }
++    }
++  }
++  for (const m of mid) if (m[2]) { m[0] /= m[2]; m[1] /= m[2]; }
++
++  // ---- 2. what the start does not see (or sees edge-on): each point swings
++  // round its building to the seen side and reads the canvas there
++  objs.forEach((o, obj) => {
++    const B = T[obj];
++    const D = Math.hypot(o.x, o.z);
++    const cm = (CM * D) / cam.F;
++    const fa = Math.atan2(-o.z, -o.x); // the way to the start
++    for (let i = 0; i < B.n; i++) {
++      const k = i * 12, t = B.t;
++      const e1 = [t[k + 3], t[k + 4], t[k + 5]], e2 = [t[k + 6], t[k + 7], t[k + 8]];
++      const n = [t[k + 9], t[k + 10], t[k + 11]];
++      const area = 0.5 * Math.hypot(e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]);
++      const mx = t[k] + (e1[0] + e2[0]) / 3 - o.x, my = t[k + 1] + (e1[1] + e2[1]) / 3 - o.y, mz = t[k + 2] + (e1[2] + e2[2]) / 3 - o.z;
++      if (n[0] * mx + n[1] * my * 0.3 + n[2] * mz < 0) { n[0] = -n[0]; n[1] = -n[1]; n[2] = -n[2]; }
++      const nh = Math.hypot(n[0], n[2]);
++      const turn = nh < 0.2 ? 0 : fa - Math.atan2(n[2], n[0]);
++      const ct = Math.cos(turn), st = Math.sin(turn);
++      for (const coat of COATS) {
++        if (coat.set === 2 && o.round) continue;
++        const want = (area * coat.cover) / (2.9 * 0.78 * coat.s * coat.s * cm * cm);
++        const num = Math.floor(want) + (r.next() < want % 1 ? 1 : 0);
++        for (let j = 0; j < num; j++) {
++          let a = r.next(), b = r.next();
++          if (a + b > 1) { a = 1 - a; b = 1 - b; }
++          const P = [t[k] + e1[0] * a + e2[0] * b, t[k + 1] + e1[1] * a + e2[1] * b, t[k + 2] + e1[2] * a + e2[2] * b];
++          const vx = P[0] - EYE[0], vy = P[1] - EYE[1], vz = P[2] - EYE[2];
++          const vd = Math.hypot(vx, vy, vz);
++          const own = pixOf(P[0], P[1], P[2]);
++          const facing = -(n[0] * vx + n[1] * vy + n[2] * vz) / vd;
++          if (facing > 0.3 && inFrame(own[0], own[1]) && cast(EYE[0], EYE[1], EYE[2], vx / vd, vy / vd, vz / vd) && hObj === obj && Math.abs(hT - vd) < 0.15) continue;
++          // swing round the building's upright axis until this face looks at the start
++          const rx = P[0] - o.x, rz = P[2] - o.z;
++          const pix = pixOf(o.x + rx * ct - rz * st, P[1], o.z + rx * st + rz * ct);
++          let px = pix[0], py = pix[1];
++          if (mid[obj][2]) {
++            for (const s of [0, 0.3, 0.55, 0.8, 1]) {
++              px = pix[0] + (mid[obj][0] - pix[0]) * s; py = pix[1] + (mid[obj][1] - pix[1]) * s;
++              const d = dirOf(px, py);
++              if (inFrame(px, py) && cast(EYE[0], EYE[1], EYE[2], d[0], d[1], d[2]) && hObj === obj) break;
++            }
++          }
++          const ang = runAt(px, py), sg = r.next() < 0.5 ? 1 : -1;
++          // the canvas direction as a direction in the world, swung back, laid in the face
++          const wx = Math.cos(ang), wy = Math.sin(ang) * cp, wz = Math.sin(ang) * sp;
++          let tx = wx * ct + wz * st, ty = wy, tz = -wx * st + wz * ct;
++          const dn = tx * n[0] + ty * n[1] + tz * n[2];
++          tx -= n[0] * dn; ty -= n[1] * dn; tz -= n[2] * dn;
++          let tl = Math.hypot(tx, ty, tz);
++          if (tl < 0.15) { tx = -n[2]; ty = 0; tz = n[0]; tl = Math.hypot(tx, tz) || 1; }
++          tx *= sg / tl; ty *= sg / tl; tz *= sg / tl;
++          let half = (r.range(2.2, 3.6) * coat.s * cm) / 2;
++          if (o.round) half = Math.min(half, Math.sqrt(2.4 * o.reach) / 2);
++          const width = r.range(0.6, 0.95) * coat.s * cm;
++          const up = o.round ? 2 : 0.5;
++          for (const s of SHRINK) {
++            const ends: number[][] = [];
++            for (const e of [-1, 1]) {
++              const q = [P[0] + tx * half * s * e, P[1] + ty * half * s * e, P[2] + tz * half * s * e];
++              if (!cast(q[0] + n[0] * up, q[1] + n[1] * up, q[2] + n[2] * up, -n[0], -n[1], -n[2], up * 2) || hObj !== obj) break;
++              if (!o.round && Math.abs(hT - up) > 0.06) break;
++              ends.push([q[0] + n[0] * (up - hT), q[1] + n[1] * (up - hT), q[2] + n[2] * (up - hT)]);
++            }
++            if (ends.length < 2) continue;
++            put(coat, obj, ends[0], ends[1], n, width * Math.min(1, 0.55 + 0.45 * s), px, py);
++            break;
++          }
++        }
++      }
++    }
++  });
++  return { always, sets, count };
++}
+diff --git a/src/worlds/starry/village.ts b/src/worlds/starry/village.ts
+index 0ddf8e5..15782a9 100644
+--- a/src/worlds/starry/village.ts
++++ b/src/worlds/starry/village.ts
+@@ -2,6 +2,7 @@ import { VER } from '../../version';
+ import * as THREE from 'three';
+ import { plainForms, rng, StrokeWriter, surfaceStrokes } from '../../paint/strokes';
+ import { terrain } from './terrain';
++import { loadPixels, paintFromCanvas, PaintObj } from './projected';
+ 
+ /**
+  * The village, the asylum, the walled wheat field and the valley's trees, as a
+@@ -23,6 +24,7 @@ import { terrain } from './terrain';
+ interface Built { x: number; z: number; w: number; wall: number; rise: number; wallColour: number[]; roofColour: number[]; lit: number; gable: boolean; wallPal: number[][]; roofPal: number[][]; outline: number[]; wallRun: number[]; roofRun: number[]; wallMap: number[]; roofMap: number[]; faceMap: number[] }
+ interface VillageData {
+   camera: { F: number; pitch: number; W: number; H: number };
++  canvas: number[];
+   grid: [number, number];
+   houses: Built[];
+   church: { nave: Built; tower: Built; wing: Built; spireTop: number };
+@@ -44,6 +46,9 @@ export async function buildVillage(base: string) {
+   const nor: number[] = [];
+   const col: number[] = [];
+   const footprints: Footprint[] = [];
++  /** The solid things his canvas is laid onto from the start: each a run of triangles in `pos`. */
++  const paintObjs: PaintObj[] = [];
++  const OLD_PAINT = false; // the facade-map paint (Study 22), replaced by paint cast from the start view
+ 
+   // --- small builders
+   const tri = (a: number[], b: number[], c: number[], colour: number[]) => {
+@@ -225,6 +230,7 @@ export async function buildVillage(base: string) {
+     // one centimetre of his canvas, in metres on this building
+     const cm = Math.min(Math.max((13.9 * Math.hypot(fp.x, fp.z)) / data.camera.F, 0.9), 2.4);
+     const coats = (pl: Plane, map: number[], where: (a: number, c: number) => [number, number], turn: number) => {
++      if (!OLD_PAINT) return;
+       fill(broadCoat, pl, map, where, turn, [2.2 * cm, 3.6 * cm], [0.6 * cm, 0.95 * cm], 1.5, 0.03);
+       fill(broadCoat, pl, map, where, turn, [0.9, 1.6], [0.24, 0.4], 1.2, 0.04);
+       fill(fineCoat, pl, map, where, turn, [0.3, 0.62], [0.09, 0.17], 1.3, 0.05);
+@@ -261,12 +267,14 @@ export async function buildVillage(base: string) {
+   const house = (fp: Footprint, wall: number, rise: number, wallColour: number[], roofColour: number[], lit: number, front: number, paint?: Built) => {
+     const y0 = groundUnder(fp);
+     opened = [];
++    const from = pos.length;
+     walls(fp, y0, wall + 0.3, wallColour);
+     gable(fp, y0, wall + 0.3, rise, roofColour, wallColour);
+     if (!paint) openings(fp, y0, wall, front, lit); // on a house he painted, the windows are the ones he painted
+     const c = Math.cos(fp.yaw), s = Math.sin(fp.yaw), k = fp.w * r.range(-0.3, 0.3);
+     walls({ x: fp.x + c * k, z: fp.z + s * k, yaw: fp.yaw, w: 0.7, d: 0.7 }, y0 + wall + rise * 0.45, rise * 0.55 + 1.1, [0.2, 0.18, 0.18]);
+     if (paint) {
++      paintObjs.push({ x: fp.x, y: y0 + wall / 2, z: fp.z, reach: Math.hypot(fp.w, fp.d) / 2, round: false, from, to: pos.length });
+       beginPaint(paint, fp.x, fp.z, Math.hypot(fp.w, fp.d) / 2);
+       paintBox(fp, y0, wall + 0.3, rise, paint);
+     }
+@@ -381,9 +389,14 @@ export async function buildVillage(base: string) {
+   }
+   {
+     const y0 = groundUnder(nave);
++    let from = pos.length;
++    const thing = (fp: Footprint, h: number) => {
++      paintObjs.push({ x: fp.x, y: y0 + h / 2, z: fp.z, reach: Math.hypot(fp.w, fp.d) / 2, round: false, from, to: pos.length });
++      from = pos.length;
++    };
+     walls(nave, y0, ch.nave.wall, ch.nave.wallColour);
+     gable(nave, y0, ch.nave.wall, ch.nave.rise, ch.nave.roofColour, ch.nave.wallColour);
+-    for (const side of [-1, 1]) for (const x of [-5, 0, 5]) panel(nave, y0, x, 2.6, 1.0, 3.0, side, DARK);
++    thing(nave, ch.nave.wall);
+     const towerH = ch.tower.wall;
+     walls(tower, y0, towerH, ch.tower.wallColour);
+     const P = frame(tower, y0);
+@@ -393,10 +406,10 @@ export async function buildVillage(base: string) {
+       const a = cs[i], b = cs[(i + 1) % 4];
+       tri(P(a[0], towerH, a[1]), P(0, ch.spireTop, 0), P(b[0], towerH, b[1]), ch.tower.roofColour);
+     }
+-    panel(tower, y0, 0, 0, 1.5, 2.5, 1, DOOR);
+-    panel(tower, y0, 0, towerH * 0.62, 0.9, 2.2, 1, DARK);
++    thing(tower, towerH);
+     walls(wing, y0, ch.wing.wall, ch.wing.wallColour);
+     gable(wing, y0, ch.wing.wall, ch.wing.rise, ch.wing.roofColour, ch.wing.wallColour);
++    thing(wing, ch.wing.wall);
+     // the church, painted: nave, tower, spire and wing as one building
+     opened = [];
+     beginPaint(ch.nave, tower.x, tower.z, 16);
+@@ -413,8 +426,10 @@ export async function buildVillage(base: string) {
+         const side = a.distanceTo(b), hgt = mid.distanceTo(apex);
+         const pl = plane(a, b, a.clone().add(apex).sub(mid), (aa, cc) => Math.abs(aa - side / 2) < (side / 2) * (1 - cc / hgt), mid.clone().sub(PT(0, ch.tower.wall, 0)));
+         const where = (aa: number, cc: number): [number, number] => [aa / side, 1 - cc / hgt];
+-        fill(broadCoat, pl, ch.tower.roofMap, where, 1, [3.5, 7], [0.35, 0.6], 1.6, 0.03);
+-        fill(fineCoat, pl, ch.tower.roofMap, where, 1, [0.4, 0.9], [0.09, 0.15], 1.3, 0.05);
++        if (OLD_PAINT) {
++          fill(broadCoat, pl, ch.tower.roofMap, where, 1, [3.5, 7], [0.35, 0.6], 1.6, 0.03);
++          fill(fineCoat, pl, ch.tower.roofMap, where, 1, [0.4, 0.9], [0.09, 0.15], 1.3, 0.05);
++        }
+       }
+     }
+     paintBox(wing, y0, ch.wing.wall, ch.wing.rise, ch.wing);
+@@ -578,7 +593,9 @@ export async function buildVillage(base: string) {
+       x = t.x + Math.cos(a) * (1.5 + k * 0.9);
+       z = t.z + Math.sin(a) * (1.5 + k * 0.9);
+     }
++    const from = pos.length;
+     tree(x, z, t.r, t.h, t.colour.map((c) => c * 0.85));
++    paintObjs.push({ x, y: terrain(x, z) + t.h * 0.5, z, reach: Math.max(t.r, t.h * 0.55), round: true, from, to: pos.length });
+   }
+   const greens = data.trees.slice(0, 5).map((t) => t.colour.map((c) => c * 0.8));
+   for (let k = 0; k < 420 && treeAt.length < 190; k++) {
+@@ -657,19 +674,28 @@ export async function buildVillage(base: string) {
+   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+   const group = new THREE.Group();
+   group.add(plainForms(g));
+-  // broad strokes and lines are always there
+-  group.add(surfaceStrokes(broadCoat.data(), { segments: 3 }));
+   group.add(surfaceStrokes(outlineCoat.data(), { segments: 2 }));
+-  // each building's fine strokes are drawn only while you are near it, and fade by distance
+-  const FADE: [number, number] = [28, 52]; // owner: fine strokes should arrive from further off
+-  const fines = fineSets.map((f) => {
+-    const mesh = surfaceStrokes(f.w.data(), { segments: 2, fade: FADE });
+-    mesh.visible = false;
+-    group.add(mesh);
+-    return { mesh, x: f.x, z: f.z, reach: f.reach + FADE[1] + 2 };
+-  });
+-  const count = (w: StrokeWriter) => w.data().length / 24;
+-  console.info('village paint: broad', count(broadCoat), 'lines', count(outlineCoat), 'fine in', fines.length, 'sets, total', fineSets.reduce((a, f) => a + count(f.w), 0));
++  if (OLD_PAINT) group.add(surfaceStrokes(broadCoat.data(), { segments: 3 }), ...fineSets.map((f) => surfaceStrokes(f.w.data(), { segments: 2, fade: [28, 52] })));
++  // His canvas, cast from the start onto the buildings and trees. His own
++  // strokes and a middling coat are always there; each thing's finer coats are
++  // drawn only while you are near it, and fade in by distance.
++  const [canvasPx, runPx] = await Promise.all([loadPixels(base + 'village_canvas.jpg' + VER), loadPixels(base + 'village_run.png' + VER)]);
++  const t0 = performance.now();
++  const cast = paintFromCanvas(data.camera, data.canvas, canvasPx, runPx, pos, paintObjs);
++  group.add(surfaceStrokes(cast.always.data(), { segments: 3 }));
++  const FINE: [number, number] = [30, 55], FINEST: [number, number] = [11, 22];
++  const fines: { mesh: THREE.Mesh; x: number; z: number; reach: number }[] = [];
++  for (const s of cast.sets) {
++    for (const [w, fade] of [[s.fine, FINE], [s.finest, FINEST]] as [StrokeWriter, [number, number]][]) {
++      const d = w.data();
++      if (!d.length) continue;
++      const mesh = surfaceStrokes(d, { segments: 2, fade });
++      mesh.visible = false;
++      group.add(mesh);
++      fines.push({ mesh, x: s.x, z: s.z, reach: s.reach + fade[1] + 2 });
++    }
++  }
++  console.info('village paint: always', cast.count[0], 'lines', outlineCoat.data().length / 24, 'fine', cast.count[1], 'finest', cast.count[2], 'in', fines.length, 'sets;', Math.round(performance.now() - t0), 'ms');
+   /** Call every frame with where the walker's head is. */
+   const update = (head: THREE.Vector3) => {
+     for (const f of fines) f.mesh.visible = Math.hypot(head.x - f.x, head.z - f.z) < f.reach;
+diff --git a/tools/starry/village.py b/tools/starry/village.py
+index b895cb3..21c330e 100644
+--- a/tools/starry/village.py
++++ b/tools/starry/village.py
+@@ -192,6 +192,28 @@ for base, size in ((858, 62), (832, 56), (808, 50)):          # the grove behind
+ 
+ out = dict(camera=dict(F=F, pitch=PITCH, W=W, H=H), grid=[GX, GY], houses=houses, church=church, trees=trees,
+            road=colour((1100, 950, 1180, 962)), field=colour((600, 955, 715, 995)))
++# The painting itself over the village, for laying his strokes onto the real
++# buildings from the start view (as the first paint of the town was made):
++# the colour at every point, and which way the stroke there runs.
++CX0, CY0, CX1, CY1 = 500, 760, 1268, 1004
++if soft is None:
++    soft = cv2.GaussianBlur(img, (0, 0), 2.2)
++crop = soft[int(CY0 * K):int(CY1 * K), int(CX0 * K):int(CX1 * K)]
++cv2.imwrite(str(ROOT / "public" / "starry" / "village_canvas.jpg"),
++            cv2.resize(crop, ((CX1 - CX0) * 3, (CY1 - CY0) * 3), interpolation=cv2.INTER_AREA), [cv2.IMWRITE_JPEG_QUALITY, 93])
++if _J is None:
++    _gx, _gy = stroke_grad()
++    _J = [cv2.GaussianBlur(a_, (0, 0), 9.0) for a_ in (_gx * _gx, _gx * _gy, _gy * _gy)]
++jj = [cv2.resize(a_[int(CY0 * K):int(CY1 * K), int(CX0 * K):int(CX1 * K)], (CX1 - CX0, CY1 - CY0), interpolation=cv2.INTER_AREA) for a_ in _J]
++along_ = 0.5 * np.arctan2(2 * jj[1], jj[0] - jj[2]) + np.pi / 2
++ang_ = -np.arctan2(np.sin(along_), np.cos(along_))
++ang_ = (ang_ + np.pi / 2) % np.pi - np.pi / 2
++agree_ = np.hypot(jj[0] - jj[2], 2 * jj[1]) / (jj[0] + jj[2] + 1e-9)
++run = np.zeros((CY1 - CY0, CX1 - CX0, 3), np.uint8)
++run[..., 2] = np.round((ang_ / np.pi + 0.5) * 255)      # red: direction
++run[..., 1] = np.round(np.clip(agree_, 0, 1) * 255)     # green: agreement
++cv2.imwrite(str(ROOT / "public" / "starry" / "village_run.png"), run)
++out["canvas"] = [CX0, CY0, CX1, CY1]
+ (ROOT / "public" / "starry" / "village.json").write_text(json.dumps(out))
+ print(len(houses), "houses", len(trees), "trees; church nave", church["nave"], "spire top", church["spireTop"])
+ for h in houses:

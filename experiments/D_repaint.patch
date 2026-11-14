@@ -1,0 +1,444 @@
+diff --git a/src/worlds/starry/village.ts b/src/worlds/starry/village.ts
+index 0ddf8e5..ffffabd 100644
+--- a/src/worlds/starry/village.ts
++++ b/src/worlds/starry/village.ts
+@@ -29,6 +29,7 @@ interface VillageData {
+   trees: { x: number; z: number; r: number; h: number; colour: number[] }[];
+   road: number[];
+   field: number[];
++  canvas: number[];
+ }
+ interface Footprint { x: number; z: number; yaw: number; w: number; d: number }
+ 
+@@ -40,6 +41,23 @@ const STONE = [0.5, 0.5, 0.47];
+ export async function buildVillage(base: string) {
+   const data: VillageData = await fetch(base + 'village.json' + VER).then((r) => r.json());
+   const r = rng(1890);
++  // his painting over the village (colour, 3 px per unit) and the way each stroke of it runs (1 px per unit)
++  const pixels = async (url: string) => {
++    const img = new Image();
++    img.src = url;
++    await img.decode();
++    const cv = document.createElement('canvas');
++    cv.width = img.naturalWidth;
++    cv.height = img.naturalHeight;
++    const ctx = cv.getContext('2d', { willReadFrequently: true })!;
++    ctx.drawImage(img, 0, 0);
++    return ctx.getImageData(0, 0, cv.width, cv.height);
++  };
++  const [hisPaint, hisRun] = await Promise.all([pixels(base + 'village_canvas.jpg' + VER), pixels(base + 'village_run.png' + VER)]);
++  /** Painting jobs, done once every building and tree stands (a stroke must know what hides what from the start). */
++  const jobs: (() => void)[] = [];
++  const occluders: { fp: Footprint; y0: number; top: number }[] = [];
++  const treeRec: { x: number; y: number; z: number; wide: number; high: number; turn: number }[] = [];
+   const pos: number[] = [];
+   const nor: number[] = [];
+   const col: number[] = [];
+@@ -164,7 +182,9 @@ export async function buildVillage(base: string) {
+   const lay = (out: StrokeWriter, pl: Plane, a: number, c: number, dir: number, len: number, wid: number, colour: number[], streak: number[], rise_: number) => {
+     const t = pl.u.clone().multiplyScalar(Math.cos(dir)).addScaledVector(pl.v, Math.sin(dir));
+     const root = pl.o.clone().addScaledVector(pl.u, a).addScaledVector(pl.v, c).addScaledVector(t, -len / 2).addScaledVector(pl.n, rise_);
+-    out.add({ p: root, t, n: pl.n, length: len, width: wid, lift: 0, bend: r.range(-0.07, 0.07), colour, streak, seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0 });
++    // Superseded by the paint read through the start view (see `paintBuilding`). The draws from the shared
++    // random source are kept so that every house and tree placed after this stands exactly where it stood.
++    void [out, root, wid, colour, streak, r.range(-0.07, 0.07), r.next(), r.next()];
+   };
+   /** His paint at one point of a facade map (u across, v down, both 0..1): that stroke's colour, direction and agreement. */
+   const paintAt = (map: number[], u: number, v: number) => {
+@@ -269,6 +289,8 @@ export async function buildVillage(base: string) {
+     if (paint) {
+       beginPaint(paint, fp.x, fp.z, Math.hypot(fp.w, fp.d) / 2);
+       paintBox(fp, y0, wall + 0.3, rise, paint);
++      occluders.push({ fp, y0, top: wall + 0.3 + rise });
++      jobs.push(() => paintBuilding(fp, y0, wall + 0.3, rise, paint, true, Math.hypot(fp.w, fp.d) / 2));
+     }
+     footprints.push(fp);
+   };
+@@ -419,6 +441,12 @@ export async function buildVillage(base: string) {
+     }
+     paintBox(wing, y0, ch.wing.wall, ch.wing.rise, ch.wing);
+     footprints.push(nave, tower, wing);
++    occluders.push({ fp: nave, y0, top: ch.nave.wall + ch.nave.rise }, { fp: tower, y0, top: ch.tower.wall }, { fp: wing, y0, top: ch.wing.wall + ch.wing.rise });
++    jobs.push(() => {
++      const fine = paintBuilding(nave, y0, ch.nave.wall, ch.nave.rise, ch.nave, true, 16);
++      paintBuilding(tower, y0, ch.tower.wall, 0, ch.tower, false, 16, fine, ch.spireTop);
++      paintBuilding(wing, y0, ch.wing.wall, ch.wing.rise, ch.wing, true, 16, fine);
++    });
+   }
+ 
+   // --- can the start view see a place? (inside the frame and not behind the cypress)
+@@ -567,6 +595,7 @@ export async function buildVillage(base: string) {
+     };
+     for (let i = 0; i < ip.count; i += 3) tri(v(i), v(i + 1), v(i + 2), colour);
+     treeAt.push(new THREE.Vector3(x, 0, z));
++    treeRec.push({ x, y, z, wide, high, turn });
+   };
+   for (const t of data.trees) {
+     // a painted tree keeps its place unless a street or house needs it; then it steps aside
+@@ -651,6 +680,310 @@ export async function buildVillage(base: string) {
+     footprints.push(wing, nave, aisle, apse, belfry);
+   }
+ 
++  // ------------------------------------------------- paint, read through the start view
++  // Strokes are laid ON each surface, in three always-drawn sizes and a fine
++  // coat near the walker. But no stroke takes anything from a summary of its
++  // building. Each one looks back at the start, finds the point of his canvas
++  // that lies exactly behind it, and takes that point's colour and the way
++  // his stroke runs there; the direction is carried onto the surface so that,
++  // seen from the start, the stroke runs as his does. A point the start cannot
++  // see (a back or side wall, or one hidden by another building) reads the
++  // matching point of the face that can be seen.
++  const E = new THREE.Vector3(0, 1.6, 0);
++  const q = rng(1889);
++  const CP = Math.cos(cam.pitch), SP = Math.sin(cam.pitch);
++  const [c0, c1, c2, c3] = data.canvas;
++  const CM = 13.9; // one centimetre of his canvas, in units of the 1280-wide painting
++  const toPixel = (p: THREE.Vector3) => {
++    const dy = p.y - E.y;
++    const fwd = Math.max(1, -p.z * CP + dy * SP), upv = dy * CP + p.z * SP;
++    return [cam.W / 2 + (cam.F * p.x) / fwd, cam.H / 2 - (cam.F * upv) / fwd, fwd];
++  };
++  /** His paint at one point of the painting: that stroke's colour, the angle it runs at, how far its neighbours agree. */
++  const readAt = (px: number, py: number) => {
++    const x = Math.min(c2 - 1, Math.max(c0 + 30, px)) - c0, y = Math.min(c3 - 1, Math.max(c1 + 0.5, py)) - c1;
++    const k = (Math.min(hisPaint.height - 1, Math.floor(y * 3)) * hisPaint.width + Math.min(hisPaint.width - 1, Math.floor(x * 3))) * 4;
++    const k2 = (Math.min(hisRun.height - 1, Math.floor(y)) * hisRun.width + Math.min(hisRun.width - 1, Math.floor(x))) * 4;
++    return {
++      colour: [hisPaint.data[k] / 255, hisPaint.data[k + 1] / 255, hisPaint.data[k + 2] / 255],
++      angle: (hisRun.data[k2] / 255 - 0.5) * Math.PI,
++      agree: hisRun.data[k2 + 1] / 255,
++    };
++  };
++  /** Is a point hidden from the start by a building or tree other than its own? */
++  const hidden = (p: THREE.Vector3, self: Footprint | null) => {
++    for (const o of occluders) {
++      if (o.fp === self) continue;
++      const c = Math.cos(o.fp.yaw), s = Math.sin(o.fp.yaw);
++      const ex = E.x - o.fp.x, ez = E.z - o.fp.z, vx = p.x - E.x, vz = p.z - E.z;
++      const from = [ex * c + ez * s, E.y - o.y0, -ex * s + ez * c], dir = [vx * c + vz * s, p.y - E.y, -vx * s + vz * c];
++      const lo = [-o.fp.w / 2, -5, -o.fp.d / 2], hi = [o.fp.w / 2, o.top, o.fp.d / 2];
++      let t0 = 0, t1 = 0.992, hit = true;
++      for (let i = 0; i < 3 && hit; i++) {
++        if (Math.abs(dir[i]) < 1e-9) hit = from[i] >= lo[i] && from[i] <= hi[i];
++        else {
++          const a = (lo[i] - from[i]) / dir[i], b = (hi[i] - from[i]) / dir[i];
++          t0 = Math.max(t0, Math.min(a, b));
++          t1 = Math.min(t1, Math.max(a, b));
++          hit = t0 <= t1;
++        }
++      }
++      if (hit) return true;
++    }
++    return false;
++  };
++  /**
++   * The stroke he painted where the start sees the point `s` of a surface
++   * facing `n`: direction (on that surface), size, colour, streak.
++   * Sizes in canvas centimetres are converted by distance, and lengthened
++   * where the surface turns away so they keep his size as seen from the start.
++   */
++  const hisStroke = (s: THREE.Vector3, n: THREE.Vector3, len: number, wid: number, metres: boolean, taps: number) => {
++    const [px, py, fwd] = toPixel(s);
++    const his = readAt(px, py);
++    const ca = Math.cos(his.angle), sa = Math.sin(his.angle);
++    const d = s.clone().sub(E).normalize();
++    const onCanvas = new THREE.Vector3(ca, sa * CP, sa * SP); // his stroke's direction, standing in the picture plane
++    let t = n.clone().cross(d.clone().cross(onCanvas));
++    if (t.lengthSq() < 1e-8) t = onCanvas.clone().addScaledVector(n, -onCanvas.dot(n));
++    t.normalize();
++    if (t.dot(onCanvas) < 0) t.negate();
++    const m = (CM * fwd) / cam.F;
++    const shown = Math.sqrt(Math.max(0, 1 - t.dot(d) ** 2));
++    const colour = [...his.colour];
++    if (taps > 1) {
++      // a broad stroke is one loaded brush: the paint along his stroke, not a single speck of it
++      const reach = len * CM * 0.3;
++      for (const k of [-1, 1]) {
++        const o = readAt(px + k * ca * reach, py - k * sa * reach).colour;
++        for (let i = 0; i < 3; i++) colour[i] += o[i];
++      }
++      for (let i = 0; i < 3; i++) colour[i] /= 3;
++    }
++    const tone = q.range(0.95, 1.06);
++    return {
++      t,
++      agree: his.agree,
++      L: metres ? len : (len * m) / Math.max(shown, 0.6),
++      W: metres ? wid : wid * m * 1.1,
++      colour: colour.map((x) => x * tone),
++      streak: readAt(px + q.range(-2.5, 2.5), py + q.range(-2.5, 2.5)).colour,
++    };
++  };
++  type Kind = 'wall' | 'roof' | 'spire';
++  type Source = (p: THREE.Vector3, kind: Kind, direct: boolean, pl: Plane) => { s: THREE.Vector3; n: THREE.Vector3; back: (t: THREE.Vector3) => THREE.Vector3 };
++  const put = (out: StrokeWriter, root: THREE.Vector3, t: THREE.Vector3, n: THREE.Vector3, len: number, wid: number, colour: number[], streak: number[]) =>
++    out.add({ p: root, t, n, length: len, width: wid, lift: 0, bend: q.range(-0.07, 0.07), colour, streak, seed: q.next(), shape: Math.floor(q.next() * 8), sway: 0, tipSway: 0 });
++  /** Cover a plane with strokes, one to each unevenly shaken patch of it (never rows), each read through the start view. */
++  const cover = (out: StrokeWriter, pl: Plane, source: Source, kind: Kind, len: [number, number], wid: [number, number], metres: boolean, density: number, rise_: number, taps = 1) => {
++    const centre = pl.o.clone().addScaledVector(pl.u, pl.w / 2).addScaledVector(pl.v, pl.h / 2);
++    const dist = centre.distanceTo(E);
++    const m = metres ? 1 : (CM * dist) / cam.F;
++    const direct = pl.n.dot(E.clone().sub(centre)) / dist > (kind === 'wall' ? 0.3 : 0.12);
++    const cell = Math.sqrt((((len[0] + len[1]) / 2) * m * ((wid[0] + wid[1]) / 2) * m) / density);
++    const nx = Math.max(1, Math.round(pl.w / cell)), ny = Math.max(1, Math.round(pl.h / cell));
++    for (let i = 0; i < nx; i++) {
++      for (let j = 0; j < ny; j++) {
++        const a = ((i + q.next()) * pl.w) / nx, c = ((j + q.next()) * pl.h) / ny;
++        if (pl.inside && !pl.inside(a, c)) continue;
++        const p = pl.o.clone().addScaledVector(pl.u, a).addScaledVector(pl.v, c);
++        const from = source(p, kind, direct, pl);
++        const k = hisStroke(from.s, from.n, q.range(len[0], len[1]), q.range(wid[0], wid[1]), metres, taps);
++        const t = from.back(k.t);
++        t.addScaledVector(pl.n, -t.dot(pl.n));
++        if (t.lengthSq() < 1e-6) t.copy(pl.u);
++        const dir = Math.atan2(t.dot(pl.v), t.dot(pl.u)) + q.range(-1, 1) * (0.04 + 0.22 * (1 - k.agree));
++        const cd = Math.abs(Math.cos(dir)) + 1e-3, sd = Math.abs(Math.sin(dir)) + 1e-3;
++        const room = 2 * Math.min(Math.min(a, pl.w - a) / cd, Math.min(c, pl.h - c) / sd);
++        const L = Math.min(k.L, room + 0.3);
++        if (L < Math.min(k.L * 0.3, 0.5)) continue;
++        const tt = pl.u.clone().multiplyScalar(Math.cos(dir)).addScaledVector(pl.v, Math.sin(dir));
++        const root = p.addScaledVector(tt, -L / 2).addScaledVector(pl.n, rise_ + q.range(0, 0.012));
++        put(out, root, tt, pl.n, L, k.W * Math.min(1, 0.5 + (0.5 * L) / k.L), k.colour, k.streak);
++      }
++    }
++  };
++  const coat = new StrokeWriter();
++  const lines = new StrokeWriter();
++  const nearSets: { w: StrokeWriter; x: number; z: number; reach: number }[] = [];
++  /** His dark line along an edge, in overlapping strokes; its colour is his own darkest paint on that building. */
++  const edge = (pl: Plane, a0: number, c0_: number, a1: number, c1_: number, dark: number[], wid = 0.2) => {
++    const L = Math.hypot(a1 - a0, c1_ - c0_), dir = Math.atan2(c1_ - c0_, a1 - a0);
++    const n = Math.max(1, Math.round(L / 1.6));
++    for (let i = 0; i < n; i++) {
++      const k = (i + 0.5) / n, len = (L / n) * q.range(1.1, 1.3), dd = dir + q.range(-0.03, 0.03);
++      const t = pl.u.clone().multiplyScalar(Math.cos(dd)).addScaledVector(pl.v, Math.sin(dd));
++      const root = pl.o.clone().addScaledVector(pl.u, a0 + (a1 - a0) * k + q.range(-0.03, 0.03)).addScaledVector(pl.v, c0_ + (c1_ - c0_) * k + q.range(-0.03, 0.03))
++        .addScaledVector(t, -len / 2).addScaledVector(pl.n, 0.085);
++      put(lines, root, t, pl.n, len, wid * q.range(0.8, 1.25), dark.map((x) => x * q.range(0.85, 1.15)), dark);
++    }
++  };
++  /** Paint one building (walls, roof, and a spire if `spireTop` is given). Returns its near-coat so parts of one building can share it. */
++  function paintBuilding(fp: Footprint, y0: number, wallH: number, rise: number, b: Built, roofed: boolean, reach: number, shared?: StrokeWriter, spireTop?: number) {
++    const fine = shared ?? new StrokeWriter();
++    if (!shared) nearSets.push({ w: fine, x: fp.x, z: fp.z, reach });
++    const c = Math.cos(fp.yaw), s = Math.sin(fp.yaw), w = fp.w / 2, d = fp.d / 2, full = wallH + rise;
++    const P = (x: number, y: number, z: number) => new THREE.Vector3(...frame(fp, y0)(x, y, z));
++    const toLocal = (p: THREE.Vector3) => [(p.x - fp.x) * c + (p.z - fp.z) * s, p.y - y0, -(p.x - fp.x) * s + (p.z - fp.z) * c];
++    const dirL = (v: THREE.Vector3) => [v.x * c + v.z * s, v.y, -v.x * s + v.z * c];
++    const dirW = (l: number[]) => new THREE.Vector3(l[0] * c - l[2] * s, l[1], l[0] * s + l[2] * c);
++    const toWorld = (l: number[]) => P(l[0], l[1], l[2]);
++    // which of its four sides the start looks at
++    const eL = toLocal(E);
++    const frontX = Math.abs(eL[0]) > Math.abs(eL[2]);
++    const sg = Math.sign(frontX ? eL[0] : eL[2]);
++    const A = frontX ? d : w, D = frontX ? w : d;
++    const nF = frontX ? dirW([sg, 0, 0]) : dirW([0, 0, sg]);
++    const uF = frontX ? dirW([0, 0, 1]) : dirW([1, 0, 0]);
++    const top = spireTop ?? full;
++    const source: Source = (p, kind, direct, pl) => {
++      let l = toLocal(p), n = pl.n, mode = 0;
++      if (!direct) {
++        if (kind === 'roof') {
++          // the far slope takes the near slope's paint, mirrored across the ridge
++          const nl = dirL(pl.n);
++          l = [l[0], l[1], -l[2]];
++          n = dirW([nl[0], nl[1], -nl[2]]);
++          mode = 2;
++        } else {
++          const along = frontX ? l[2] : l[0], depth = D - sg * (frontX ? l[0] : l[2]);
++          let a2 = along;
++          if (kind === 'spire') a2 = Math.abs(along) > Math.abs(depth - D) ? along : (depth - D) * Math.sign(along || 1);
++          else if (depth < 2 * D - 0.02 && depth > 0.02) {
++            // a side wall is the front wall carried on round the corner (folded back if it runs out)
++            let f = depth % (4 * A);
++            if (f > 2 * A) f = 4 * A - f;
++            a2 = Math.sign(along || 1) * (A - f);
++          }
++          const dd = kind === 'spire' ? 0 : sg * D;
++          l = frontX ? [dd, l[1], a2] : [a2, l[1], dd];
++          n = nF;
++          mode = 1;
++        }
++      }
++      let sp = toWorld(l);
++      if (hidden(sp, fp)) {
++        // another building stands in front of this point in his picture: take the nearest paint of this building's own
++        const ax = mode === 1 ? uF : kind === 'wall' ? pl.u : dirW([1, 0, 0]);
++        search: for (const dy of kind === 'wall' ? [0, 1.5, 3] : [0]) {
++          for (const da of [0, 1.5, -1.5, 3, -3, 5, -5, 7, -7]) {
++            if (!da && !dy) continue;
++            const cand = sp.clone().addScaledVector(ax, da);
++            cand.y += dy;
++            const lc = toLocal(cand);
++            if (Math.abs(lc[0]) > w + 0.4 || Math.abs(lc[2]) > d + 0.4 || lc[1] < 0.1 || lc[1] > top) continue;
++            if (!hidden(cand, fp)) {
++              sp = cand;
++              break search;
++            }
++          }
++        }
++      }
++      const back = (t: THREE.Vector3) => {
++        if (mode === 0) return t;
++        if (mode === 1) return pl.u.clone().multiplyScalar(t.dot(uF)).addScaledVector(pl.v, t.y);
++        const tl = dirL(t);
++        return dirW([tl[0], tl[1], -tl[2]]);
++      };
++      return { s: sp, n, back };
++    };
++    const coats = (pl: Plane, kind: Kind) => {
++      cover(coat, pl, source, kind, [2.2, 3.6], [0.6, 0.95], false, 1.5, 0.03, 3); // his own stroke size, as seen from the start
++      cover(coat, pl, source, kind, [1.0, 1.6], [0.3, 0.45], false, 1.4, 0.04);
++      cover(coat, pl, source, kind, [0.5, 0.8], [0.15, 0.22], false, 1.3, 0.05);
++      cover(fine, pl, source, kind, [0.36, 0.7], [0.1, 0.19], true, 0.9, 0.06);
++    };
++    const ends = (a: number, cc: number) => cc < wallH + rise * (1 - Math.abs(a / d - 1));
++    const wallsP = [
++      plane(P(-w, 0, d), P(w, 0, d), P(-w, wallH, d)),
++      plane(P(w, 0, -d), P(-w, 0, -d), P(w, wallH, -d)),
++      plane(P(w, 0, d), P(w, 0, -d), P(w, full, d), ends),
++      plane(P(-w, 0, -d), P(-w, 0, d), P(-w, full, -d), ends),
++    ];
++    for (const pl of wallsP) {
++      coats(pl, 'wall');
++      edge(pl, 0.06, 0, 0.06, wallH, b.outline);
++      edge(pl, pl.w - 0.06, 0, pl.w - 0.06, wallH, b.outline);
++    }
++    if (roofed) {
++      for (const pl of [
++        plane(P(-w - 0.35, full, 0), P(w + 0.35, full, 0), P(-w - 0.35, wallH - 0.25, d + 0.35)),
++        plane(P(w + 0.35, full, 0), P(-w - 0.35, full, 0), P(w + 0.35, wallH - 0.25, -d - 0.35)),
++      ]) {
++        coats(pl, 'roof');
++        edge(pl, 0, 0.06, pl.w, 0.06, b.outline, 0.24);
++        edge(pl, 0, pl.h - 0.08, pl.w, pl.h - 0.08, b.outline);
++        edge(pl, 0.08, 0, 0.08, pl.h, b.outline);
++        edge(pl, pl.w - 0.08, 0, pl.w - 0.08, pl.h, b.outline);
++      }
++    }
++    if (spireTop !== undefined) {
++      const tt = w + 0.25, apex = P(0, spireTop, 0);
++      const c4 = [[-tt, -tt], [tt, -tt], [tt, tt], [-tt, tt]];
++      for (let i = 0; i < 4; i++) {
++        const a = P(c4[i][0], wallH, c4[i][1]), bb = P(c4[(i + 1) % 4][0], wallH, c4[(i + 1) % 4][1]);
++        const mid = a.clone().lerp(bb, 0.5);
++        const side = a.distanceTo(bb), hgt = mid.distanceTo(apex);
++        coats(plane(a, bb, a.clone().add(apex).sub(mid), (aa, cc) => Math.abs(aa - side / 2) < (side / 2) * (1 - cc / hgt), mid.clone().sub(P(0, wallH, 0))), 'spire');
++      }
++    }
++    return fine;
++  }
++  for (const t of treeRec.slice(0, data.trees.length)) occluders.push({ fp: { x: t.x, z: t.z, yaw: 0, w: t.wide * 1.3, d: t.wide * 1.3 }, y0: t.y - t.high * 0.5, top: t.high });
++  for (const job of jobs) job();
++  // The trees he painted: strokes on the round form itself, swirling as his do
++  // at that point of the canvas. The side turned from the start mirrors the side it sees.
++  treeRec.slice(0, data.trees.length).forEach((tr, ti) => {
++    const self = occluders[occluders.length - data.trees.length + ti].fp;
++    const centre = new THREE.Vector3(tr.x, tr.y, tr.z);
++    const hv = new THREE.Vector3(tr.x, 0, tr.z).normalize(); // level direction from the start to the tree
++    const mirror = (v: THREE.Vector3) => v.clone().addScaledVector(hv, -2 * v.dot(hv));
++    const fine = new StrokeWriter();
++    nearSets.push({ w: fine, x: tr.x, z: tr.z, reach: tr.wide });
++    const b_ = tr.high * 0.55;
++    const area = 4 * Math.PI * ((2 * (tr.wide * b_) ** 1.6 + tr.wide ** 3.2) / 3) ** (1 / 1.6);
++    const m = (CM * centre.distanceTo(E)) / cam.F;
++    const dab = (out: StrokeWriter, len: [number, number], wid: [number, number], metres: boolean, density: number, rise_: number, taps = 1) => {
++      const k_ = metres ? 1 : m;
++      const count = Math.ceil((area * density) / (((len[0] + len[1]) / 2) * k_ * ((wid[0] + wid[1]) / 2) * k_));
++      for (let i = 0; i < count; i++) {
++        const py = q.range(-0.8, 1), az = q.range(0, Math.PI * 2), rr = Math.sqrt(1 - py * py);
++        const px = rr * Math.cos(az), pz = rr * Math.sin(az);
++        const lump = 1 + 0.16 * Math.sin(px * 5 + tr.turn) * Math.cos(pz * 4 + py * 3);
++        const cx = px * Math.cos(tr.turn) - pz * Math.sin(tr.turn), cz = px * Math.sin(tr.turn) + pz * Math.cos(tr.turn);
++        const p = new THREE.Vector3(tr.x + cx * tr.wide * lump, tr.y + py * b_ * lump, tr.z + cz * tr.wide * lump);
++        if (p.y < terrain(p.x, p.z) + 0.15) continue;
++        const n = new THREE.Vector3(cx / tr.wide, py / b_, cz / tr.wide).normalize();
++        const facing = n.dot(E.clone().sub(p).normalize()) > 0.15;
++        let sp = facing ? p.clone() : centre.clone().add(mirror(p.clone().sub(centre)));
++        const sn = facing ? n : mirror(n);
++        if (hidden(sp, self)) {
++          const crown = centre.clone().add(new THREE.Vector3(0, b_ * 0.9, 0)).addScaledVector(hv, -tr.wide * 0.3);
++          for (const f of [0.35, 0.7]) {
++            const cand = sp.clone().lerp(crown, f);
++            if (!hidden(cand, self)) {
++              sp = cand;
++              break;
++            }
++          }
++        }
++        const k = hisStroke(sp, sn, q.range(len[0], len[1]), q.range(wid[0], wid[1]), metres, taps);
++        const t = facing ? k.t : mirror(k.t);
++        t.addScaledVector(n, -t.dot(n)).normalize();
++        // turn it a little where his strokes agree less
++        t.applyAxisAngle(n, q.range(-1, 1) * (0.04 + 0.22 * (1 - k.agree)));
++        const L = Math.min(k.L, tr.wide * 0.7);
++        const W = k.W * Math.min(1, 0.5 + (0.5 * L) / k.L);
++        const root = p.addScaledVector(t, -L / 2).addScaledVector(n, rise_ + (L * L) / (10 * tr.wide) + q.range(0, 0.02));
++        put(out, root, t, n, L, W, k.colour, k.streak);
++      }
++    };
++    dab(coat, [2.2, 3.6], [0.6, 0.95], false, 1.5, 0.05, 3);
++    dab(coat, [1.0, 1.6], [0.3, 0.45], false, 1.4, 0.08);
++    dab(coat, [0.5, 0.8], [0.15, 0.22], false, 1.2, 0.11);
++    dab(fine, [0.55, 0.95], [0.15, 0.24], true, 0.7, 0.14);
++  });
++
+   const g = new THREE.BufferGeometry();
+   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+   g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+@@ -658,18 +991,18 @@ export async function buildVillage(base: string) {
+   const group = new THREE.Group();
+   group.add(plainForms(g));
+   // broad strokes and lines are always there
+-  group.add(surfaceStrokes(broadCoat.data(), { segments: 3 }));
+-  group.add(surfaceStrokes(outlineCoat.data(), { segments: 2 }));
++  group.add(surfaceStrokes(coat.data(), { segments: 3 }));
++  group.add(surfaceStrokes(lines.data(), { segments: 2 }));
+   // each building's fine strokes are drawn only while you are near it, and fade by distance
+   const FADE: [number, number] = [28, 52]; // owner: fine strokes should arrive from further off
+-  const fines = fineSets.map((f) => {
++  const fines = nearSets.map((f) => {
+     const mesh = surfaceStrokes(f.w.data(), { segments: 2, fade: FADE });
+     mesh.visible = false;
+     group.add(mesh);
+     return { mesh, x: f.x, z: f.z, reach: f.reach + FADE[1] + 2 };
+   });
+   const count = (w: StrokeWriter) => w.data().length / 24;
+-  console.info('village paint: broad', count(broadCoat), 'lines', count(outlineCoat), 'fine in', fines.length, 'sets, total', fineSets.reduce((a, f) => a + count(f.w), 0));
++  console.info('village paint: always', count(coat), 'lines', count(lines), 'fine in', fines.length, 'sets, total', nearSets.reduce((a, f) => a + count(f.w), 0), 'largest', Math.max(...nearSets.map((f) => count(f.w))));
+   /** Call every frame with where the walker's head is. */
+   const update = (head: THREE.Vector3) => {
+     for (const f of fines) f.mesh.visible = Math.hypot(head.x - f.x, head.z - f.z) < f.reach;
+diff --git a/tools/starry/village.py b/tools/starry/village.py
+index b895cb3..6425487 100644
+--- a/tools/starry/village.py
++++ b/tools/starry/village.py
+@@ -192,6 +192,28 @@ for base, size in ((858, 62), (832, 56), (808, 50)):          # the grove behind
+ 
+ out = dict(camera=dict(F=F, pitch=PITCH, W=W, H=H), grid=[GX, GY], houses=houses, church=church, trees=trees,
+            road=colour((1100, 950, 1180, 962)), field=colour((600, 955, 715, 995)))
++# The painting itself over the village, for laying his strokes onto the real
++# buildings from the start view (as the first paint of the town was made):
++# the colour at every point, and which way the stroke there runs.
++CX0, CY0, CX1, CY1 = 500, 600, 1268, 1004
++if soft is None:
++    soft = cv2.GaussianBlur(img, (0, 0), 2.2)
++crop = soft[int(CY0 * K):int(CY1 * K), int(CX0 * K):int(CX1 * K)]
++cv2.imwrite(str(ROOT / "public" / "starry" / "village_canvas.jpg"),
++            cv2.resize(crop, ((CX1 - CX0) * 3, (CY1 - CY0) * 3), interpolation=cv2.INTER_AREA), [cv2.IMWRITE_JPEG_QUALITY, 93])
++if _J is None:
++    _gx, _gy = stroke_grad()
++    _J = [cv2.GaussianBlur(a_, (0, 0), 9.0) for a_ in (_gx * _gx, _gx * _gy, _gy * _gy)]
++jj = [cv2.resize(a_[int(CY0 * K):int(CY1 * K), int(CX0 * K):int(CX1 * K)], (CX1 - CX0, CY1 - CY0), interpolation=cv2.INTER_AREA) for a_ in _J]
++along_ = 0.5 * np.arctan2(2 * jj[1], jj[0] - jj[2]) + np.pi / 2
++ang_ = -np.arctan2(np.sin(along_), np.cos(along_))
++ang_ = (ang_ + np.pi / 2) % np.pi - np.pi / 2
++agree_ = np.hypot(jj[0] - jj[2], 2 * jj[1]) / (jj[0] + jj[2] + 1e-9)
++run = np.zeros((CY1 - CY0, CX1 - CX0, 3), np.uint8)
++run[..., 2] = np.round((ang_ / np.pi + 0.5) * 255)      # red: direction
++run[..., 1] = np.round(np.clip(agree_, 0, 1) * 255)     # green: agreement
++cv2.imwrite(str(ROOT / "public" / "starry" / "village_run.png"), run)
++out["canvas"] = [CX0, CY0, CX1, CY1]
+ (ROOT / "public" / "starry" / "village.json").write_text(json.dumps(out))
+ print(len(houses), "houses", len(trees), "trees; church nave", church["nave"], "spire top", church["spireTop"])
+ for h in houses:

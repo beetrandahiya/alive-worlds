@@ -1,0 +1,691 @@
+diff --git a/src/worlds/starry/village.ts b/src/worlds/starry/village.ts
+index 0ddf8e5..2087978 100644
+--- a/src/worlds/starry/village.ts
++++ b/src/worlds/starry/village.ts
+@@ -31,6 +31,10 @@ interface VillageData {
+   field: number[];
+ }
+ interface Footprint { x: number; z: number; yaw: number; w: number; d: number }
++/** One stroke as it lies in the world: centre, direction, the surface's normal, size in metres. */
++interface Placed { c: THREE.Vector3; t: THREE.Vector3; n: THREE.Vector3; len: number; wid: number; colour: number[]; streak: number[]; rise: number }
++/** A solid thing he painted, kept as triangles so his strokes can be laid on it. */
++interface Obj { kind: 'house' | 'nave' | 'tower' | 'tree'; tris: number[]; c: THREE.Vector3; rad: number; fp?: Footprint; y0: number; wallH: number; rise: number; broad: Placed[]; fine: Placed[] }
+ 
+ const LIT = [0.93, 0.78, 0.22];
+ const DARK = [0.08, 0.1, 0.18];
+@@ -44,12 +48,25 @@ export async function buildVillage(base: string) {
+   const nor: number[] = [];
+   const col: number[] = [];
+   const footprints: Footprint[] = [];
++  /** While set, every triangle built is also kept here: the solid form his strokes will be laid on. */
++  let catching: number[] | null = null;
++  const objects: Obj[] = [];
++  const caught = (kind: Obj['kind'], tris: number[], fp?: Footprint, y0 = 0, wallH = 0, rise = 0) => {
++    const lo = new THREE.Vector3(Infinity, Infinity, Infinity), hi = lo.clone().negate();
++    for (let i = 0; i < tris.length; i += 3) {
++      const v = new THREE.Vector3(tris[i], tris[i + 1], tris[i + 2]);
++      lo.min(v);
++      hi.max(v);
++    }
++    objects.push({ kind, tris, c: lo.clone().add(hi).multiplyScalar(0.5), rad: lo.distanceTo(hi) / 2 + 0.05, fp, y0, wallH, rise, broad: [], fine: [] });
++  };
+ 
+   // --- small builders
+   const tri = (a: number[], b: number[], c: number[], colour: number[]) => {
+     const n = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2])
+       .cross(new THREE.Vector3(c[0] - a[0], c[1] - a[1], c[2] - a[2]))
+       .normalize();
++    if (catching) catching.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]);
+     for (const p of [a, b, c]) {
+       pos.push(p[0], p[1], p[2]);
+       nor.push(n.x, n.y, n.z);
+@@ -261,12 +278,15 @@ export async function buildVillage(base: string) {
+   const house = (fp: Footprint, wall: number, rise: number, wallColour: number[], roofColour: number[], lit: number, front: number, paint?: Built) => {
+     const y0 = groundUnder(fp);
+     opened = [];
++    if (paint) catching = [];
+     walls(fp, y0, wall + 0.3, wallColour);
+     gable(fp, y0, wall + 0.3, rise, roofColour, wallColour);
+     if (!paint) openings(fp, y0, wall, front, lit); // on a house he painted, the windows are the ones he painted
+     const c = Math.cos(fp.yaw), s = Math.sin(fp.yaw), k = fp.w * r.range(-0.3, 0.3);
+     walls({ x: fp.x + c * k, z: fp.z + s * k, yaw: fp.yaw, w: 0.7, d: 0.7 }, y0 + wall + rise * 0.45, rise * 0.55 + 1.1, [0.2, 0.18, 0.18]);
+     if (paint) {
++      caught('house', catching!, fp, y0, wall + 0.3, rise);
++      catching = null;
+       beginPaint(paint, fp.x, fp.z, Math.hypot(fp.w, fp.d) / 2);
+       paintBox(fp, y0, wall + 0.3, rise, paint);
+     }
+@@ -381,10 +401,14 @@ export async function buildVillage(base: string) {
+   }
+   {
+     const y0 = groundUnder(nave);
++    catching = [];
+     walls(nave, y0, ch.nave.wall, ch.nave.wallColour);
+     gable(nave, y0, ch.nave.wall, ch.nave.rise, ch.nave.roofColour, ch.nave.wallColour);
++    caught('nave', catching, nave, y0, ch.nave.wall, ch.nave.rise);
++    catching = null;
+     for (const side of [-1, 1]) for (const x of [-5, 0, 5]) panel(nave, y0, x, 2.6, 1.0, 3.0, side, DARK);
+     const towerH = ch.tower.wall;
++    catching = [];
+     walls(tower, y0, towerH, ch.tower.wallColour);
+     const P = frame(tower, y0);
+     const t = tower.w / 2 + 0.25;
+@@ -393,10 +417,12 @@ export async function buildVillage(base: string) {
+       const a = cs[i], b = cs[(i + 1) % 4];
+       tri(P(a[0], towerH, a[1]), P(0, ch.spireTop, 0), P(b[0], towerH, b[1]), ch.tower.roofColour);
+     }
+-    panel(tower, y0, 0, 0, 1.5, 2.5, 1, DOOR);
+-    panel(tower, y0, 0, towerH * 0.62, 0.9, 2.2, 1, DARK);
++    caught('tower', catching, tower, y0, towerH, 0);
++    catching = [];
+     walls(wing, y0, ch.wing.wall, ch.wing.wallColour);
+     gable(wing, y0, ch.wing.wall, ch.wing.rise, ch.wing.roofColour, ch.wing.wallColour);
++    caught('house', catching, wing, y0, ch.wing.wall, ch.wing.rise);
++    catching = null;
+     // the church, painted: nave, tower, spire and wing as one building
+     opened = [];
+     beginPaint(ch.nave, tower.x, tower.z, 16);
+@@ -578,7 +604,10 @@ export async function buildVillage(base: string) {
+       x = t.x + Math.cos(a) * (1.5 + k * 0.9);
+       z = t.z + Math.sin(a) * (1.5 + k * 0.9);
+     }
++    catching = [];
+     tree(x, z, t.r, t.h, t.colour.map((c) => c * 0.85));
++    caught('tree', catching);
++    catching = null;
+   }
+   const greens = data.trees.slice(0, 5).map((t) => t.colour.map((c) => c * 0.8));
+   for (let k = 0; k < 420 && treeAt.length < 190; k++) {
+@@ -657,22 +686,417 @@ export async function buildVillage(base: string) {
+   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+   const group = new THREE.Group();
+   group.add(plainForms(g));
+-  // broad strokes and lines are always there
+-  group.add(surfaceStrokes(broadCoat.data(), { segments: 3 }));
+-  group.add(surfaceStrokes(outlineCoat.data(), { segments: 2 }));
+-  // each building's fine strokes are drawn only while you are near it, and fade by distance
+-  const FADE: [number, number] = [28, 52]; // owner: fine strokes should arrive from further off
+-  const fines = fineSets.map((f) => {
+-    const mesh = surfaceStrokes(f.w.data(), { segments: 2, fade: FADE });
++  // ------------------------------------------------- his strokes, one for one
++  // `tools/starry/village_strokes.py` cut the canvas over the village into his
++  // separate brush strokes. Each one is laid here on the solid thing it shows:
++  // the line of sight from the start through the stroke's middle finds the
++  // wall, roof or tree it lands on; the stroke lies on that surface, as long
++  // and wide as it must be to look, from the start, the size he painted it,
++  // running the way he ran it. Close to, each of his strokes is repainted in
++  // small strokes inside its own outline, their colours and directions read
++  // from the canvas at their own points. Faces the start cannot see take the
++  // strokes of the face it can, mirrored or folded round the corner.
++  const q = rng(1889);
++  const pixels = async (name: string) => {
++    const bmp = await createImageBitmap(await (await fetch(base + name + VER)).blob());
++    const cv = document.createElement('canvas');
++    cv.width = bmp.width;
++    cv.height = bmp.height;
++    const ctx = cv.getContext('2d', { willReadFrequently: true })!;
++    ctx.drawImage(bmp, 0, 0);
++    return ctx.getImageData(0, 0, bmp.width, bmp.height);
++  };
++  const [raw, canvasImg, runImg] = await Promise.all([
++    fetch(base + 'village_strokes.bin' + VER).then((x) => x.arrayBuffer()),
++    pixels('village_canvas.jpg'),
++    pixels('village_run.png'),
++  ]);
++  const his = new Float32Array(raw);
++  const [RX0, RY0, , , CS, RS, NS, STR] = his;
++  const canvasAt = (px: number, py: number) => {
++    const x = Math.min(canvasImg.width - 1, Math.max(0, Math.round((px - RX0) * CS)));
++    const y = Math.min(canvasImg.height - 1, Math.max(0, Math.round((py - RY0) * CS)));
++    const k = (y * canvasImg.width + x) * 4;
++    return [canvasImg.data[k] / 255, canvasImg.data[k + 1] / 255, canvasImg.data[k + 2] / 255];
++  };
++  /** Which way his paint runs at a point of the canvas (radians, + rising to the right), and how surely. */
++  const runAt = (px: number, py: number) => {
++    const x = Math.min(runImg.width - 1, Math.max(0, Math.round((px - RX0) * RS)));
++    const y = Math.min(runImg.height - 1, Math.max(0, Math.round((py - RY0) * RS)));
++    const k = (y * runImg.width + x) * 4;
++    return [(runImg.data[k] / 255 - 0.5) * Math.PI, runImg.data[k + 1] / 255];
++  };
++  const EYE = new THREE.Vector3(0, 1.6, 0);
++  const cpp = Math.cos(cam.pitch), spp = Math.sin(cam.pitch);
++  const rayOf = (px: number, py: number) => {
++    const x = (px - cam.W / 2) / cam.F, y = -(py - cam.H / 2) / cam.F;
++    return new THREE.Vector3(x, y * cpp + spp, -(cpp - y * spp)).normalize();
++  };
++  /** The first painted thing a ray meets: how far, which thing, and the surface's normal turned toward the ray's origin. */
++  const cast = (o: THREE.Vector3, d: THREE.Vector3, only?: Obj) => {
++    let bt = Infinity, bo: Obj | null = null, bn: number[] = [0, 0, 0];
++    for (const ob of only ? [only] : objects) {
++      const cx = ob.c.x - o.x, cy = ob.c.y - o.y, cz = ob.c.z - o.z;
++      const al = cx * d.x + cy * d.y + cz * d.z;
++      if (cx * cx + cy * cy + cz * cz - al * al > ob.rad * ob.rad) continue;
++      const T = ob.tris;
++      for (let i = 0; i < T.length; i += 9) {
++        const e1x = T[i + 3] - T[i], e1y = T[i + 4] - T[i + 1], e1z = T[i + 5] - T[i + 2];
++        const e2x = T[i + 6] - T[i], e2y = T[i + 7] - T[i + 1], e2z = T[i + 8] - T[i + 2];
++        const hx = d.y * e2z - d.z * e2y, hy = d.z * e2x - d.x * e2z, hz = d.x * e2y - d.y * e2x;
++        const det = e1x * hx + e1y * hy + e1z * hz;
++        if (Math.abs(det) < 1e-9) continue;
++        const f = 1 / det;
++        const sx = o.x - T[i], sy = o.y - T[i + 1], sz = o.z - T[i + 2];
++        const u = f * (sx * hx + sy * hy + sz * hz);
++        if (u < 0 || u > 1) continue;
++        const qx = sy * e1z - sz * e1y, qy = sz * e1x - sx * e1z, qz = sx * e1y - sy * e1x;
++        const v = f * (d.x * qx + d.y * qy + d.z * qz);
++        if (v < 0 || u + v > 1) continue;
++        const t = f * (e2x * qx + e2y * qy + e2z * qz);
++        if (t > 0.01 && t < bt) {
++          bt = t;
++          bo = ob;
++          bn = [e1y * e2z - e1z * e2y, e1z * e2x - e1x * e2z, e1x * e2y - e1y * e2x];
++        }
++      }
++    }
++    if (!bo) return null;
++    const n = new THREE.Vector3(bn[0], bn[1], bn[2]).normalize();
++    if (n.dot(d) > 0) n.negate();
++    return { t: bt, obj: bo as Obj, n };
++  };
++  const wrap = (a: number) => a - Math.PI * Math.round(a / Math.PI);
++  for (let k = 0; k < NS; k++) {
++    const o = 8 + k * STR;
++    const px = his[o], py = his[o + 1], ang = his[o + 2], L = his[o + 3], W = his[o + 4];
++    if (px < 522) continue; // the cypress stands in front of this part
++    const colour = [his[o + 5], his[o + 6], his[o + 7]], streak = [his[o + 8], his[o + 9], his[o + 10]];
++    const darkLine = (colour[0] + colour[1] + colour[2]) / 3 < 0.2 && W < 5.5; // one of his dark outlines
++    // the surface this stroke lies on: straight through its middle, or, for an
++    // outline drawn just outside a form's edge, the form beside it
++    let found: { t: number; obj: Obj; n: THREE.Vector3 } | null = null;
++    let through = rayOf(px, py);
++    const d0 = through;
++    found = cast(EYE, d0);
++    if (!found && darkLine) {
++      const rr = Math.max(W, 2.5);
++      for (let j = 0; j < 8; j++) {
++        const dir = rayOf(px + Math.cos(j * 0.785) * rr, py + Math.sin(j * 0.785) * rr);
++        const h = cast(EYE, dir);
++        if (h && (!found || h.t < found.t)) {
++          found = h;
++          through = dir;
++        }
++      }
++    }
++    if (!found) continue;
++    const ob = found.obj, n = found.n, hitT = found.t;
++    const planeD = EYE.clone().addScaledVector(through, hitT).dot(n);
++    const onPlane = (dir: THREE.Vector3) => {
++      const den = dir.dot(n);
++      if (den > -0.02) return null;
++      return EYE.clone().addScaledVector(dir, (planeD - EYE.dot(n)) / den);
++    };
++    const C = onPlane(d0);
++    if (!C) continue;
++    const dist = C.distanceTo(EYE);
++    if (dist > hitT * 1.6) continue;
++    const ca = Math.cos(ang), sa = Math.sin(ang);
++    // each end stops where the form stops, as a brush stops at the line
++    const reach = [0.3, 0.3];
++    const ends = [1, -1].map((sg, e) => {
++      for (const f of darkLine ? [1.15] : [1.25, 1, 0.7, 0.45]) {
++        const dir = rayOf(px + sg * ca * (L / 2) * f, py - sg * sa * (L / 2) * f);
++        const h = darkLine ? null : cast(EYE, dir, ob);
++        if (darkLine || (h && h.n.dot(n) > 0.9)) {
++          const P = onPlane(dir);
++          if (P) {
++            reach[e] = f;
++            return P;
++          }
++        }
++      }
++      return onPlane(rayOf(px + sg * ca * (L / 2) * 0.3, py - sg * sa * (L / 2) * 0.3)) ?? C;
++    });
++    const span = ends[0].clone().sub(ends[1]);
++    let len = span.length();
++    if (len < 1e-3) continue;
++    const t = span.clone().multiplyScalar(1 / len);
++    const nomL = (dist * L) / cam.F, nomW = (dist * W) / cam.F;
++    let centre = ends[0].clone().add(ends[1]).multiplyScalar(0.5);
++    if (len > nomL * 4) { // a surface seen nearly edge-on: do not smear the stroke along it
++      len = nomL * 4;
++      centre = C;
++    }
++    const p1 = onPlane(rayOf(px + (sa * W) / 2, py + (ca * W) / 2)), p2 = onPlane(rayOf(px - (sa * W) / 2, py - (ca * W) / 2));
++    let wid = nomW;
++    if (p1 && p2) {
++      const wv = p1.sub(p2);
++      wid = wv.addScaledVector(t, -wv.dot(t)).length();
++    }
++    wid = Math.min(Math.max(wid, nomW * 0.8), nomW * 3) * 1.2;
++    ob.broad.push({ c: centre, t, n: n.clone(), len, wid, colour, streak, rise: 0.03 + q.next() * 0.02 + (darkLine ? 0.03 : 0) });
++
++    // close to: this stroke repainted in small strokes inside its own outline
++    const isTree = ob.kind === 'tree';
++    const fl = isTree ? [0.9, 1.7] : [0.42, 0.9], fw = isTree ? [0.2, 0.34] : [0.1, 0.17];
++    const nf = Math.min(90, Math.round((len * wid * (isTree ? 1.0 : 1.2)) / (((fl[0] + fl[1]) / 2) * ((fw[0] + fw[1]) / 2))));
++    for (let j = 0; j < nf; j++) {
++      const u = q.range(-reach[1], reach[0]) * 0.92, v = q.range(-0.9, 0.9);
++      const fx = px + u * ca * (L / 2) + v * sa * (W / 2), fy = py - u * sa * (L / 2) + v * ca * (W / 2);
++      const P = onPlane(rayOf(fx, fy));
++      if (!P) continue;
++      const [ra, sure] = runAt(fx, fy);
++      const a2 = ang + THREE.MathUtils.clamp(wrap(ra - ang), -0.45, 0.45) * Math.min(1, sure * 2.5);
++      const P2 = onPlane(rayOf(fx + Math.cos(a2), fy - Math.sin(a2)));
++      if (!P2) continue;
++      const tf = P2.sub(P);
++      if (tf.lengthSq() < 1e-8) continue;
++      tf.normalize();
++      const tone = q.range(0.94, 1.07);
++      ob.fine.push({
++        c: P, t: tf, n: n.clone(), len: Math.min(q.range(fl[0], fl[1]), Math.max(len * 0.9, fl[0] * 0.6)), wid: q.range(fw[0], fw[1]),
++        colour: canvasAt(fx, fy).map((x) => x * tone), streak: canvasAt(fx + q.range(-1.2, 1.2), fy + q.range(-1.2, 1.2)), rise: 0.065 + q.next() * 0.03 + (darkLine ? 0.02 : 0),
++      });
++    }
++  }
++
++  // Parts of a front that the painting does not show (below its bottom edge,
++  // or behind a nearer house) are painted with the strokes he laid beside
++  // them: the front is cut into squares, and each bare square takes the
++  // strokes of the painted square mirrored across the edge of the paint. A
++  // front with no paint at all borrows a painted neighbour's, square by square.
++  {
++    const CELL = 0.8;
++    type Part = { nx: number; ny: number; xa: number; ya: number; cells: { broad: Placed[]; fine: Placed[] }[]; cov: Uint8Array; share: number };
++    const frameOf = (ob: Obj) => {
++      const fp = ob.fp!, c = Math.cos(fp.yaw), s = Math.sin(fp.yaw);
++      return {
++        toL: (v: THREE.Vector3, point: boolean) => {
++          const x = v.x - (point ? fp.x : 0), z = v.z - (point ? fp.z : 0);
++          return new THREE.Vector3(x * c + z * s, v.y - (point ? ob.y0 : 0), -x * s + z * c);
++        },
++        toW: (v: THREE.Vector3, point: boolean) =>
++          new THREE.Vector3(v.x * c - v.z * s + (point ? fp.x : 0), v.y + (point ? ob.y0 : 0), v.x * s + v.z * c + (point ? fp.z : 0)),
++      };
++    };
++    const homes = objects.filter((ob) => ob.kind === 'house' || ob.kind === 'tower'); // the tower's foot is hidden too
++    const parts = homes.map((ob) => {
++      const { toL } = frameOf(ob);
++      const w = ob.fp!.w / 2;
++      return [0, 1].map((roof): Part => {
++        const xa = roof ? -w - 0.35 : -w, xb = -xa, ya = roof ? ob.wallH - 0.25 : 0, yb = roof ? ob.wallH + ob.rise : ob.wallH;
++        const nx = Math.max(1, Math.ceil((xb - xa) / CELL)), ny = Math.max(1, Math.ceil((yb - ya) / CELL));
++        const cells = Array.from({ length: nx * ny }, () => ({ broad: [] as Placed[], fine: [] as Placed[] }));
++        const cov = new Uint8Array(nx * ny);
++        const at = (x: number, y: number) => {
++          const i = Math.floor((x - xa) / CELL), j = Math.floor((y - ya) / CELL);
++          return i < 0 || j < 0 || i >= nx || j >= ny ? -1 : j * nx + i;
++        };
++        for (const kind of ['broad', 'fine'] as const) {
++          for (const st of ob[kind]) {
++            const n = toL(st.n, false);
++            if (n.z < 0.5 || (n.y >= 0.3 ? 1 : 0) !== roof) continue;
++            const p = toL(st.c, true), t = toL(st.t, false);
++            const k = at(p.x, p.y);
++            if (k >= 0) cells[k][kind].push(st);
++            if (kind === 'broad') {
++              for (const f of [-0.4, -0.2, 0, 0.2, 0.4]) {
++                const kk = at(p.x + t.x * st.len * f, p.y + t.y * st.len * f);
++                if (kk >= 0) cov[kk] = 1;
++              }
++            }
++          }
++        }
++        return { nx, ny, xa, ya, cells, cov, share: cov.reduce((a, b) => a + b, 0) / (nx * ny) };
++      });
++    });
++    /** The nearest square of a front that has his paint on it. */
++    const nearest = (pt: Part, i: number, j: number): [number, number] | null => {
++      let best = Infinity, out: [number, number] | null = null;
++      for (let b = 0; b < pt.ny; b++) {
++        for (let a = 0; a < pt.nx; a++) {
++          const dd = (a - i) * (a - i) + (b - j) * (b - j);
++          if (pt.cov[b * pt.nx + a] && dd < best) {
++            best = dd;
++            out = [a, b];
++          }
++        }
++      }
++      return out;
++    };
++    const fold = (k: number, n: number) => {
++      const m = ((k % (2 * n)) + 2 * n) % (2 * n);
++      return m < n ? m : 2 * n - 1 - m;
++    };
++    homes.forEach((ob, hi) => {
++      const { toL, toW } = frameOf(ob);
++      const d = ob.fp!.d / 2;
++      for (const roof of ob.kind === 'tower' ? [0] : [0, 1]) {
++        const me = parts[hi][roof];
++        // a front with next to no paint borrows the nearest well painted one
++        let from = me, other: Obj | null = null;
++        if (me.share < 0.15) {
++          let best = Infinity;
++          homes.forEach((o2, j) => {
++            const dd = o2.c.distanceTo(ob.c);
++            if (o2 !== ob && o2.kind === 'house' && parts[j][roof].share > 0.5 && dd < best) {
++              best = dd;
++              from = parts[j][roof];
++              other = o2;
++            }
++          });
++          if (!other) continue;
++        }
++        const src = other ? frameOf(other) : { toL, toW };
++        const slope = (d + 0.35) / (ob.rise + 0.25);
++        const nrm = roof ? new THREE.Vector3(0, d + 0.35, ob.rise + 0.25).normalize() : new THREE.Vector3(0, 0, 1);
++        for (let j = 0; j < me.ny; j++) {
++          for (let i = 0; i < me.nx; i++) {
++            if (me.cov[j * me.nx + i]) continue;
++            const cx = me.xa + (i + 0.5) * CELL, cy = me.ya + (j + 0.5) * CELL;
++            if (!roof) {
++              const wpt = toW(new THREE.Vector3(cx, cy, d), true);
++              if (terrain(wpt.x, wpt.z) > wpt.y + 0.5) continue; // below the ground
++            }
++            let si = -1, sj = -1;
++            if (other) {
++              si = fold(i, from.nx);
++              sj = fold(from.ny - 1 - (me.ny - 1 - j), from.ny); // measured down from the eave
++              if (!from.cov[sj * from.nx + si]) {
++                const near = nearest(from, si, sj);
++                if (!near) continue;
++                [si, sj] = near;
++              }
++            } else {
++              const near = nearest(me, i, j);
++              if (!near) continue;
++              const [bi, bj] = near;
++              si = 2 * bi - i;
++              sj = 2 * bj - j;
++              if (si < 0 || sj < 0 || si >= me.nx || sj >= me.ny || !me.cov[sj * me.nx + si]) {
++                si = bi;
++                sj = bj;
++              }
++            }
++            const dx = cx - (from.xa + (si + 0.5) * CELL), dy = cy - (from.ya + (sj + 0.5) * CELL);
++            for (const kind of ['broad', 'fine'] as const) {
++              for (const st of from.cells[sj * from.nx + si][kind]) {
++                const p = src.toL(st.c, true), t = src.toL(st.t, false);
++                p.x += dx;
++                p.y += dy;
++                p.z = roof ? (ob.wallH + ob.rise - p.y) * slope : d;
++                t.addScaledVector(nrm, -t.dot(nrm));
++                if (t.lengthSq() < 0.05) continue;
++                ob[kind].push({ ...st, c: toW(p, true), t: toW(t.normalize(), false), n: toW(nrm, false) });
++              }
++            }
++          }
++        }
++      }
++    });
++  }
++
++  // Faces the start cannot see: the strokes of the face it can see, mirrored
++  // to the far side or folded round the corner. Still his strokes, each whole.
++  for (const ob of objects) {
++    for (const list of [ob.broad, ob.fine]) {
++      const src = list.slice();
++      if (ob.kind === 'tree') {
++        const s = new THREE.Vector3(ob.c.x, 0, ob.c.z).normalize();
++        for (const st of src) {
++          const rel = st.c.clone().sub(ob.c);
++          rel.addScaledVector(s, -2 * rel.dot(s));
++          if (rel.lengthSq() < 1e-4) continue;
++          const dir = rel.clone().normalize().negate();
++          const from = ob.c.clone().addScaledVector(dir, -ob.rad * 2.2);
++          const h = cast(from, dir, ob);
++          if (!h) continue;
++          const tt = st.t.clone().addScaledVector(s, -2 * st.t.dot(s));
++          tt.addScaledVector(h.n, -tt.dot(h.n));
++          if (tt.lengthSq() < 0.05) continue;
++          list.push({ ...st, c: from.addScaledVector(dir, h.t), t: tt.normalize(), n: h.n });
++        }
++        continue;
++      }
++      const fp = ob.fp!;
++      const c = Math.cos(fp.yaw), s = Math.sin(fp.yaw);
++      const toL = (v: THREE.Vector3, point: boolean) => {
++        const x = v.x - (point ? fp.x : 0), z = v.z - (point ? fp.z : 0);
++        return new THREE.Vector3(x * c + z * s, v.y - (point ? ob.y0 : 0), -x * s + z * c);
++      };
++      const toW = (v: THREE.Vector3, point: boolean) =>
++        new THREE.Vector3(v.x * c - v.z * s + (point ? fp.x : 0), v.y + (point ? ob.y0 : 0), v.x * s + v.z * c + (point ? fp.z : 0));
++      const put = (st: Placed, p: number[], t: number[], n: number[]) =>
++        list.push({ ...st, c: toW(new THREE.Vector3(p[0], p[1], p[2]), true), t: toW(new THREE.Vector3(t[0], t[1], t[2]), false), n: toW(new THREE.Vector3(n[0], n[1], n[2]), false) });
++      const w = fp.w / 2, d = fp.d / 2;
++      for (const st of src) {
++        const p = toL(st.c, true), t = toL(st.t, false), n = toL(st.n, false);
++        if (ob.kind === 'tower') {
++          if (n.z < 0.5) continue;
++          put(st, [-p.x, p.y, -p.z], [-t.x, t.y, -t.z], [-n.x, n.y, -n.z]);
++          put(st, [p.z, p.y, -p.x], [t.z, t.y, -t.x], [n.z, n.y, -n.x]);
++          put(st, [-p.z, p.y, p.x], [-t.z, t.y, t.x], [-n.z, n.y, n.x]);
++        } else if (ob.kind === 'house') {
++          if (n.z < 0.5) continue;
++          put(st, [p.x, p.y, -p.z], [t.x, t.y, -t.z], [n.x, n.y, -n.z]); // the back wall and back roof
++          if (Math.abs(n.y) > 0.3 || p.y > ob.wallH) continue;
++          // the two ends: the front wall's own ends, folded round the corner
++          if (p.x > w - 2 * d) put(st, [w, p.y, d - (w - p.x)], [0, t.y, t.x], [1, 0, 0]);
++          if (p.x < -w + 2 * d) put(st, [-w, p.y, d - (p.x + w)], [0, t.y, -t.x], [-1, 0, 0]);
++          // and the gables above them, from the top of the wall at the other end
++          if (p.y > ob.wallH - ob.rise) {
++            const y = p.y + ob.rise, room = d * (1 - (y - ob.wallH) / ob.rise) - 0.15;
++            if (p.x < -w + 2 * d && Math.abs(d - (p.x + w)) < room) put(st, [w, y, d - (p.x + w)], [0, t.y, -t.x], [1, 0, 0]);
++            if (p.x > w - 2 * d && Math.abs(d - (w - p.x)) < room) put(st, [-w, y, d - (w - p.x)], [0, t.y, t.x], [-1, 0, 0]);
++          }
++        } else {
++          // the church's nave shows its gable end to the start
++          if (n.x < 0.5) continue;
++          put(st, [-p.x, p.y, p.z], [-t.x, t.y, t.z], [-n.x, n.y, n.z]);
++          if (p.y > ob.wallH) continue;
++          const a1 = w - (d - p.z), a2 = w - 2 * d - (p.z + d); // along the side wall: once, then mirrored on
++          put(st, [a1, p.y, d], [t.z, t.y, 0], [0, 0, 1]);
++          if (a2 > -w) put(st, [a2, p.y, d], [-t.z, t.y, 0], [0, 0, 1]);
++          const b1 = w - (p.z + d), b2 = w - 2 * d - (d - p.z);
++          put(st, [b1, p.y, -d], [-t.z, t.y, 0], [0, 0, -1]);
++          if (b2 > -w) put(st, [b2, p.y, -d], [t.z, t.y, 0], [0, 0, -1]);
++        }
++      }
++    }
++  }
++  const write = (w: StrokeWriter, st: Placed) =>
++    w.add({
++      p: st.c.clone().addScaledVector(st.t, -st.len / 2).addScaledVector(st.n, st.rise), t: st.t, n: st.n, length: st.len, width: st.wid, lift: 0,
++      bend: q.range(-0.06, 0.06), colour: st.colour, streak: st.streak, seed: q.next(), shape: Math.floor(q.next() * 8), sway: 0, tipSway: 0,
++    });
++  // his strokes are always there
++  const hisCoat = new StrokeWriter();
++  for (const ob of objects) for (const st of ob.broad) write(hisCoat, st);
++  group.add(surfaceStrokes(hisCoat.data(), { segments: 3 }));
++  // each thing's small strokes are drawn only while you are near it, and fade by distance
++  const FADE: [number, number] = [28, 52];
++  let fineTotal = 0;
++  const fines = objects.filter((ob) => ob.fine.length > 0).map((ob) => {
++    const w = new StrokeWriter();
++    for (const st of ob.fine) write(w, st);
++    fineTotal += ob.fine.length;
++    const mesh = surfaceStrokes(w.data(), { segments: 2, fade: FADE });
+     mesh.visible = false;
+     group.add(mesh);
+-    return { mesh, x: f.x, z: f.z, reach: f.reach + FADE[1] + 2 };
++    return { mesh, x: ob.c.x, z: ob.c.z, reach: ob.rad + FADE[1] + 2, n: ob.fine.length };
+   });
+-  const count = (w: StrokeWriter) => w.data().length / 24;
+-  console.info('village paint: broad', count(broadCoat), 'lines', count(outlineCoat), 'fine in', fines.length, 'sets, total', fineSets.reduce((a, f) => a + count(f.w), 0));
++  console.info('village paint (his strokes): always', hisCoat.data().length / 24, 'near', fineTotal, 'in', fines.length, 'sets');
++  let lastDrawn = -1;
+   /** Call every frame with where the walker's head is. */
+   const update = (head: THREE.Vector3) => {
+-    for (const f of fines) f.mesh.visible = Math.hypot(head.x - f.x, head.z - f.z) < f.reach;
++    let drawn = 0;
++    for (const f of fines) {
++      f.mesh.visible = Math.hypot(head.x - f.x, head.z - f.z) < f.reach;
++      if (f.mesh.visible) drawn += f.n;
++    }
++    if (drawn !== lastDrawn) console.info('village near strokes drawn', (lastDrawn = drawn));
+   };
+ 
+   /** True inside a building or wall: you cannot walk through it. */
+@@ -684,5 +1108,6 @@ export async function buildVillage(base: string) {
+     }
+     return false;
+   };
++  void [broadCoat, outlineCoat, fineSets]; // the earlier paint is still computed (it keeps the hidden houses where they were) but not drawn
+   return { group, blocked, update, houses: data.houses.length + extra, trees: treeAt.length };
+ }
+diff --git a/tools/starry/village_strokes.py b/tools/starry/village_strokes.py
+new file mode 100644
+index 0000000..393e4be
+--- /dev/null
++++ b/tools/starry/village_strokes.py
+@@ -0,0 +1,151 @@
++"""Lift Van Gogh's individual brush strokes off the canvas over the village.
++
++The scan is cut into its separate strokes (regions of one paint, split along
++the lines where the paint changes). Each becomes one record: where it lies on
++the canvas, which way it runs, how long and wide it is, its colour and the
++colour of its lighter streak. Nothing is averaged over a building.
++
++Writes public/starry/village_strokes.bin (header of 8 floats, then 11 floats
++per stroke), village_canvas.jpg (the paint, for colours point by point) and
++village_run.png (which way the paint runs at each point).
++Check picture: reference/debug_village_strokes.jpg (top: canvas, bottom: the
++lifted strokes redrawn as plain bars).
++
++Run: python3 tools/starry/village_strokes.py
++"""
++import math
++from pathlib import Path
++
++import cv2
++import numpy as np
++
++ROOT = Path(__file__).resolve().parents[2]
++img = cv2.imread(str(ROOT / "reference" / "starry_7000.jpg"))
++K = img.shape[1] / 1280.0
++X0, Y0, X1, Y1 = 500.0, 760.0, 1272.0, 1006.0     # in 1280-px units
++S = 0.5                                            # working scale against the 7000 px scan
++U = K * S                                          # working pixels per unit
++CS, RS = 3.0, 2.0                                  # exported canvas / run images, px per unit
++
++crop = img[int(Y0 * K):int(Y1 * K), int(X0 * K):int(X1 * K)]
++work = cv2.resize(crop, None, fx=S, fy=S, interpolation=cv2.INTER_AREA)
++h, w = work.shape[:2]
++
++# --- cut the paint into strokes
++flat = cv2.pyrMeanShiftFiltering(work, 5, 12)               # bristle marks and weave out, edges kept
++lab = cv2.cvtColor(flat, cv2.COLOR_BGR2LAB).astype(np.float32)
++lab = cv2.GaussianBlur(lab, (0, 0), 1.0)
++g = np.zeros((h, w), np.float32)
++for c in range(3):
++    gx, gy = cv2.Sobel(lab[..., c], cv2.CV_32F, 1, 0), cv2.Sobel(lab[..., c], cv2.CV_32F, 0, 1)
++    g = np.maximum(g, np.hypot(gx, gy))
++gs = cv2.GaussianBlur(g, (0, 0), 1.2)
++local = cv2.GaussianBlur(gs, (0, 0), 14)
++core = cv2.erode((gs < 0.68 * local).astype(np.uint8), np.ones((2, 2), np.uint8))                  # the calm middle of each stroke
++# his dark lines are too thin to have a calm middle: find them by their darkness
++# against the paint round them, so each survives as a long thin stroke of its own
++lum0 = cv2.GaussianBlur(flat, (0, 0), 0.8).astype(np.float32) @ np.array([0.114, 0.587, 0.299], np.float32)
++around = cv2.GaussianBlur(lum0, (0, 0), 10)
++dark = ((lum0 < 0.66 * around) & (lum0 < 62)).astype(np.uint8)
++dark = cv2.morphologyEx(dark, cv2.MORPH_OPEN, np.ones((2, 2), np.uint8))
++core[cv2.dilate(dark, np.ones((3, 3), np.uint8)) > 0] = 0
++n, markers = cv2.connectedComponents(core)
++nd, dm = cv2.connectedComponents(dark)
++markers[dm > 0] = dm[dm > 0] + n
++markers = cv2.watershed(flat, markers.astype(np.int32))
++# watershed leaves 1 px lines of -1 between regions: give them to a neighbour
++lines = markers <= 0
++filled = cv2.dilate(markers.astype(np.float32), np.ones((3, 3), np.uint8))
++markers[lines] = filled[lines].astype(np.int32)
++
++soft = cv2.GaussianBlur(work, (0, 0), 1.1).astype(np.float32)
++lum = soft @ np.array([0.114, 0.587, 0.299], np.float32)
++
++# direction the paint runs at each point (structure tensor about one stroke wide)
++grey = cv2.GaussianBlur(cv2.cvtColor(work, cv2.COLOR_BGR2GRAY).astype(np.float32), (0, 0), 1.0)
++sx, sy = cv2.Sobel(grey, cv2.CV_32F, 1, 0), cv2.Sobel(grey, cv2.CV_32F, 0, 1)
++J = [cv2.GaussianBlur(a, (0, 0), 4.5) for a in (sx * sx, sx * sy, sy * sy)]
++along = 0.5 * np.arctan2(2 * J[1], J[0] - J[2]) + math.pi / 2       # image axes, y down
++agree = np.hypot(J[0] - J[2], 2 * J[1]) / (J[0] + J[2] + 1e-6)
++run = -np.arctan2(np.sin(along), np.cos(along))
++run = (run + math.pi / 2) % math.pi - math.pi / 2                    # 0 level, + rising to the right
++
++MAXLEN, MAXWID, MINAREA = 38 * U, 9.0 * U, 14
++out = []
++
++
++def fit(pts):
++    c = pts.mean(0)
++    d = pts - c
++    cov = d.T @ d / len(pts) + np.eye(2) * 0.08
++    ev, evec = np.linalg.eigh(cov)
++    ax = evec[:, 1]
++    return c, ax, 3.6 * math.sqrt(ev[1]), 3.6 * math.sqrt(ev[0])
++
++
++def take(pts, depth=0):
++    """pts: N x 2 (x, y) working pixels of one region."""
++    if len(pts) < MINAREA:
++        return
++    c, ax, L, Wd = fit(pts)
++    solid = len(pts) / max(L * Wd, 1e-3)
++    if depth < 7 and (L > MAXLEN or Wd > MAXWID or (solid < 0.62 and len(pts) > 60)):
++        # one region holding several strokes (a line turning a corner, a broad patch): split it
++        if Wd > MAXWID and L < 2.2 * Wd:
++            # a broad patch: cut it into bands along the way the paint runs there
++            a = float(np.median(run[pts[:, 1].astype(int), pts[:, 0].astype(int)]))
++            nrm = np.array([math.sin(a), math.cos(a)])       # across the stroke (image axes)
++            s = (pts - c) @ nrm
++            side = s > np.median(s)
++        else:
++            s = (pts - c) @ ax
++            side = s > np.median(s)
++        if 4 < side.sum() < len(pts) - 4:
++            take(pts[side], depth + 1)
++            take(pts[~side], depth + 1)
++            return
++    xi, yi = pts[:, 0].astype(int), pts[:, 1].astype(int)
++    col = soft[yi, xi]
++    lm = lum[yi, xi]
++    main = np.median(col, 0)
++    streak = col[lm >= np.percentile(lm, 70)].mean(0)
++    if L < 1.6 * Wd:   # a dab: no clear long axis of its own, so it runs the way the paint runs there
++        a = float(np.median(run[yi, xi]))
++    else:
++        a = -math.atan2(ax[1], ax[0])
++        a = (a + math.pi / 2) % math.pi - math.pi / 2
++    out.append([X0 + c[0] / U, Y0 + c[1] / U, a, max(L, Wd) / U, max(min(L, Wd), 1.6) / U,
++                main[2] / 255, main[1] / 255, main[0] / 255, streak[2] / 255, streak[1] / 255, streak[0] / 255])
++
++
++ys, xs = np.mgrid[0:h, 0:w]
++order = np.argsort(markers.ravel(), kind="stable")
++lab_sorted = markers.ravel()[order]
++bounds = np.flatnonzero(np.diff(lab_sorted)) + 1
++for idx in np.split(order, bounds):
++    if markers.ravel()[idx[0]] <= 0:
++        continue
++    take(np.stack([xs.ravel()[idx], ys.ravel()[idx]], 1).astype(np.float32))
++
++A = np.array(out, np.float32)
++print("strokes", len(A), "median length", np.median(A[:, 3]), "width", np.median(A[:, 4]), "(1280 units)")
++head = np.array([X0, Y0, X1, Y1, CS, RS, len(A), 11], np.float32)
++(ROOT / "public" / "starry" / "village_strokes.bin").write_bytes(head.tobytes() + A.tobytes())
++
++cw, chh = int((X1 - X0) * CS), int((Y1 - Y0) * CS)
++canvas = cv2.resize(cv2.GaussianBlur(crop, (0, 0), 1.6), (cw, chh), interpolation=cv2.INTER_AREA)
++cv2.imwrite(str(ROOT / "public" / "starry" / "village_canvas.jpg"), canvas, [cv2.IMWRITE_JPEG_QUALITY, 90])
++rw, rh = int((X1 - X0) * RS), int((Y1 - Y0) * RS)
++r8 = np.zeros((rh, rw, 3), np.uint8)
++r8[..., 2] = cv2.resize(np.clip((run / math.pi + 0.5) * 255, 0, 255), (rw, rh), interpolation=cv2.INTER_NEAREST).astype(np.uint8)
++r8[..., 1] = cv2.resize(np.clip(agree * 255, 0, 255), (rw, rh), interpolation=cv2.INTER_AREA).astype(np.uint8)
++cv2.imwrite(str(ROOT / "public" / "starry" / "village_run.png"), r8)
++
++# check picture: the strokes redrawn as plain bars, broad ones first
++dbg = np.zeros_like(work)
++dbg[:] = (40, 30, 25)
++for s in sorted(out, key=lambda s: -s[3] * s[4]):
++    cx, cy = (s[0] - X0) * U, (s[1] - Y0) * U
++    box = cv2.boxPoints(((cx, cy), (s[3] * U, s[4] * U), -math.degrees(s[2])))
++    cv2.fillPoly(dbg, [box.astype(np.int32)], (int(s[7] * 255), int(s[6] * 255), int(s[5] * 255)), cv2.LINE_AA)
++cv2.imwrite(str(ROOT / "reference" / "debug_village_strokes.jpg"), np.vstack([work, dbg]), [cv2.IMWRITE_JPEG_QUALITY, 88])
