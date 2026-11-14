@@ -86,6 +86,8 @@ export interface SurfaceOptions {
   segments: number;
   /** Fine strokes: fully present within `near` metres, gone by `far`. */
   fade?: [number, number];
+  /** Broad strokes: absent within `a` metres, fully present by `b`. */
+  near?: [number, number];
   /** Repeat on a square tile of this size that follows the viewer. */
   tile?: number;
   /** GLSL source of `float terrain(vec2 xz)`; needed when tiling. */
@@ -111,6 +113,7 @@ export function surfaceStrokes(data: Float32Array, o: SurfaceOptions): THREE.Mes
       uAtlas: shared.uAtlas,
       uFade: { value: new THREE.Vector2(...(o.fade ?? [1e6, 2e6])) },
       uTile: { value: o.tile ?? 0 },
+      uNear: { value: new THREE.Vector2(...(o.near ?? [-2, -1])) },
     },
   );
   const mesh = new THREE.Mesh(g, m);
@@ -138,7 +141,7 @@ export class StrokeWriter {
     p: THREE.Vector3; t: THREE.Vector3; n: THREE.Vector3;
     length: number; width: number; lift: number; bend: number;
     colour: number[]; streak: number[]; seed: number; shape: number;
-    sway: number; tipSway: number;
+    sway: number; tipSway: number; hug?: boolean;
   }) {
     this.a.push(
       s.p.x, s.p.y, s.p.z, s.length,
@@ -146,7 +149,7 @@ export class StrokeWriter {
       s.n.x, s.n.y, s.n.z, s.lift,
       s.colour[0], s.colour[1], s.colour[2], s.seed,
       s.streak[0], s.streak[1], s.streak[2], s.shape,
-      s.sway, s.tipSway, s.bend, 0,
+      s.sway, s.tipSway, s.bend, s.hug ? 1 : 0,
     );
   }
   data() {

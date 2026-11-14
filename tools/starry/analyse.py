@@ -203,8 +203,9 @@ calm_sky = (sky_mask > 0.95) & (cyp == 0) & (warm < 0.0) & (xx > INSET) & (yy > 
 sky_pal, sky_w = palette(calm_sky, 14)
 sky_cdf = np.cumsum(sky_w) / sky_w.sum()
 hill_pal, _ = palette(region(640, 650, 1120, 770) & (sky_mask < 0.05), 8)
-bush_pal, bush_w = palette((region(20, 890, 150, 1000) | region(600, 880, 720, 1000) | region(900, 760, 1150, 880)), 10)
-cyp_pal, cyp_w = palette(cyp_core > 0, 12)
+bush_pal, bush_w = palette((region(20, 890, 150, 1000) | region(600, 880, 720, 1000) | region(900, 760, 1150, 880)) & (lum < 0.42), 10)
+cyp_dark = (cyp_core > 0) & (lum < 0.36) & (img[..., 2] < np.maximum(img[..., 0], img[..., 1]) + 0.04)
+cyp_pal, cyp_w = palette(cyp_dark, 10)
 
 # ----------------------------------------------------- the sky beyond the frame
 KS = rng.normal(size=(3, 7, 3))
@@ -258,11 +259,11 @@ def field(d, colour_img, jitter=None):
     t0 = norm(t0 - (t0 * d).sum(-1, keepdims=True) * d)
     ang = 0.5 * noise3(d * 2.2, 0) + 0.22 * noise3(d * 5.0, 1)
     t_ext = norm(t0 * np.cos(ang)[:, None] + np.cross(d, t0) * np.sin(ang)[:, None])
-    u = np.clip(0.5 + 0.2 * noise3(d * 3.4, 2) + jit * 0.95, 0.001, 0.999)
+    u = np.clip(0.36 + 0.18 * noise3(d * 3.4, 2) + jit * 0.8, 0.001, 0.999)
     c_sky = sky_pal[np.searchsorted(sky_cdf, u).clip(0, len(sky_pal) - 1)]
     if jitter is None:  # undercoat: a calm mean, the strokes carry the contrast
-        lo = sky_pal[np.searchsorted(sky_cdf, 0.3)]
-        hi = sky_pal[np.searchsorted(sky_cdf, 0.62)]
+        lo = sky_pal[np.searchsorted(sky_cdf, 0.18)]
+        hi = sky_pal[np.searchsorted(sky_cdf, 0.5)]
         c_sky = lo + (hi - lo) * np.clip(0.5 + 0.5 * noise3(d * 3.4, 2), 0, 1)[:, None]
     r_el = ridge_ext(az)
     hk = np.clip(0.45 + 0.2 * noise3(d * 9.0, 1) + jit * 0.8, 0, 0.999) * (len(hill_pal) - 1)
@@ -348,8 +349,8 @@ def bake(d, scale, travel_lengths):
     """Turn sample directions into strokes: 20 floats each."""
     n_ = len(d)
     col, t, speed, _ = field(d, scene_fine, rng.uniform(0, 1, n_))
-    length = np.radians(rng.uniform(2.1, 4.3, n_)) * scale
-    width = np.radians(rng.uniform(0.5, 0.85, n_)) * scale
+    length = np.radians(rng.uniform(1.8, 3.7, n_)) * scale
+    width = np.radians(rng.uniform(0.45, 0.78, n_)) * scale
     # The path a stroke lies on and travels along is a circle on the sky dome
     # fitted to the measured flow through three points.
     def step(sign):
@@ -389,21 +390,34 @@ def uniform_dirs(n_):
     return dirs(az, el)
 
 
-N_ALL = 56000
+def warmth(d):
+    """How much a place is star or moon (0..1): those are painted in small dabs."""
+    c, _, _, _ = field(d, scene_soft)
+    return np.clip(((c[:, 0] + c[:, 1]) / 2 - c[:, 2] - 0.03) / 0.2, 0, 1)
+
+
+N_ALL = 66000
 d_all = uniform_dirs(N_ALL)
 _, _, sp_all, _ = field(d_all, scene_fine)
 moving = sp_all > 0.3
-sky = bake(d_all[moving], 1.0, 2.6)
+sky = bake(d_all[moving], 1.0 - 0.5 * warmth(d_all[moving]), 2.6)
 # static ground of the backdrop outside the window: fewer are needed
-still = d_all[~moving][: int((~moving).sum() * 0.55)]
+still = d_all[~moving][: int((~moving).sum() * 0.5)]
 land_a = bake(still, 1.0, 0.0)
+# stars and moon: a second coat of small dabs that circle with the halos
+cand = uniform_dirs(700000)
+_, _, sp_c, _ = field(cand, scene_fine)
+cand = cand[(warmth(cand) > 0.4) & (sp_c > 0.3)]
+stars_fine = bake(cand[:11000], 0.42, 2.2)
 # hills and village inside the window are painted with smaller strokes
-cand = uniform_dirs(900000)
+cand = uniform_dirs(1500000)
 px, py, v = project(cand)
 cand = cand[v & (px > 0) & (px < W) & (py > 0) & (py < H)]
 _, _, _, liw = field(cand, scene_fine)
-land_b = bake(cand[liw][:9000], 0.5, 0.0)
-land = np.concatenate([land_a, land_b])
+cand = cand[liw]
+land_b = bake(cand[:7000], 0.5, 0.0)
+land_c = bake(cand[7000:25000], 0.27, 0.0)
+land = np.concatenate([stars_fine, land_a, land_b, land_c])
 sky.tofile(OUT / "sky_strokes.bin")
 land.tofile(OUT / "land_strokes.bin")
 

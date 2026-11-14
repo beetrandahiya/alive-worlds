@@ -1,0 +1,147 @@
+import * as THREE from 'three';
+import { shared } from './paint/strokes';
+import { WristReadout } from './ui/wrist';
+import { buildCypress } from './worlds/starry/cypress';
+import { buildGround } from './worlds/starry/ground';
+import { buildSky, type StarryMeta } from './worlds/starry/sky';
+import { terrain, WALK_RADIUS } from './worlds/starry/terrain';
+import { Rig } from './xr/rig';
+
+declare const __BUILD__: string;
+
+const params = new URLSearchParams(location.search);
+const $ = (id: string) => document.getElementById(id)!;
+const BASE = import.meta.env.BASE_URL + 'starry/';
+const TARGET_RATE = 72;
+const DENSITY = [
+  { name: 'light', f: 0.5 },
+  { name: 'medium', f: 0.75 },
+  { name: 'full', f: 1 },
+];
+
+async function start() {
+  $('build').textContent = __BUILD__;
+  const canvas = $('view') as HTMLCanvasElement;
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.outputColorSpace = THREE.LinearSRGBColorSpace; // paint colours are written as-is
+  renderer.xr.enabled = true;
+  renderer.xr.setReferenceSpaceType('local-floor');
+  renderer.xr.setFramebufferScaleFactor(Number(params.get('res') ?? 1));
+  renderer.xr.setFoveation(Number(params.get('fov') ?? 0.5));
+  const gl = renderer.getContext();
+  const desktopA2C = gl.getParameter(gl.SAMPLES) > 0 ? 1 : 0;
+  shared.uA2C.value = desktopA2C;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.05, 2500);
+  const rig = new Rig(camera, renderer, terrain, WALK_RADIUS);
+  scene.add(rig.group);
+
+  const meta: StarryMeta = await fetch(BASE + 'starry.json').then((r) => r.json());
+  const atlas = await new THREE.TextureLoader().loadAsync(BASE + 'strokes.png');
+  atlas.colorSpace = THREE.NoColorSpace;
+  atlas.anisotropy = 4;
+  shared.uAtlas.value = atlas;
+
+  const sky = await buildSky(BASE, meta);
+  const cypress = buildCypress(meta);
+  const ground = buildGround(meta);
+  scene.add(sky.group, cypress.group, ground.group);
+
+  // ---- study controls
+  let density = Number(params.get('paint') ?? 2);
+  let night = Number(params.get('night') ?? 0);
+  const wrist = new WristReadout(__BUILD__);
+  const apply = () => {
+    const d = DENSITY[density];
+    sky.setDensity(0.6 + 0.4 * d.f);
+    cypress.setDensity(d.f);
+    ground.setDensity(d.f);
+    shared.uNight.value = night;
+    wrist.set([`A  colour: ${night ? 'deeper night' : 'canvas as it hangs'}`, `B  paint: ${d.name}`]);
+  };
+  apply();
+
+  for (const i of [0, 1]) {
+    const grip = renderer.xr.getControllerGrip(i);
+    grip.addEventListener('connected', (e) => {
+      if ((e as unknown as { data: XRInputSource }).data.handedness === 'left') grip.add(wrist.mesh);
+    });
+    rig.group.add(grip);
+  }
+
+  // ---- the page
+  const shot = params.get('shot');
+  const resize = () => {
+    if (renderer.xr.isPresenting) return;
+    const w = shot ? 1280 : innerWidth;
+    const h = shot ? Math.round(1280 / meta.aspect) : innerHeight;
+    renderer.setSize(w, h, !shot);
+    camera.aspect = w / h;
+    // Not in VR: frame the view as the painting does.
+    const half = Math.tan(THREE.MathUtils.degToRad(meta.hfovDeg / 2));
+    camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(half / Math.max(camera.aspect, meta.aspect)));
+    camera.updateProjectionMatrix();
+  };
+  addEventListener('resize', resize);
+  resize();
+  rig.look(Number(params.get('yaw') ?? 0), Number(params.get('pitch') ?? -meta.pitchDeg));
+  if (params.has('x')) rig.group.position.set(Number(params.get('x')), 0, Number(params.get('z') ?? 0));
+
+  const veil = $('veil');
+  const note = $('note');
+  const enter = $('enter') as HTMLButtonElement;
+  const look = $('look') as HTMLButtonElement;
+  if (shot) veil.classList.add('gone');
+  look.hidden = false;
+  look.onclick = () => veil.classList.add('gone');
+  const xr = navigator.xr;
+  if (xr && (await xr.isSessionSupported('immersive-vr').catch(() => false))) {
+    enter.hidden = false;
+    note.textContent = 'Left stick to walk, right stick to turn. Readout is on your left wrist.';
+    enter.onclick = async () => {
+      const session = await xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] });
+      await renderer.xr.setSession(session);
+      shared.uA2C.value = 1;
+      const rates = (session as XRSession & { supportedFrameRates?: Float32Array }).supportedFrameRates;
+      if (rates && Array.from(rates).includes(TARGET_RATE)) await session.updateTargetFrameRate?.(TARGET_RATE);
+      veil.classList.add('gone');
+      session.addEventListener('end', () => {
+        shared.uA2C.value = desktopA2C;
+        veil.classList.remove('gone');
+        resize();
+      });
+    };
+  } else {
+    note.textContent = 'Open this page in the Quest browser to step inside. Here you can drag to look and use W A S D to walk.';
+  }
+
+  // ---- every frame
+  let last = 0;
+  let stills = 0;
+  const fixedTime = params.get('t');
+  renderer.setAnimationLoop((ms) => {
+    const dt = Math.min(0.1, last ? (ms - last) / 1000 : 0.016);
+    last = ms;
+    shared.uTime.value = fixedTime ? Number(fixedTime) : ms / 1000;
+    const pressed = rig.update(dt);
+    if (pressed.a) { night = 1 - night; apply(); }
+    if (pressed.b) { density = (density + 1) % DENSITY.length; apply(); }
+    if (pressed.x) wrist.mesh.visible = !wrist.mesh.visible;
+    shared.uCentre.value.copy(rig.head);
+    const rate = renderer.xr.getSession()?.frameRate ?? TARGET_RATE;
+    if (renderer.xr.isPresenting) wrist.tick(dt, rate);
+    renderer.render(scene, camera);
+    // For still pictures taken off-headset: paint a few frames, then hold.
+    if (shot && ++stills >= 3) {
+      renderer.setAnimationLoop(null);
+      document.body.dataset.ready = '1';
+    }
+  });
+}
+
+start().catch((e) => {
+  console.error(e);
+  $('note').textContent = 'Something went wrong while preparing the paint: ' + (e?.message ?? e);
+});

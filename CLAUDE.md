@@ -102,8 +102,17 @@ follow; do not build for them yet. No museum yet.
 - Frame rate target: locked 72 fps on standalone Quest 3, budget spent on
   richer paint.
 - PC/Link version: not now.
+- Publishing: owner allowed merging each test version into `main`; a push to
+  `main` publishes to GitHub Pages (Settings → Pages → Source is GitHub Actions).
+- The painted composition spans about 65° of your view at the viewpoint
+  (natural view, not monumental).
+- Sky beyond the painting's frame: the same sky continues all round — same
+  blues, a few more stars copied from the painting's own. No second swirl or moon.
+- Owner asked (2026-11-13) that published studies of Van Gogh's brushwork and
+  of this painting inform the stroke model. A research pass was started and
+  did not finish; redo it (see Next).
 
-## Technology (chosen by Claude, pending owner's go)
+## Technology (chosen by Claude, approved by owner 2026-11-13)
 
 - WebXR in the Quest browser; three.js (WebGL2) + TypeScript + Vite; deployed to
   GitHub Pages by a GitHub Actions workflow.
@@ -119,14 +128,41 @@ follow; do not build for them yet. No museum yet.
 - No full-screen post effects, no real-time shadows: light is painted in, as in
   the painting. Glow = halo strokes, as he painted it.
 
+## How to test (owner)
+
+Link: https://beetrandahiya.github.io/alive-worlds/ — open in the Quest browser,
+press "Step inside". The build label at the bottom of the page and on the wrist
+readout (commit + time) confirms which version is loaded; reload if it is old.
+
+Study controls: left stick walk, right stick turn, A = colour canvas / deeper
+night, B = paint amount light / medium / full, X = hide wrist readout.
+On a computer: drag to look, W A S D to walk, C / V for colour / paint.
+URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
+(default 0.5), `?paint=0..2`, `?night=1`.
+
+## Code map
+
+- `tools/starry/analyse.py` — measures the scan (stroke direction, flow sense,
+  colour, palettes) and bakes `public/starry/*`. `make_strokes.py` makes the
+  stroke shapes. Re-run both after changing them (needs numpy, scipy, opencv).
+- `src/paint/` — the paint itself, shared by every world: `shaders.ts`
+  (undercoat, sky strokes, surface strokes), `strokes.ts` (builders, shared
+  uniforms, seeded random).
+- `src/worlds/starry/` — this world: `sky.ts`, `cypress.ts`, `ground.ts`,
+  `terrain.ts`. A new painting gets its own folder here and its own tools.
+- `src/xr/rig.ts` movement; `src/ui/wrist.ts` study readout; `src/main.ts` boot.
+- Off-headset check: `?shot=painting` renders the exact painting view as a
+  still (used with headless Chromium to compare against the scan).
+
 ## Status
 
 - [x] Interview complete, decisions logged.
-- [ ] Plan approved by owner (presented 2026-11-13, awaiting go).
-- [ ] Step 0: project skeleton + deploy pipeline (owner must set
-      Settings → Pages → Source: GitHub Actions once).
-- [ ] Step 1: proof of look — cypress, patch of hillside, flowing sky; frame
-      rate readout; A/B colour toggle.
+- [x] Plan approved by owner (2026-11-13).
+- [x] Step 0: project skeleton + deploy pipeline.
+- [ ] Step 1: proof of look — BUILT 2026-11-14, AWAITING OWNER'S HEADSET TEST.
+      Cypress (real 3D), knoll, flowing sky; hills and village are a flat
+      painted backdrop at infinity for now. Never yet run on a Quest: frame
+      rate, stereo stability and comfort are all unmeasured.
 - [ ] Step 2: terrain and composition matched from the viewpoint.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
@@ -135,10 +171,37 @@ follow; do not build for them yet. No museum yet.
 - [ ] Step 7: entry room and frame, painted hands, menu card, settings.
 - [ ] Step 8: polish and performance passes.
 
+## Next
+
+- Get owner's headset report on step 1 (frame rate at each paint amount,
+  shimmer, colour A vs B, flow speed, cypress up close) and act on it.
+- Redo the research pass: Li et al. 2012 (TPAMI, rhythmic brushstrokes), the
+  Starry Night turbulence papers (Aragón 2008; Ma et al. 2024), MoMA technical
+  notes, his letters on cypresses and night, Loving Vincent's method, and which
+  Saint-Rémy paintings to use for ground, village streets and hills. Put the
+  usable numbers here.
+- Ask owner to add the full-resolution scan to `reference/` (see Known issues).
+
 ## Known issues / open questions
 
-- Nothing built or measured yet. All performance statements are expectations.
+- Reference scan is only 1280 px wide. Wikimedia refuses larger downloads from
+  the cloud machine. Owner can download the original "Van Gogh - Starry Night -
+  Google Art Project.jpg" from Wikimedia Commons in a browser and add it to
+  `reference/`. Needed for: real stroke shapes, sharper stars and village.
+- Stroke shapes are generated, not lifted from the canvas (breaks "invent
+  nothing"; fix once the large scan is in).
+- Ground on the knoll is provisional: the painting does not show it. Colours
+  come from the bushes at its bottom edge. Needs his field studies as reference.
+- Sky behind the cypress is filled in by diffusion; two star halos next to the
+  tree smear into rectangles there (visible if you walk sideways).
+- Extended sky: the flow rises from a point below the horizon to the left and
+  sets to the right; a faint fan is visible low on the left and right horizons.
+- Small stars near the top edge of the painting are soft smudges.
+- Walking is limited to 55 m from the viewpoint; walking downhill shows the
+  backdrop village sliding with you (it is at infinity until step 3).
 - Wrap-around vs distant climbable hills: design needed at step 4 (village must
   be hidden by ridges from outside the valley so repeats are never seen; sky
   does not wrap). Fallback if it reads badly: ask owner again.
 - Colour A/B to be decided in headset at step 1.
+- Quest browser refresh-rate and sharpness controls are used as documented by
+  the WebXR standard but have not been confirmed on the device.

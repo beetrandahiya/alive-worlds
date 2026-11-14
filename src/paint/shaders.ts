@@ -156,10 +156,11 @@ attribute vec4 iT;   // direction along the stroke, width
 attribute vec4 iN;   // surface normal, lift of the far end
 attribute vec4 iC;   // colour, seed
 attribute vec4 iC2;  // streak colour, shape
-attribute vec4 iW;   // whole-form sway (m), tip sway, sideways bend, unused
+attribute vec4 iW;   // whole-form sway (m), tip sway, sideways bend, 1 = hug the ground
 uniform float uTime;
 uniform vec3 uWind;
 uniform vec2 uFade;      // fine strokes: fully there within x, gone by y (metres)
+uniform vec2 uNear;      // broad strokes: absent within x, fully there by y
 uniform float uTile;     // > 0: strokes repeat on a square tile that follows you
 uniform vec3 uCentre;    // where you are
 uniform vec3 uMoon;
@@ -183,7 +184,7 @@ void main() {
     root.y += terrain(root.xz);
   }
   float dist = distance(root, cameraPosition);
-  grow *= 1.0 - smoothstep(uFade.x, uFade.y, dist);
+  grow *= (1.0 - smoothstep(uFade.x, uFade.y, dist)) * smoothstep(uNear.x, uNear.y, dist);
 
   vec3 T = iT.xyz, N = iN.xyz;
   vec3 B = normalize(cross(N, T));
@@ -198,6 +199,7 @@ void main() {
   c += uWind * (iW.x * gust + iW.y * u * u * (gust + 0.5 * flutter));
 
   vec3 pos = c + B * (aQuad.y * wid * 0.68);
+  if (iW.w > 0.5) pos.y = terrain(pos.xz) + iP.y + iN.w * u * u * len;
   vUv = vec2(u, aQuad.y * 0.5 + 0.5);
   vCol = iC.rgb;
   vCol2 = iC2.rgb;
@@ -205,7 +207,7 @@ void main() {
   vLight = vec2(dot(uMoon, T), dot(uMoon, B));
   vec3 V = normalize(cameraPosition - pos);
   vec3 Nf = N * sign(dot(N, V) + 1e-4);
-  vSheen = pow(max(dot(Nf, normalize(uMoon + V)), 0.0), 18.0);
+  vSheen = pow(max(dot(Nf, normalize(uMoon + V)), 0.0), 30.0);
   vFace = 0.9 + 0.1 * abs(dot(N, uMoon));
   gl_Position = projectionMatrix * viewMatrix * vec4(pos, 1.0);
 }`;
@@ -228,6 +230,6 @@ void main() {
   vec3 c = mix(vCol, vCol2, smoothstep(0.56, 0.8, t.b) * 0.6);
   float relief = dot(t.rg * 2.0 - 1.0, vLight);
   c *= vFace * (1.0 + uRelief * relief);
-  c += uMoonTint * vSheen * (0.35 + 0.65 * t.b) * 0.22;
+  c += uMoonTint * vSheen * (0.3 + 0.7 * t.b) * 0.12;
   gl_FragColor = vec4(grade(c, 0.0), cov);
 }`;
