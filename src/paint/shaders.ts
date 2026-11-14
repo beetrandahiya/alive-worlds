@@ -47,6 +47,25 @@ void main() {
   gl_FragColor = vec4(vColor, 1.0);
 }`;
 
+/** The land's undercoat: its colour looked up from the map of the ground. */
+export const GROUND_VERT = /* glsl */ `
+varying vec3 vWorld;
+void main() {
+  vec4 w = modelMatrix * vec4(position, 1.0);
+  vWorld = w.xyz;
+  gl_Position = projectionMatrix * viewMatrix * w;
+}`;
+
+export const GROUND_FRAG = /* glsl */ `
+uniform sampler2D uGround;
+uniform vec2 uGroundRange;
+varying vec3 vWorld;
+void main() {
+  float d = max(length(vWorld.xz), uGroundRange.x);
+  vec2 uv = vec2(atan(vWorld.x, -vWorld.z) / 6.2831853 + 0.5, log(d / uGroundRange.x) / uGroundRange.y);
+  gl_FragColor = vec4(texture2D(uGround, uv).rgb, 1.0);
+}`;
+
 export const DOME_VERT = /* glsl */ `
 varying vec3 vDir;
 void main() {
@@ -156,6 +175,7 @@ uniform vec3 uMoon;
 uniform sampler2D uGround;   // the ground's own colour, seen from above
 uniform vec2 uGroundRange;  // nearest ring (m), log of farthest / nearest
 uniform float uTint;        // how much strokes take the colour of the ground they stand on
+uniform float uEdgeFade;    // 1: strokes seen edge-on thin away instead of ghosting
 varying vec2 vUv;
 varying vec3 vCol;
 varying vec3 vCol2;
@@ -180,6 +200,15 @@ void main() {
 
   vec3 T = iT.xyz, N = iN.xyz;
   vec3 B = normalize(cross(N, T));
+  if (uEdgeFade > 0.5) {
+    vec3 at = vec3(root.x, iW.w > 0.5 ? terrain(root.xz) : root.y, root.z);
+    vec3 toEye = cameraPosition - at;
+    // A flat stroke seen exactly edge-on cannot be drawn cleanly; let it go.
+    grow *= smoothstep(0.03, 0.14, abs(dot(iN.xyz, normalize(toEye))));
+    // Strokes sized for a distant view give way as you come near; the fine
+    // strokes around you take over (the view is repainted at your scale).
+    grow *= smoothstep(2.5 * iP.w, 6.0 * iP.w, length(toEye));
+  }
   float len = iP.w * mix(0.35, 1.0, grow);
   float wid = iT.w * grow;
   float u = aQuad.x;
@@ -208,7 +237,15 @@ void main() {
   vec3 Nf = N * sign(dot(N, V) + 1e-4);
   vSheen = pow(max(dot(Nf, normalize(uMoon + V)), 0.0), 30.0);
   vFace = 0.9 + 0.1 * abs(dot(N, uMoon));
-  gl_Position = projectionMatrix * viewMatrix * vec4(pos, 1.0);
+  vec4 clip = projectionMatrix * viewMatrix * vec4(pos, 1.0);
+  if (uEdgeFade > 0.5) {
+    // Coats laid on the land are judged for depth as if a little nearer, so
+    // the faceted solid ground beneath can never swallow them.
+    vec3 nearer = pos + normalize(cameraPosition - pos) * (0.5 + 0.015 * distance(pos, cameraPosition));
+    vec4 c2 = projectionMatrix * viewMatrix * vec4(nearer, 1.0);
+    clip.z = c2.z / c2.w * clip.w;
+  }
+  gl_Position = clip;
 }`;
 
 export const SURFACE_FRAG = /* glsl */ `

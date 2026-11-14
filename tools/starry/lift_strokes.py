@@ -102,6 +102,9 @@ if len(chosen) == 8:
         alpha = np.clip(cv2.GaussianBlur((mask > 0.5).astype(np.float32), (0, 0), 1.4), 0, 1)
         # The photograph's light and shade on the paint stands in for its height.
         detail = grey - cv2.GaussianBlur(grey, (0, 0), 9)
+        # Keep the bristle streaks, which run along the stroke; smooth away the
+        # canvas weave, which would show as a fabric pattern on large strokes.
+        detail = cv2.GaussianBlur(detail, (0, 0), sigmaX=5.0, sigmaY=1.3)
         detail = detail / (np.abs(detail[mask > 0.5]).std() * 3 + 1e-6)
         edge = cv2.GaussianBlur(alpha, (0, 0), 3)          # paint stands proud of the canvas
         height = cv2.GaussianBlur(detail * 0.5 + edge * 0.9, (0, 0), 0.8)

@@ -199,14 +199,17 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       resolution, edge blur 0.5.
 - [x] Study 02 (2026-11-14): sky at 70% speed confirmed good; 72 fps stable;
       canvas flecks rejected and removed.
-- [ ] Step 2: terrain and composition matched from the viewpoint — Study 03
-      BUILT 2026-11-14, AWAITING HEADSET TEST. Real 3D knoll, valley floor
-      (28 m below the knoll), nearer hills (to ~60 m, about 700 m away) and far
-      mountains (to ~350 m, about 1.6 km away), all matching the painting's
-      outlines from the viewpoint. The painting's land strokes are laid on the
-      ground by projecting from the viewpoint. Village is still flat paint on
-      the valley floor (church about 190 m from the viewpoint). Walking limit
-      420 m. Stroke load rose to about 185k; frame rate unmeasured.
+- [ ] Step 2: terrain and composition matched from the viewpoint.
+      Study 03 (headset, 2026-11-14): frame rate good; hills "feel real,
+      beautiful" but had too few strokes; walking down and looking back good;
+      town from the viewpoint was fuzzier than before.
+      Study 04 BUILT 2026-11-14, AWAITING HEADSET TEST: town sharp again, hills
+      given their own coat, big strokes fade near the walker. Real 3D knoll,
+      valley floor 28 m below it, nearer hills (to ~60 m, about 700 m away),
+      far mountains (to ~350 m, about 1.6 km away), all matching the painting's
+      outlines from the viewpoint. Village is still only strokes standing on
+      the valley floor (church about 190 m away). Walking limit 260 m. Load now
+      about 240k strokes; frame rate at this load unmeasured.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
@@ -292,19 +295,35 @@ All Saint-Remy period, all on Wikimedia Commons unless noted.
   27 29 37). Relief is inferred from a flat photograph, not measured height.
 - Ground detail (grass, lying strokes near you) is provisional in manner;
   references are chosen (see Decisions) but not yet applied.
-- Land strokes are projected from the viewpoint, so away from it they stretch
-  along the old line of sight (strongly on the valley floor). Human-scale
-  strokes around the walker cover this near you; mid-distance still shows it.
-- Ground the viewpoint cannot see gets broad dark strokes in his field
-  colours (`lay_unseen`), nothing more considered yet.
+- How the land is painted (all in `analyse.py`, drawn by `ground.ts`):
+  1. Undercoat: solid ground coloured per pixel from `ground_col.jpg`, a map of
+     the ground in rings round the viewpoint (the painting where the viewpoint
+     sees it, his hill and field colours elsewhere), blurred to tone only.
+  2. Broad coat (`terrain_broad.bin`, hugging the ground): hills hatched
+     diagonally down their slopes at their own scale; dark field strokes on
+     ground the viewpoint cannot see.
+  3. The painting's land strokes (`terrain_strokes.bin`): placed where the
+     viewpoint's line of sight meets the ground. Within about 400 m they are
+     tipped toward the viewpoint so they are never seen edge-on (flat strokes
+     on the valley floor broke up and made the town fuzzy). On far hills they
+     lie on the slope (tipped ones stood above ridges like sails).
+  4. Fine strokes and grass on tiles that follow the walker, tinted by the map.
+  Coats 2 and 3 are drawn over everything in a fixed order, judged for depth
+  as if slightly nearer, fade when seen edge-on, and fade out within a few
+  stroke-lengths of the walker (seen from behind and close, tipped strokes are
+  giant slabs). Between about 35 m and the fade distance the valley floor is
+  mostly undercoat: a known thin zone.
+- Stroke relief had the canvas weave in it, which showed as a fabric pattern on
+  large strokes; `lift_strokes.py` now smooths it out along the stroke.
+- Lesson: a speckled dark patch in headless renders is alpha-to-coverage
+  dither on a large half-covered stroke, not a depth fault. To find a rogue
+  layer, hide ground layers one at a time.
 - Hills are a ring: each compass direction has one height and distance, so
   from above they are concentric walls. Fine from the valley; needs real
   shaping before anyone climbs them (step 4).
-- Ground strokes laid on far land are drawn over everything in a fixed order
-  rather than sorted by depth (`overlay`), because depth cannot separate coats
-  at that distance. Side effect to watch for in the headset: they could show
-  through something that should hide them only if it is drawn after them;
-  currently nothing is.
+- Overlay coats are drawn after the cypress's own strokes and tested against
+  depth, so the cypress hides them; anything added later that should hide land
+  strokes must write depth before them.
 - Sky behind the cypress is filled in by diffusion; two star halos next to the
   tree smear into rectangles there (visible if you walk sideways).
 - Extended sky: outside the frame each place takes direction and tone from

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { rng, shared, StrokeWriter, surfaceStrokes, undercoat } from '../../paint/strokes';
+import { groundUndercoat, rng, shared, StrokeWriter, surfaceStrokes } from '../../paint/strokes';
 import type { StarryMeta } from './sky';
 import { terrain, TERRAIN_GLSL } from './terrain';
 
@@ -8,38 +8,40 @@ import { terrain, TERRAIN_GLSL } from './terrain';
  *
  * - An undercoat over the land, coloured from the painting wherever the
  *   viewpoint can see it.
- * - The painting's own land strokes, laid on the ground so that from the
- *   viewpoint they look as he painted them (`terrain_strokes.bin`). Away from
- *   the viewpoint they stretch along your old line of sight. The village is
- *   still only paint lying on the valley floor.
+ * - A broad coat in the land's own scale: the hills hatched down their
+ *   slopes, and ground the viewpoint cannot see (`terrain_broad.bin`).
+ * - The painting's own land strokes, set where the viewpoint sees them and
+ *   tipped toward it so they are never seen edge-on; from the viewpoint they
+ *   look as he painted them (`terrain_strokes.bin`). The village is still
+ *   only these strokes standing on the valley floor.
  * - Fine strokes and grass that appear around you wherever you walk, tinted
  *   by the ground they stand on. PROVISIONAL in manner: to be reworked from
  *   Wheat Sheaves and Rising Moon and Road with Cypress and Star.
  */
 export async function buildGround(base: string, meta: StarryMeta) {
-  const { na, nr, rMin, rMax } = meta.valley;
-  const [strokeData, colData] = await Promise.all([
+  const { rMin, rMax } = meta.valley;
+  const [strokeData, broadData, map] = await Promise.all([
     fetch(base + 'terrain_strokes.bin').then((r) => r.arrayBuffer()),
-    fetch(base + 'ground_col.bin').then((r) => r.arrayBuffer()),
+    fetch(base + 'terrain_broad.bin').then((r) => r.arrayBuffer()),
+    new THREE.TextureLoader().loadAsync(base + 'ground_col.jpg'),
   ]);
-  const cols = new Uint8Array(colData);
-
-  // The ground's colour as a map the fine strokes can look up: compass
-  // direction across, distance from the viewpoint (logarithmic) down.
-  const rgba = new Uint8Array(na * nr * 4);
-  for (let i = 0; i < na * nr; i++) rgba.set([cols[i * 3], cols[i * 3 + 1], cols[i * 3 + 2], 255], i * 4);
-  const map = new THREE.DataTexture(rgba, na, nr, THREE.RGBAFormat);
+  // The ground's colour as a map: compass direction across, distance from
+  // the viewpoint (logarithmic) down.
+  map.colorSpace = THREE.NoColorSpace;
+  map.flipY = false;
   map.wrapS = THREE.RepeatWrapping;
+  map.generateMipmaps = false;
   map.magFilter = map.minFilter = THREE.LinearFilter;
   map.needsUpdate = true;
   shared.uGround.value = map;
   shared.uGroundRange.value.set(rMin, Math.log(rMax / rMin));
 
   // --- undercoat: rings round the viewpoint, finer near it
-  const SPOKES = 256;
+  const na = 1536;
+  const nr = 240;
+  const SPOKES = 384;
   const step = na / SPOKES;
   const pos: number[] = [0, terrain(0, 0), 0];
-  const col: number[] = [cols[0] / 255, cols[1] / 255, cols[2] / 255];
   const idx: number[] = [];
   for (let i = 0; i < nr; i++) {
     const rad = rMin * Math.pow(rMax / rMin, i / (nr - 1));
@@ -48,8 +50,6 @@ export async function buildGround(base: string, meta: StarryMeta) {
       const x = rad * Math.sin(az);
       const z = -rad * Math.cos(az);
       pos.push(x, terrain(x, z) - 0.03, z);
-      const k = (i * na + j * step) * 3;
-      col.push(cols[k] / 255, cols[k + 1] / 255, cols[k + 2] / 255);
     }
   }
   for (let j = 0; j < SPOKES; j++) idx.push(0, 1 + j, 1 + ((j + 1) % SPOKES));
@@ -62,8 +62,6 @@ export async function buildGround(base: string, meta: StarryMeta) {
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  g.setAttribute('aSway', new THREE.Float32BufferAttribute(new Float32Array(pos.length / 3), 1));
   g.setIndex(idx);
 
   const r = rng(42);
@@ -117,8 +115,9 @@ export async function buildGround(base: string, meta: StarryMeta) {
 
   const group = new THREE.Group();
   group.add(
-    undercoat(g),
-    surfaceStrokes(new Float32Array(strokeData), { segments: 4, terrain: TERRAIN_GLSL, overlay: true }),
+    groundUndercoat(g),
+    surfaceStrokes(new Float32Array(broadData), { segments: 3, terrain: TERRAIN_GLSL, overlay: 0 }),
+    surfaceStrokes(new Float32Array(strokeData), { segments: 2, terrain: TERRAIN_GLSL, overlay: 1 }),
     layer(lying(9000, 120, [1.2, 2.8], [0.22, 0.4]), 120, [1e5, 2e5], 2, [9, 16]),
     layer(lying(14000, 36, [0.35, 0.8], [0.06, 0.11]), 36, [12, 17], 2),
     layer(tufts(12000, 72, [0.3, 0.65], [0.08, 0.14]), 72, [26, 35], 2),

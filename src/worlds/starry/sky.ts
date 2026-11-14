@@ -8,7 +8,7 @@ export interface StarryMeta {
   aspect: number;
   sky: number;
   land: number;
-  valley: { floor: number; na: number; nr: number; rMin: number; rMax: number; strokes: number };
+  valley: { floor: number; rMin: number; rMax: number; strokes: number };
   under: { elMinDeg: number };
   palettes: {
     cypress: number[][]; cypressWeight: number[];

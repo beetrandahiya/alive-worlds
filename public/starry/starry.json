@@ -8,11 +8,9 @@
  "stride": 20,
  "valley": {
   "floor": -28.0,
-  "na": 1024,
-  "nr": 160,
   "rMin": 2.5,
   "rMax": 3000.0,
-  "strokes": 68718
+  "strokes": 103725
  },
  "under": {
   "elMinDeg": -30.0

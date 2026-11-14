@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import {
+  GROUND_FRAG,
+  GROUND_VERT,
   SKY_FRAG,
   SKY_VERT,
   SURFACE_FRAG,
@@ -97,10 +99,10 @@ export interface SurfaceOptions {
   tint?: number;
   /**
    * Paint these over everything already drawn, in their own order (broad
-   * coats first), instead of sorting by depth. For coats that lie on top of
+   * coats first; a higher number is a later coat), instead of sorting by depth. For coats that lie on top of
    * one another on far ground, where depth cannot tell them apart.
    */
-  overlay?: boolean;
+  overlay?: number;
 }
 
 /** Strokes laid on solid forms. `data` holds 24 floats per stroke (see StrokeWriter). */
@@ -125,14 +127,15 @@ export function surfaceStrokes(data: Float32Array, o: SurfaceOptions): THREE.Mes
       uGround: shared.uGround,
       uGroundRange: shared.uGroundRange,
       uTint: { value: o.tint ?? 0 },
+      uEdgeFade: { value: o.overlay !== undefined ? 1 : 0 },
       uNear: { value: new THREE.Vector2(...(o.near ?? [-2, -1])) },
     },
   );
   const mesh = new THREE.Mesh(g, m);
   mesh.frustumCulled = false;
-  if (o.overlay) {
+  if (o.overlay !== undefined) {
     m.depthWrite = false;
-    mesh.renderOrder = 20;
+    mesh.renderOrder = 19 + o.overlay;
   }
   return mesh;
 }
@@ -148,6 +151,22 @@ export function undercoat(g: THREE.BufferGeometry): THREE.Mesh {
     polygonOffset: true,
     polygonOffsetFactor: 2,
     polygonOffsetUnits: 12,
+  });
+  const mesh = new THREE.Mesh(g, m);
+  mesh.frustumCulled = false;
+  return mesh;
+}
+
+/** The land's undercoat, coloured from the map of the ground. */
+export function groundUndercoat(g: THREE.BufferGeometry): THREE.Mesh {
+  const m = new THREE.ShaderMaterial({
+    vertexShader: GROUND_VERT,
+    fragmentShader: GROUND_FRAG,
+    uniforms: { uGround: shared.uGround, uGroundRange: shared.uGroundRange },
+    side: THREE.DoubleSide,
+    // No depth offset here: on far mountains it would push the ground onto the
+    // sky's depth and let sky strokes speckle through. Coats laid on the land
+    // are instead judged slightly nearer (see SURFACE_VERT).
   });
   const mesh = new THREE.Mesh(g, m);
   mesh.frustumCulled = false;
