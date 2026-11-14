@@ -345,6 +345,10 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       valley strokes and foot grass are off (`?paint=old` restores them).
       Hills now use the spire-free source inside the frame too. Walking limit
       340 m. About 120k strokes (sky, cypress, hills only).
+      Study 11 (headset, 2026-11-14): PLACE APPROVED as a basis. 72 fps;
+      house and tree sizes all right; the walk down "feels like a journey, a
+      good experience"; layout "okay from far away". Owner asked for the real
+      historical layout of Saint-Remy and asked where the asylum is.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
@@ -434,6 +438,50 @@ and multiplayer not examined.
 Takeaway for us: stop deriving land from one viewpoint's projection. Build
 the place in metres; give every surface paint in its own space; use his
 colours and his real stroke shapes rather than invented dabs.
+
+## The real place (researched 2026-11-14)
+
+Sources: OpenStreetMap (fetched via an Overpass mirror, overpass.kumi.systems;
+the main server refused), Wikipedia EN/FR with their citations, The Art
+Newspaper, IGN altimetry. Items marked (unconfirmed) were not read on a page.
+- THE VIEWPOINT IS THE ASYLUM. Saint-Paul-de-Mausole, 43.776668 N 4.835159 E,
+  about 105 m up. His bedroom: upper floor of the men's wing, barred window
+  facing east. Letter 776: "Through the iron-barred window I can see an
+  enclosed square of wheat". He was not allowed to paint in the bedroom; the
+  painting was made by day in his ground-floor studio, about 18 June 1889.
+- From the window, really: a walled wheat field, then olive groves and
+  vineyards rising to the Alpilles foothills. No village.
+- The asylum complex: Romanesque chapel with a square bell tower under a
+  pyramidal stone roof, an 11th-12th century cloister, L-shaped early-19th-
+  century men's blocks round a walled garden of about 1 ha.
+- The real town is NOT in the view: its church (Collegiale Saint-Martin) is
+  about 1,380 m away at bearing 344 (north-north-west), about 48 m lower.
+  The painting looks about east (our bearing 100), mountains to the right
+  (Mont Gaussier, 303 m, about 1.1 km due south; our skyline peak at 144).
+- The painted village is an addition, based on drawing F1541v (view of
+  Saint-Remy from a hillside above it). Its steeple is "more Dutch than
+  Provencal" (Pickvance). The real church tower is Gothic, 14th century,
+  slender, over 45 m (so our 46 m spire is the right height).
+- The cypress: cypresses stood small beyond the field's far wall; he enlarged
+  one and pulled it forward.
+- The real old town: an oval about 300 m across by map measurement (one source
+  says about half a kilometre), ringed by boulevards on the old walls
+  (Mirabeau, Marceau, Victor Hugo, Gambetta), tight winding lanes inside, the
+  church on the western edge, gates Porte Saint-Paul (south) and Portail du
+  Trou (north), squares Pellissier and Favier. Limestone and ochre fronts.
+  About 5,700 people around 1890. Storeys (2-3), shutters, low Roman-tile
+  roofs: (unconfirmed). OSM extract of streets and 2,619 building outlines is
+  in the scratchpad only; refetch if needed.
+- Les Antiques (Roman arch and mausoleum) stand about 370 m south-south-west
+  of the asylum; Glanum was still buried in 1889.
+- Historical maps exist but were not opened: Napoleonic cadastre (Archives
+  departementales 13), Etat-major map on remonterletemps.ign.fr.
+- His other views that fix the geography: Enclosed Field series and Wheat
+  Sheaves and Rising Moon (the field east of the window); Mountainous
+  Landscape behind Saint-Paul (from the bedroom window); Olive Trees with the
+  Alpilles and Mountains at Saint-Remy (looking south from groves by the
+  entrance); View of the Asylum and Chapel (the only one showing the tower);
+  Garden of Saint-Paul Hospital (inside the walled garden).
 
 ## Next
 
