@@ -2,12 +2,12 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Frame rate', 'Heaviest version yet (about 300,000 strokes). Wrist number at the start and in the valley. Still 72?'],
-  ['Hills all round', 'Turn a full circle at the start. Are the hills beyond the painted view now painted like the ones in it?'],
-  ['Hills vs sky', 'Closer to the sky in richness? What is still missing: more strokes, more light and dark, bolder lines?'],
-  ['The join', 'Where the painted hills meet the continued hills (right of the mountains, left of the cypress): gradual, or a visible edge?'],
-  ['Valley floor', 'It is now dense standing dabs of paint. Like a painted field, or too much like spikes?'],
-  ['While walking', 'Far strokes are sized for where you stand. Do they hold still, or do you see them shift or swell as you walk?'],
+  ['Frame rate', 'About 55,000 more strokes than last time. Wrist number at the start and in the valley. Still 72?'],
+  ['The town', 'From the start: sharp and clear again, like before the valley was built?'],
+  ['Hills', 'They now have their own coat of hatched strokes. Better? Enough paint, or still thin?'],
+  ['Walking down', 'Big strokes fade as you near them and fine ones take over. Smooth, or do you see things pop in and out?'],
+  ['Valley floor', 'Still expected: no real houses yet. Anything else wrong down there?'],
+  ['Look back', 'Knoll and cypress from below: right or odd?'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

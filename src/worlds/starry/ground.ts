@@ -8,20 +8,21 @@ import { terrain, TERRAIN_GLSL } from './terrain';
  *
  * - An undercoat over the land, coloured from the painting wherever the
  *   viewpoint can see it.
- * - The land's own paint in bands by distance, on tiles that follow you:
- *   hatched down slopes, standing as dabs on flat ground.
+ * - A broad coat in the land's own scale: the hills hatched down their
+ *   slopes, and ground the viewpoint cannot see (`terrain_broad.bin`).
  * - The painting's own land strokes, set where the viewpoint sees them and
  *   tipped toward it so they are never seen edge-on; from the viewpoint they
  *   look as he painted them (`terrain_strokes.bin`). The village is still
  *   only these strokes standing on the valley floor.
- PROVISIONAL in manner: to be reworked from
+ * - Fine strokes and grass that appear around you wherever you walk, tinted
+ *   by the ground they stand on. PROVISIONAL in manner: to be reworked from
  *   Wheat Sheaves and Rising Moon and Road with Cypress and Star.
  */
 export async function buildGround(base: string, meta: StarryMeta) {
   const { rMin, rMax } = meta.valley;
-  const [strokeData, shape, map] = await Promise.all([
+  const [strokeData, broadData, map] = await Promise.all([
     fetch(base + 'terrain_strokes.bin').then((r) => r.arrayBuffer()),
-    new THREE.TextureLoader().loadAsync(base + 'land_shape.png'),
+    fetch(base + 'terrain_broad.bin').then((r) => r.arrayBuffer()),
     new THREE.TextureLoader().loadAsync(base + 'ground_col.jpg'),
   ]);
   // The ground's colour as a map: compass direction across, distance from
@@ -32,13 +33,6 @@ export async function buildGround(base: string, meta: StarryMeta) {
   map.generateMipmaps = false;
   map.magFilter = map.minFilter = THREE.LinearFilter;
   map.needsUpdate = true;
-  shape.colorSpace = THREE.NoColorSpace;
-  shape.flipY = false;
-  shape.wrapS = THREE.RepeatWrapping;
-  shape.generateMipmaps = false;
-  shape.magFilter = shape.minFilter = THREE.LinearFilter;
-  shape.needsUpdate = true;
-  shared.uShape.value = shape;
   shared.uGround.value = map;
   shared.uGroundRange.value.set(rMin, Math.log(rMax / rMin));
 
@@ -119,55 +113,14 @@ export async function buildGround(base: string, meta: StarryMeta) {
   const layer = (data: Float32Array, tile: number, fade: [number, number], segments: number, near?: [number, number]) =>
     surfaceStrokes(data, { segments, tile, fade, near, terrain: TERRAIN_GLSL, tint: 0.7 });
 
-  /**
-   * The land's own paint, in bands by distance. Each band is strokes of one
-   * size, present only where that size looks right from where you stand
-   * (about as large to the eye as the strokes of the sky), on a tile that
-   * follows you. As you walk, every part of the land is repainted at your
-   * scale. Direction comes from the lie of the land; colour from the ground's
-   * own colour with each stroke lighter or darker than its neighbours.
-   */
-  const hills = meta.palettes.hill;
-  const band = (length: number, count: number, order: number, contrast: number) => {
-    const from = 10 * length;
-    const to = 25 * length;
-    const tile = (2 * 1.25 * to) / 0.72;
-    const w = new StrokeWriter();
-    for (let i = 0; i < count; i++) {
-      p.set(r.next() * tile, 0.04, r.next() * tile);
-      const len = length * r.range(0.7, 1.35);
-      w.add({
-        p, t: up, n: up, // direction is taken from the land in the shader
-        length: len, width: (len / 3.4) * r.range(0.8, 1.25),
-        lift: 0, bend: r.range(-0.08, 0.08),
-        colour: r.pick(hills), streak: r.pick(hills),
-        seed: r.next(), shape: Math.floor(r.next() * 8),
-        sway: 0, tipSway: length < 2 ? 0.12 * len : 0, hug: true,
-      });
-    }
-    return surfaceStrokes(w.data(), {
-      segments: 2, tile, terrain: TERRAIN_GLSL, tint: 0.8, contrast,
-      near: [0.75 * from, from], fade: [to, 1.25 * to], overlay: order, orient: true,
-    });
-  };
-  // Counts are highest for the far bands: they paint the hills, which fill
-  // most of what you see of the land. `?bands=0.5` halves them (for testing).
-  const k = Number(new URLSearchParams(location.search).get('bands') ?? 1);
-
   const group = new THREE.Group();
   group.add(
     groundUndercoat(g),
-    // far to near, so nearer paint goes over farther
-    band(49, 42000 * k, 0, 2.8),
-    band(19.5, 42000 * k, 1, 2.8),
-    band(7.8, 24000 * k, 2, 2.2),
-    band(3.1, 20000 * k, 3, 1.8),
-    band(1.25, 16000 * k, 4, 1.7),
-    band(0.5, 16000 * k, 5, 1.7),
-    // the painting's own land strokes, over the land's paint
-    surfaceStrokes(new Float32Array(strokeData), { segments: 2, terrain: TERRAIN_GLSL, overlay: 8 }),
-    // at your feet
-    layer(lying(14000, 36, [0.35, 0.8], [0.06, 0.11]), 36, [5, 8], 2),
+    surfaceStrokes(new Float32Array(broadData), { segments: 3, terrain: TERRAIN_GLSL, overlay: 0 }),
+    surfaceStrokes(new Float32Array(strokeData), { segments: 2, terrain: TERRAIN_GLSL, overlay: 1 }),
+    layer(lying(9000, 120, [1.2, 2.8], [0.22, 0.4]), 120, [1e5, 2e5], 2, [9, 16]),
+    layer(lying(14000, 36, [0.35, 0.8], [0.06, 0.11]), 36, [12, 17], 2),
+    layer(tufts(12000, 72, [0.3, 0.65], [0.08, 0.14]), 72, [26, 35], 2),
     layer(tufts(15000, 18, [0.16, 0.42], [0.022, 0.045]), 18, [5.5, 8.5], 2),
   );
   return { group };

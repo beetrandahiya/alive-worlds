@@ -27,7 +27,6 @@ export const shared = {
   uRidge: { value: null as THREE.Texture | null },
   uGround: { value: null as THREE.Texture | null },
   uGroundRange: { value: new THREE.Vector2(1, 1) },
-  uShape: { value: null as THREE.Texture | null },
 };
 
 /** A strip of quads; the shaders bend it into a stroke. */
@@ -104,10 +103,6 @@ export interface SurfaceOptions {
    * one another on far ground, where depth cannot tell them apart.
    */
   overlay?: number;
-  /** Take direction from the lie of the land: hatch down slopes, stand on flat ground. */
-  orient?: boolean;
-  /** How strongly strokes differ in lightness from their neighbours (default 0.8). */
-  contrast?: number;
 }
 
 /** Strokes laid on solid forms. `data` holds 24 floats per stroke (see StrokeWriter). */
@@ -133,9 +128,6 @@ export function surfaceStrokes(data: Float32Array, o: SurfaceOptions): THREE.Mes
       uGroundRange: shared.uGroundRange,
       uTint: { value: o.tint ?? 0 },
       uEdgeFade: { value: o.overlay !== undefined ? 1 : 0 },
-      uShape: shared.uShape,
-      uOrient: { value: o.orient ? 1 : 0 },
-      uContrast: { value: o.contrast ?? 0.8 },
       uNear: { value: new THREE.Vector2(...(o.near ?? [-2, -1])) },
     },
   );
