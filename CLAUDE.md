@@ -130,7 +130,7 @@ follow; do not build for them yet. No museum yet.
 
 ## How to test (owner)
 
-Link: https://beetrandahiya.github.io/alive-worlds/ — open in the Quest browser,
+Link: https://prakrisht.me/alive-worlds/ (the github.io address redirects there) — open in the Quest browser,
 press "Step inside". The build label at the bottom of the page and on the wrist
 readout (commit + time) confirms which version is loaded; reload if it is old.
 
