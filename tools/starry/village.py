@@ -192,6 +192,28 @@ for base, size in ((858, 62), (832, 56), (808, 50)):          # the grove behind
 
 out = dict(camera=dict(F=F, pitch=PITCH, W=W, H=H), grid=[GX, GY], houses=houses, church=church, trees=trees,
            road=colour((1100, 950, 1180, 962)), field=colour((600, 955, 715, 995)))
+# The painting itself over the village, for laying his strokes onto the real
+# buildings from the start view (as the first paint of the town was made):
+# the colour at every point, and which way the stroke there runs.
+CX0, CY0, CX1, CY1 = 500, 760, 1268, 1004
+if soft is None:
+    soft = cv2.GaussianBlur(img, (0, 0), 2.2)
+crop = soft[int(CY0 * K):int(CY1 * K), int(CX0 * K):int(CX1 * K)]
+cv2.imwrite(str(ROOT / "public" / "starry" / "village_canvas.jpg"),
+            cv2.resize(crop, ((CX1 - CX0) * 3, (CY1 - CY0) * 3), interpolation=cv2.INTER_AREA), [cv2.IMWRITE_JPEG_QUALITY, 93])
+if _J is None:
+    _gx, _gy = stroke_grad()
+    _J = [cv2.GaussianBlur(a_, (0, 0), 9.0) for a_ in (_gx * _gx, _gx * _gy, _gy * _gy)]
+jj = [cv2.resize(a_[int(CY0 * K):int(CY1 * K), int(CX0 * K):int(CX1 * K)], (CX1 - CX0, CY1 - CY0), interpolation=cv2.INTER_AREA) for a_ in _J]
+along_ = 0.5 * np.arctan2(2 * jj[1], jj[0] - jj[2]) + np.pi / 2
+ang_ = -np.arctan2(np.sin(along_), np.cos(along_))
+ang_ = (ang_ + np.pi / 2) % np.pi - np.pi / 2
+agree_ = np.hypot(jj[0] - jj[2], 2 * jj[1]) / (jj[0] + jj[2] + 1e-9)
+run = np.zeros((CY1 - CY0, CX1 - CX0, 3), np.uint8)
+run[..., 2] = np.round((ang_ / np.pi + 0.5) * 255)      # red: direction
+run[..., 1] = np.round(np.clip(agree_, 0, 1) * 255)     # green: agreement
+cv2.imwrite(str(ROOT / "public" / "starry" / "village_run.png"), run)
+out["canvas"] = [CX0, CY0, CX1, CY1]
 (ROOT / "public" / "starry" / "village.json").write_text(json.dumps(out))
 print(len(houses), "houses", len(trees), "trees; church nave", church["nave"], "spire top", church["spireTop"])
 for h in houses:
