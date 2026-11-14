@@ -2,12 +2,11 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Only the hills beyond the painting changed', 'Their outline is now the real skyline round Saint-Remy; their paint is made by rule, nothing repeated.'],
-  ['Frame rate', 'About 245,000 strokes, right at the limit. Still 72?'],
-  ['Bands', 'Are the odd vertical bands gone?'],
-  ['Turn a full circle', 'Mountains to your right, low rolling hills behind and to the left. Does the shape of the land feel right?'],
-  ['The paint on them', 'Next to the painted hills: same family, or clearly a different hand? Too regular?'],
-  ['The join', 'Where painted hills meet continued hills, right of the mountains and left of the cypress.'],
+  ['Only the paint on the far hills changed', 'Real hill shapes as last time; his own paint back on them, as two versions ago.'],
+  ['The paint', 'As good as two versions ago? Is the diagonal hatching gone?'],
+  ['Bands', 'Any vertical bands or streaks as you turn a full circle?'],
+  ['Repeats', 'His hills are reused round the horizon. Do you notice the same patch twice?'],
+  ['Frame rate', 'Still 72?'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

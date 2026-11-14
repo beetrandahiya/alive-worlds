@@ -276,6 +276,19 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       a dark fold line part-way up, dark ridge line, mountains darker. The
       mirror-fold is gone. Hills about 53k strokes, total about 245k.
       The slight general flicker is not yet investigated.
+      Study 07 (headset, 2026-11-14): 72 fps; real hill SHAPES approved
+      ("look like real hills, not made up"); join "okay, not perfect"; but
+      the rule-made paint was rejected outright ("just diagonal lines,
+      disgusting, hard to look at"; Study 06's paint was "so much better").
+      LESSON: never paint land by an invented rule. Paint must come from his
+      canvas. Banding is tolerable if stylised and following the terrain.
+      Study 08 BUILT 2026-11-14, AWAITING HEADSET TEST: real skyline kept;
+      paint beyond the frame is again the painted hills' own (colour and
+      stroke direction), sourced only from the span right of the cypress where
+      his hills are tall (px 500 to the right edge), walked back and forth
+      with bent turning points, laid by depth below the ridge with stretch
+      limited to 0.75-1.35 and folded back where the source runs out (the
+      bands in Study 06 were low left-hand hills stretched over tall ones).
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
