@@ -2,12 +2,12 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Every building he painted is now painted', 'The church and the twelve houses. Houses he did not paint, and everything else, are still plain. Full stick now moves five times faster.'],
-  ['From the start', 'Does the village read as his, next to the painting in your memory?'],
-  ['Walk through it', 'Each house gains fine strokes as you come within about 30 m and loses them as you leave. Smooth? Any house that pops?'],
-  ['The dark line', 'Now thinner, broken and dark blue instead of a black border. Keep it, soften it more, or remove it?'],
-  ['The church', 'White walls with dark strokes in them, as his paint has. Right, or too blotchy?'],
-  ['Frame rate and shimmer', 'Wrist number in the middle of the village with several houses near you. Still 72?'],
+  ['Strokes now run his way', 'Measured on the canvas for each building: upright on the church, level on the low houses, steeply slanted on the striped roofs. Do the strokes that looked strange look right now?'],
+  ['The black line is back', 'Heavy and nearly black round every roof and wall, as in the painting. Right weight?'],
+  ['Fine strokes from further off', 'They now start at about 50 m and are full by 28 m. Far enough? Still smooth?'],
+  ['Frame rate', 'More fine strokes are drawn at once now. Wrist number in the village centre: still 72?'],
+  ['The church', 'Upright strokes, as he painted it. Its white walls still carry many dark flecks. Too speckled?'],
+  ['From the start', 'Does the village read as his?'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

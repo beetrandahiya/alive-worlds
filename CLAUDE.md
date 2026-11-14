@@ -523,6 +523,27 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
         15 m/s at full push.
       - Unpainted still: the 26 houses he did not paint, asylum, field, lanes,
         trees, valley ground.
+      Study 20 (headset, 2026-11-14): "looks more painted", good from afar,
+      72 fps in the village centre, no jitter. Asked: fine strokes should
+      appear from further away; KEEP THE BLACK BORDER (the real painting has
+      it; owner withdrew the earlier doubt); some strokes look strange,
+      mainly the horizontal ones: research how he drew each building.
+      Study 21 BUILT 2026-11-14, AWAITING HEADSET TEST:
+      - `village.py` `stroke_run`: for each building's wall and roof patch,
+        the direction his strokes run and how strongly they agree (structure
+        tensor on the 7000 px scan) -> `wallRun`/`roofRun` [angle, agreement];
+        check picture `reference/debug_village_runs.jpg`. Findings: church
+        walls upright (81-89 deg); front roofs striped at 48-66 deg; red roof
+        56 deg; low back houses level (0 +/- 8); agreement mostly 0.15-0.57.
+      - `paintBox` uses those angles (roof angle negated: the plane's second
+        axis runs down the slope); the less his strokes agree, the more ours
+        wander. `fill` now takes any direction and shortens strokes at edges.
+      - Dark line restored: his own darkest colour, 0.2 m wide (ridge 0.24),
+        continuous overlapping strokes.
+      - Fine strokes fade 52-28 m (was 30-16); cover cut from 1.8 to 1.3 to
+        stay in budget: broad 4.8k, lines 1.2k, fine about 98k in 13 sets,
+        most of them drawn at once when standing mid-village (about 225k
+        total with sky, cypress, hills).
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

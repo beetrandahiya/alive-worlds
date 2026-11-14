@@ -71,13 +71,38 @@ def darkest(rect):
     return [round(float(v) / 255, 3) for v in np.median(p[lum <= np.percentile(lum, 12)], 0)[::-1]]
 
 
+_g = None
+measured = []
+
+
+def stroke_run(rect):
+    """Which way his strokes run in a patch of canvas, and how strongly they
+    agree. Angle in radians, 0 = level, positive = rising to the right.
+    Agreement 0 (every way) to 1 (all one way). Also their typical width in
+    canvas centimetres, from how quickly the paint changes across them."""
+    global _g
+    if _g is None:
+        grey = cv2.GaussianBlur(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).astype(np.float32), (0, 0), 2.0)
+        _g = (cv2.Sobel(grey, cv2.CV_32F, 1, 0), cv2.Sobel(grey, cv2.CV_32F, 0, 1))
+    x0, y0, x1, y1 = [int(v * K) for v in rect]
+    gx, gy = _g[0][y0:y1, x0:x1], _g[1][y0:y1, x0:x1]
+    jxx, jxy, jyy = float((gx * gx).mean()), float((gx * gy).mean()), float((gy * gy).mean())
+    along = 0.5 * math.atan2(2 * jxy, jxx - jyy) + math.pi / 2          # in image axes, y down
+    agree = math.hypot(jxx - jyy, 2 * jxy) / (jxx + jyy + 1e-9)
+    ang = -math.atan2(math.sin(along), math.cos(along))
+    ang = (ang + math.pi / 2) % math.pi - math.pi / 2
+    measured.append((rect, ang, agree))
+    return round(ang, 3), round(agree, 3)
+
+
 def building(x0, x1, base, eave, top, wall, roof, lit=0, gable=False, cut=45):
     cx, cz, dist = ground((x0 + x1) / 2, base)
     scale = dist / F
     return dict(x=round(float(cx), 2), z=round(float(cz), 2), w=round(float((x1 - x0) * scale), 2),
                 wall=round(float(max((base - eave) * scale, 2.6)), 2), rise=round(float(max((eave - top) * scale, 1.2)), 2),
                 wallColour=colour(wall, cut), roofColour=colour(roof), lit=lit, gable=gable,
-                wallPal=strokes_in(wall), roofPal=strokes_in(roof), outline=darkest((x0, top, x1, base)))
+                wallPal=strokes_in(wall), roofPal=strokes_in(roof), outline=darkest((x0, top, x1, base)),
+                wallRun=stroke_run(wall), roofRun=stroke_run(roof))
 
 
 houses = [
@@ -131,3 +156,14 @@ out = dict(camera=dict(F=F, pitch=PITCH, W=W, H=H), houses=houses, church=church
 print(len(houses), "houses", len(trees), "trees; church nave", church["nave"], "spire top", church["spireTop"])
 for h in houses:
     print(h["x"], h["z"], h["w"], h["wall"], h["rise"])
+
+# a picture of what was measured, for checking by eye
+x0, y0, x1, y1 = [int(v * K) for v in (520, 780, 1280, 1014)]
+dbg = img[y0:y1, x0:x1].copy()
+for rect, ang, agree in measured:
+    cx, cy = (rect[0] + rect[2]) / 2 * K - x0, (rect[1] + rect[3]) / 2 * K - y0
+    L = 70
+    cv2.rectangle(dbg, (int(rect[0] * K - x0), int(rect[1] * K - y0)), (int(rect[2] * K - x0), int(rect[3] * K - y0)), (255, 255, 255), 2)
+    cv2.line(dbg, (int(cx - L * math.cos(ang)), int(cy + L * math.sin(ang))), (int(cx + L * math.cos(ang)), int(cy - L * math.sin(ang))), (0, 255, 255), 6)
+    cv2.putText(dbg, f"{math.degrees(ang):.0f} {agree:.2f}", (int(cx - 60), int(cy - 14)), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 3)
+cv2.imwrite(str(ROOT / "reference" / "debug_village_runs.jpg"), cv2.resize(dbg, (2000, int(dbg.shape[0] * 2000 / dbg.shape[1]))))

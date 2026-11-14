@@ -20,7 +20,7 @@ import { terrain } from './terrain';
  *   with his barred upper window, and the chapel's square tower.
  * - Below the start lies the walled wheat field he saw from that window.
  */
-interface Built { x: number; z: number; w: number; wall: number; rise: number; wallColour: number[]; roofColour: number[]; lit: number; gable: boolean; wallPal: number[][]; roofPal: number[][]; outline: number[] }
+interface Built { x: number; z: number; w: number; wall: number; rise: number; wallColour: number[]; roofColour: number[]; lit: number; gable: boolean; wallPal: number[][]; roofPal: number[][]; outline: number[]; wallRun: number[]; roofRun: number[] }
 interface VillageData {
   camera: { F: number; pitch: number; W: number; H: number };
   houses: Built[];
@@ -151,7 +151,7 @@ export async function buildVillage(base: string) {
   const beginPaint = (b: Built, x: number, z: number, reach: number) => {
     fineCoat = new StrokeWriter();
     fineSets.push({ w: fineCoat, x, z, reach });
-    ink = [b.outline[0] * 1.2 + 0.03, b.outline[1] * 1.2 + 0.04, b.outline[2] * 1.3 + 0.09];
+    ink = b.outline;
   };
   interface Plane { o: THREE.Vector3; u: THREE.Vector3; v: THREE.Vector3; n: THREE.Vector3; w: number; h: number; inside?: (a: number, b: number) => boolean }
   const plane = (a: THREE.Vector3, bb: THREE.Vector3, c: THREE.Vector3, inside?: Plane['inside'], outward?: THREE.Vector3): Plane => {
@@ -165,26 +165,33 @@ export async function buildVillage(base: string) {
     const root = pl.o.clone().addScaledVector(pl.u, a).addScaledVector(pl.v, c).addScaledVector(t, -len / 2).addScaledVector(pl.n, rise_);
     out.add({ p: root, t, n: pl.n, length: len, width: wid, lift: 0, bend: r.range(-0.07, 0.07), colour, streak, seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0 });
   };
-  const fill = (out: StrokeWriter, pl: Plane, pal: number[][], dir: number, len: [number, number], wid: [number, number], cover: number, rise_: number) => {
-    const along = Math.abs(Math.cos(dir)) > 0.7;
+  /**
+   * Cover a plane with strokes running at `dir` (0 = along the plane's first
+   * edge), each turned a little by `loose`. A stroke near an edge is shortened
+   * to stay on the plane, as a brush stops at the line.
+   */
+  const fill = (out: StrokeWriter, pl: Plane, pal: number[][], dir: number, loose: number, len: [number, number], wid: [number, number], cover: number, rise_: number) => {
     const count = Math.ceil((pl.w * pl.h * cover) / (((len[0] + len[1]) / 2) * ((wid[0] + wid[1]) / 2)));
     for (let i = 0; i < count; i++) {
-      const L = Math.min(r.range(len[0], len[1]), (along ? pl.w : pl.h) * 0.96);
-      const a = along ? r.range(L / 2, pl.w - L / 2) : r.range(0.05, pl.w - 0.05);
-      const c = along ? r.range(0.05, pl.h - 0.05) : r.range(L / 2, pl.h - L / 2);
+      const a = r.range(0.04, pl.w - 0.04), c = r.range(0.04, pl.h - 0.04);
       if (pl.inside && !pl.inside(a, c)) continue;
-      lay(out, pl, a, c, dir + r.range(-0.14, 0.14), L, r.range(wid[0], wid[1]), r.pick(pal), r.pick(pal), rise_ + r.range(0, 0.012));
+      const d = dir + r.range(-loose, loose);
+      const ca = Math.abs(Math.cos(d)) + 1e-3, sa = Math.abs(Math.sin(d)) + 1e-3;
+      const room = 2 * Math.min(Math.min(a, pl.w - a) / ca, Math.min(c, pl.h - c) / sa);
+      const want = r.range(len[0], len[1]);
+      const L = Math.min(want, room);
+      if (L < want * 0.3) continue;
+      lay(out, pl, a, c, d, L, r.range(wid[0], wid[1]) * Math.min(1, 0.5 + (0.5 * L) / want), r.pick(pal), r.pick(pal), rise_ + r.range(0, 0.012));
     }
   };
-  /** His dark line, drawn in short strokes with small gaps, from one point of a plane to another. */
-  const line = (pl: Plane, a0: number, c0: number, a1: number, c1: number, wid = 0.13) => {
+  /** His dark line: heavy, nearly black, drawn in overlapping strokes from one point of a plane to another. */
+  const line = (pl: Plane, a0: number, c0: number, a1: number, c1: number, wid = 0.2) => {
     const L = Math.hypot(a1 - a0, c1 - c0), dir = Math.atan2(c1 - c0, a1 - a0);
-    const n = Math.max(1, Math.round(L / 1.5));
+    const n = Math.max(1, Math.round(L / 1.6));
     for (let i = 0; i < n; i++) {
-      if (r.next() < 0.14) continue; // the line breaks here and there
       const k = (i + 0.5) / n;
-      lay(outlineCoat, pl, a0 + (a1 - a0) * k + r.range(-0.03, 0.03), c0 + (c1 - c0) * k + r.range(-0.03, 0.03), dir + r.range(-0.04, 0.04),
-        (L / n) * r.range(0.85, 1.05), wid * r.range(0.75, 1.2), ink.map((x) => x * r.range(0.85, 1.2)), ink, 0.075);
+      lay(outlineCoat, pl, a0 + (a1 - a0) * k + r.range(-0.03, 0.03), c0 + (c1 - c0) * k + r.range(-0.03, 0.03), dir + r.range(-0.03, 0.03),
+        (L / n) * r.range(1.1, 1.3), wid * r.range(0.8, 1.25), ink.map((x) => x * r.range(0.85, 1.15)), ink, 0.075);
     }
   };
   const paintBox = (fp: Footprint, y0: number, wallH: number, rise: number, front: number, b: Built, roofed = true) => {
@@ -198,9 +205,15 @@ export async function buildVillage(base: string) {
       plane(P(w, 0, d), P(w, 0, -d), P(w, wallH + rise, d), ends), // the two ends, wall and gable together
       plane(P(-w, 0, -d), P(-w, 0, d), P(-w, wallH + rise, -d), ends),
     ];
+    // Strokes run the way his run on this very building, measured on the
+    // canvas (village.py): upright on the church, level on the low houses,
+    // steeply slanted on the striped roofs. Where his strokes agree less, ours
+    // wander more.
+    const wallDir = b.wallRun[0], wallLoose = 0.1 + 0.5 * (1 - b.wallRun[1]);
+    const roofDir = -b.roofRun[0], roofLoose = 0.06 + 0.3 * (1 - b.roofRun[1]);
     for (const pl of wallsP) {
-      fill(broadCoat, pl, b.wallPal, 0, [1.6, 2.8], [0.5, 0.8], 1.5, 0.03);
-      fill(fineCoat, pl, b.wallPal, 0, [0.4, 0.8], [0.09, 0.15], 1.7, 0.05);
+      fill(broadCoat, pl, b.wallPal, wallDir, wallLoose * 0.6, [1.5, 2.6], [0.45, 0.75], 1.6, 0.03);
+      fill(fineCoat, pl, b.wallPal, wallDir, wallLoose, [0.3, 0.62], [0.09, 0.17], 1.3, 0.05);
       line(pl, 0.06, 0, 0.06, wallH);
       line(pl, pl.w - 0.06, 0, pl.w - 0.06, wallH);
     }
@@ -211,9 +224,9 @@ export async function buildVillage(base: string) {
       ];
       for (const pl of roofsP) {
         // roofs: long strokes from ridge to eave, as he striped them
-        fill(broadCoat, pl, b.roofPal, Math.PI / 2, [slope * 0.75, slope * 0.95], [0.45, 0.8], 1.5, 0.03);
-        fill(fineCoat, pl, b.roofPal, Math.PI / 2, [0.5, 1.1], [0.09, 0.15], 1.7, 0.05);
-        line(pl, 0, 0.06, pl.w, 0.06, 0.16);          // the ridge
+        fill(broadCoat, pl, b.roofPal, roofDir, roofLoose * 0.5, [slope * 0.8, slope * 1.3], [0.4, 0.75], 1.7, 0.03);
+        fill(fineCoat, pl, b.roofPal, roofDir, roofLoose, [0.35, 0.8], [0.09, 0.17], 1.3, 0.05);
+        line(pl, 0, 0.06, pl.w, 0.06, 0.24);          // the ridge
         line(pl, 0, pl.h - 0.08, pl.w, pl.h - 0.08);   // the eave
         line(pl, 0.08, 0, 0.08, pl.h);
         line(pl, pl.w - 0.08, 0, pl.w - 0.08, pl.h);
@@ -227,7 +240,7 @@ export async function buildVillage(base: string) {
         const jit = r.range(0.85, 1.12);
         lay(broadCoat, face, a + r.range(-0.3, 0.3) * ow, y + oh / 2, Math.PI / 2 + r.range(-0.1, 0.1), oh * 0.95, ow * 0.42, [cr * jit, cg * jit, cb * jit], [cr, cg, cb], 0.13);
       }
-      line(face, a - ow / 2, y, a - ow / 2, y + oh, 0.1);
+      line(face, a - ow / 2, y, a - ow / 2, y + oh, 0.11);
       line(face, a + ow / 2, y, a + ow / 2, y + oh, 0.1);
       line(face, a - ow / 2, y + oh, a + ow / 2, y + oh, 0.1);
     }
@@ -377,7 +390,7 @@ export async function buildVillage(base: string) {
     opened = [];
     beginPaint(ch.nave, tower.x, tower.z, 16);
     paintBox(nave, y0, ch.nave.wall, ch.nave.rise, 1, ch.nave);
-    ink = [ch.tower.outline[0] * 1.2 + 0.03, ch.tower.outline[1] * 1.2 + 0.04, ch.tower.outline[2] * 1.3 + 0.09];
+    ink = ch.tower.outline;
     paintBox(tower, y0, ch.tower.wall, 0, 1, ch.tower, false);
     {
       const PT = (x: number, y: number, z: number) => new THREE.Vector3(...frame(tower, y0)(x, y, z));
@@ -388,8 +401,8 @@ export async function buildVillage(base: string) {
         const mid = a.clone().lerp(b, 0.5);
         const side = a.distanceTo(b), hgt = mid.distanceTo(apex);
         const pl = plane(a, b, a.clone().add(apex).sub(mid), (aa, cc) => Math.abs(aa - side / 2) < (side / 2) * (1 - cc / hgt), mid.clone().sub(PT(0, ch.tower.wall, 0)));
-        fill(broadCoat, pl, ch.tower.roofPal, Math.PI / 2, [3.5, 7], [0.35, 0.6], 1.6, 0.03);
-        fill(fineCoat, pl, ch.tower.roofPal, Math.PI / 2, [0.5, 1.1], [0.09, 0.15], 1.7, 0.05);
+        fill(broadCoat, pl, ch.tower.roofPal, Math.PI / 2, 0.05, [3.5, 7], [0.35, 0.6], 1.6, 0.03);
+        fill(fineCoat, pl, ch.tower.roofPal, Math.PI / 2, 0.12, [0.4, 0.9], [0.09, 0.15], 1.3, 0.05);
       }
     }
     paintBox(wing, y0, ch.wing.wall, ch.wing.rise, 1, ch.wing);
@@ -636,7 +649,7 @@ export async function buildVillage(base: string) {
   group.add(surfaceStrokes(broadCoat.data(), { segments: 3 }));
   group.add(surfaceStrokes(outlineCoat.data(), { segments: 2 }));
   // each building's fine strokes are drawn only while you are near it, and fade by distance
-  const FADE: [number, number] = [16, 30];
+  const FADE: [number, number] = [28, 52]; // owner: fine strokes should arrive from further off
   const fines = fineSets.map((f) => {
     const mesh = surfaceStrokes(f.w.data(), { segments: 2, fade: FADE });
     mesh.visible = false;
