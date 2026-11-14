@@ -95,6 +95,43 @@ def stroke_run(rect):
     return round(ang, 3), round(agree, 3)
 
 
+_J = None
+GX, GY = 44, 24
+
+
+def paint_map(rect):
+    """His paint over a piece of canvas, point by point: at each point of a
+    44 x 24 grid, the colour of the stroke that lies there and the direction
+    that stroke runs (measured within a stroke's width of that point, not
+    averaged over the building). Stored as whole numbers 0-255:
+    r, g, b, direction (0 = -90 degrees, 255 = +90, level = 128), agreement."""
+    global _J, soft
+    if soft is None:
+        soft = cv2.GaussianBlur(img, (0, 0), 2.2)
+    if _J is None:
+        gx, gy = stroke_grad()
+        _J = [cv2.GaussianBlur(a, (0, 0), 9.0) for a in (gx * gx, gx * gy, gy * gy)]
+    x0, y0, x1, y1 = [v * K for v in rect]
+    out = []
+    for j in range(GY):
+        for i in range(GX):
+            x = int(min(max(x0 + (i + 0.5) / GX * (x1 - x0), 14 * K), (W - 14) * K))
+            y = int(min(max(y0 + (j + 0.5) / GY * (y1 - y0), 0), (H - 16) * K))   # never the canvas's bare bottom edge
+            jxx, jxy, jyy = (float(a[y, x]) for a in _J)
+            along = 0.5 * math.atan2(2 * jxy, jxx - jyy) + math.pi / 2
+            ang = -math.atan2(math.sin(along), math.cos(along))
+            ang = (ang + math.pi / 2) % math.pi - math.pi / 2
+            agree = math.hypot(jxx - jyy, 2 * jxy) / (jxx + jyy + 1e-9)
+            b_, g_, r_ = (int(v) for v in soft[y, x])
+            out += [r_, g_, b_, int(round((ang / math.pi + 0.5) * 255)), int(round(agree * 255))]
+    return out
+
+
+def stroke_grad():
+    grey = cv2.GaussianBlur(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).astype(np.float32), (0, 0), 2.0)
+    return cv2.Sobel(grey, cv2.CV_32F, 1, 0), cv2.Sobel(grey, cv2.CV_32F, 0, 1)
+
+
 def building(x0, x1, base, eave, top, wall, roof, lit=0, gable=False, cut=45):
     cx, cz, dist = ground((x0 + x1) / 2, base)
     scale = dist / F
@@ -102,7 +139,9 @@ def building(x0, x1, base, eave, top, wall, roof, lit=0, gable=False, cut=45):
                 wall=round(float(max((base - eave) * scale, 2.6)), 2), rise=round(float(max((eave - top) * scale, 1.2)), 2),
                 wallColour=colour(wall, cut), roofColour=colour(roof), lit=lit, gable=gable,
                 wallPal=strokes_in(wall), roofPal=strokes_in(roof), outline=darkest((x0, top, x1, base)),
-                wallRun=stroke_run(wall), roofRun=stroke_run(roof))
+                wallRun=stroke_run(wall), roofRun=stroke_run(roof),
+                wallMap=paint_map((x0, eave, x1, base)), roofMap=paint_map((x0, top, x1, eave) if eave - top > 3 else roof),
+                faceMap=paint_map((x0, top, x1, base)))
 
 
 houses = [
@@ -126,6 +165,7 @@ church = dict(
 )
 tip = ray(727, 632)
 tx, tz, td = ground(727, 893)
+church["tower"]["roofMap"] = paint_map((719, 640, 735, 800))   # the spire
 church["spireTop"] = round(float(EYE + td * tip[1] / math.hypot(tip[0], tip[2]) * 1.0 - FLOOR), 1)
 
 
@@ -150,7 +190,7 @@ for base, size in ((858, 62), (832, 56), (808, 50)):          # the grove behind
         trees.append(tree(c, base + rs.uniform(-5, 5), size * rs.uniform(0.85, 1.15), size * 0.72,
                           (c - 20, base - 34, c + 20, base - 6)))
 
-out = dict(camera=dict(F=F, pitch=PITCH, W=W, H=H), houses=houses, church=church, trees=trees,
+out = dict(camera=dict(F=F, pitch=PITCH, W=W, H=H), grid=[GX, GY], houses=houses, church=church, trees=trees,
            road=colour((1100, 950, 1180, 962)), field=colour((600, 955, 715, 995)))
 (ROOT / "public" / "starry" / "village.json").write_text(json.dumps(out))
 print(len(houses), "houses", len(trees), "trees; church nave", church["nave"], "spire top", church["spireTop"])

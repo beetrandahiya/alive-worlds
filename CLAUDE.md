@@ -544,6 +544,29 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
         stay in budget: broad 4.8k, lines 1.2k, fine about 98k in 13 sets,
         most of them drawn at once when standing mid-village (about 225k
         total with sky, cypress, hills).
+      Study 21 (headset, 2026-11-14): REJECTED ("very very bad"). Owner: "you
+      are homogenizing strokes per building; you take one angle and make all
+      strokes like it. Study each building in detail, each stroke, then
+      build." LESSON: never summarise his paint per object (one direction, a
+      palette). Read it point by point, as the sky does.
+      Study 22 BUILT 2026-11-14, AWAITING HEADSET TEST:
+      - `village.py` `paint_map`: for each building, his paint over its facade
+        on a 44 x 24 grid: at each point the colour of the stroke there and the
+        direction that stroke runs (structure tensor within about one stroke's
+        width, sigma 9 px at 7000). Three maps per building: `wallMap` (eave to
+        ground), `roofMap` (top to eave), `faceMap` (whole facade; used for the
+        church's gable end); the spire has its own. Sampling stays clear of the
+        canvas's bare edges.
+      - `paintBox`/`fill`: his facade is laid over the building; each stroke
+        reads colour and direction at its own point (`paintAt`), turned a
+        little where his strokes agree less; its streak colour is the paint
+        beside it. Coats: broad strokes at HIS size on that building (2.2-3.6
+        cm x 0.6-0.95 cm of canvas; one canvas centimetre is 0.9-2.4 m on the
+        building), a middling coat (0.9-1.6 x 0.24-0.4 m), fine (0.3-0.62 m,
+        fading 52-28 m). Back walls and back roofs mirror the front; end walls
+        reuse the wall map. Broad+middling 14.8k, lines 1.0k, fine 105k.
+      - On painted houses the added window/door shapes are removed: the
+        windows are his yellow strokes.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
