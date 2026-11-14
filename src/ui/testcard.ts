@@ -2,13 +2,12 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['First paint: the village houses and church', 'Everything else (asylum, field, lanes, trees, ground) is still plain.'],
-  ['Walk up to a house', 'Within about 40 m its walls and roof resolve into strokes: his real stroke shapes, coloured from his paint of that building. Does it feel like his paint? Like the sky and cypress, or flatter?'],
-  ['Stroke size', 'Strokes are about 50 cm long and 13 cm wide. Right at arm\'s length, too big, too small?'],
-  ['Walls and roofs', 'Wall strokes run level; roof strokes run down the slope. Right?'],
-  ['Coming and going', 'The strokes fade in as you approach. Smooth, or do you notice a line where they start?'],
-  ['Flicker and frame rate', 'Any shimmer on the painted walls? Still 72?'],
-  ['From the start', 'The village should look as before. Still the painting?'],
+  ['Still a bare model', 'Changed: the hillside in front is now one even tilted slope; the asylum stands on the ground; the field wall keeps one height.'],
+  ['The wheat field', 'It should read as one tilted field now, not a bulge. Stand above it, beside it and below it: can you take it in whole? Still feel too high?'],
+  ['From the bottom of the field', 'Look back up: the field, then the asylum above it. Right?'],
+  ['The field wall', 'Waist high above the wheat all the way up. Does it still vanish anywhere?'],
+  ['The asylum', 'Both storeys clear of the ground, on a low stone base. Any floor still buried?'],
+  ['The start view and the cypress', 'Should be as before. Still the painting?'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

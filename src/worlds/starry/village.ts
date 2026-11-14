@@ -1,14 +1,12 @@
 import * as THREE from 'three';
-import { paintedForms, rng } from '../../paint/strokes';
+import { plainForms, rng } from '../../paint/strokes';
 import { terrain } from './terrain';
 
 /**
  * The village, the asylum, the walled wheat field and the valley's trees, as a
  * real place measured in metres.
  *
- * STAGE: the village houses and church are painted (each wall and roof wears
- * a piece of his canvas, resolving into his strokes up close). The asylum,
- * field, lanes and trees are still plain forms.
+ * STAGE: bare forms. Plain solid shapes with flat colours, no paint yet.
  *
  * - The heart of the village is the church and the twelve buildings he
  *   painted. `tools/starry/village.py` reads each off the canvas and gives it
@@ -21,7 +19,7 @@ import { terrain } from './terrain';
  *   with his barred upper window, and the chapel's square tower.
  * - Below the start lies the walled wheat field he saw from that window.
  */
-interface Built { x: number; z: number; w: number; wall: number; rise: number; wallColour: number[]; roofColour: number[]; lit: number; gable: boolean; wallSrc: number[]; roofSrc: number[] }
+interface Built { x: number; z: number; w: number; wall: number; rise: number; wallColour: number[]; roofColour: number[]; lit: number; gable: boolean }
 interface VillageData {
   camera: { F: number; pitch: number; W: number; H: number };
   houses: Built[];
@@ -39,24 +37,10 @@ const STONE = [0.5, 0.5, 0.47];
 
 export async function buildVillage(base: string) {
   const data: VillageData = await fetch(base + 'village.json').then((r) => r.json());
-  const patch = await new THREE.TextureLoader().loadAsync(base + 'village_paint.jpg');
-  patch.colorSpace = THREE.NoColorSpace;
-  patch.flipY = false;
-  patch.generateMipmaps = false;
-  patch.minFilter = patch.magFilter = THREE.LinearFilter;
   const r = rng(1890);
   const pos: number[] = [];
   const nor: number[] = [];
   const col: number[] = [];
-  const uvs: number[] = [];
-  const rects: number[] = [];
-  const ks: number[] = [];
-  /** What the next surfaces are painted with: nothing (plain), strokes over a flat colour, or a piece of his canvas. */
-  let src: { rect: number[]; k: number[] } = { rect: [0, 0, 0, 0], k: [0, 1, 0] };
-  const PLAIN = src;
-  const DABS = { rect: [0, 0, 0, 0], k: [0, 1, 1] };
-  /** A piece of canvas (from village.json) laid so that it spans `metres` across. */
-  const canvasPiece = (s5: number[], metres: number) => ({ rect: s5.slice(0, 4), k: [metres, s5[4], 1] });
   const footprints: Footprint[] = [];
 
   // --- small builders
@@ -64,22 +48,10 @@ export async function buildVillage(base: string) {
     const n = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2])
       .cross(new THREE.Vector3(c[0] - a[0], c[1] - a[1], c[2] - a[2]))
       .normalize();
-    // Where each point lies on its own surface, in metres. Strokes run along
-    // x: level on walls, down the slope on roofs.
-    let T: THREE.Vector3;
-    if (Math.abs(n.y) < 0.6) T = new THREE.Vector3(0, 1, 0).cross(n).normalize();
-    else {
-      T = new THREE.Vector3(0, -1, 0).addScaledVector(n, n.y);
-      T = T.lengthSq() < 0.003 ? new THREE.Vector3(1, 0, 0) : T.normalize();
-    }
-    const B = Math.abs(n.y) < 0.6 ? new THREE.Vector3(0, 1, 0) : n.clone().cross(T);
     for (const p of [a, b, c]) {
       pos.push(p[0], p[1], p[2]);
       nor.push(n.x, n.y, n.z);
       col.push(colour[0], colour[1], colour[2]);
-      uvs.push(p[0] * T.x + p[1] * T.y + p[2] * T.z, p[0] * B.x + p[1] * B.y + p[2] * B.z);
-      rects.push(...src.rect);
-      ks.push(...src.k);
     }
   };
   const quad = (a: number[], b: number[], c: number[], d: number[], colour: number[]) => {
@@ -125,20 +97,10 @@ export async function buildVillage(base: string) {
   const gable = (fp: Footprint, y0: number, h: number, rise: number, roof: number[], wall: number[]) => {
     const P = frame(fp, y0);
     const w = fp.w / 2, d = fp.d / 2, o = 0.35;
-    if (!onlyEnds) {
-      quad(P(-w - o, h - 0.25, -d - o), P(-w - o, h + rise, 0), P(w + o, h + rise, 0), P(w + o, h - 0.25, -d - o), roof);
-      quad(P(w + o, h - 0.25, d + o), P(w + o, h + rise, 0), P(-w - o, h + rise, 0), P(-w - o, h - 0.25, d + o), roof);
-    }
-    if (!onlySlopes) {
-      tri(P(-w, h, d), P(-w, h + rise, 0), P(-w, h, -d), wall);
-      tri(P(w, h, -d), P(w, h + rise, 0), P(w, h, d), wall);
-    }
-  };
-  let onlyEnds = false, onlySlopes = false;
-  const roofOnly = (fp: Footprint, y0: number, h: number, rise: number, roof: number[]) => {
-    onlySlopes = true;
-    gable(fp, y0, h, rise, roof, roof);
-    onlySlopes = false;
+    quad(P(-w - o, h - 0.25, -d - o), P(-w - o, h + rise, 0), P(w + o, h + rise, 0), P(w + o, h - 0.25, -d - o), roof);
+    quad(P(w + o, h - 0.25, d + o), P(w + o, h + rise, 0), P(-w - o, h + rise, 0), P(-w - o, h - 0.25, d + o), roof);
+    tri(P(-w, h, d), P(-w, h + rise, 0), P(-w, h, -d), wall);
+    tri(P(w, h, -d), P(w, h + rise, 0), P(w, h, d), wall);
   };
   /** A flat panel just proud of the front (+1) or back (-1) wall. */
   const panel = (fp: Footprint, y0: number, x: number, y: number, pw: number, ph: number, side: number, colour: number[]) => {
@@ -164,20 +126,13 @@ export async function buildVillage(base: string) {
   };
   /** Yaw that turns a building's long side square to the start point, so it shows as painted. */
   const facingStart = (x: number, z: number) => Math.atan2(z, x) + Math.PI / 2;
-  const house = (fp: Footprint, b: Built, wall: number, rise: number, lit: number, front: number) => {
+  const house = (fp: Footprint, wall: number, rise: number, wallColour: number[], roofColour: number[], lit: number, front: number) => {
     const y0 = groundUnder(fp);
-    src = canvasPiece(b.wallSrc, fp.w);
-    walls(fp, y0, wall + 0.3, b.wallColour);
-    onlyEnds = true;
-    gable(fp, y0, wall + 0.3, rise, b.roofColour, b.wallColour); // the gable ends take the wall's paint
-    onlyEnds = false;
-    src = canvasPiece(b.roofSrc, fp.w);
-    roofOnly(fp, y0, wall + 0.3, rise, b.roofColour);
-    src = DABS;
+    walls(fp, y0, wall + 0.3, wallColour);
+    gable(fp, y0, wall + 0.3, rise, roofColour, wallColour);
     openings(fp, y0, wall, front, lit);
     const c = Math.cos(fp.yaw), s = Math.sin(fp.yaw), k = fp.w * r.range(-0.3, 0.3);
     walls({ x: fp.x + c * k, z: fp.z + s * k, yaw: fp.yaw, w: 0.7, d: 0.7 }, y0 + wall + rise * 0.45, rise * 0.55 + 1.1, [0.2, 0.18, 0.18]);
-    src = PLAIN;
     footprints.push(fp);
   };
 
@@ -284,23 +239,15 @@ export async function buildVillage(base: string) {
   }
   for (const q of painted) {
     if (onRoad(q.fp, 0)) q.fp.d = 5.2; // a shallow house rather than one in the street
-    house(q.fp, q.b, q.b.wall, q.b.rise, q.b.lit, 1);
+    house(q.fp, q.b.wall, q.b.rise, q.b.wallColour, q.b.roofColour, q.b.lit, 1);
   }
   {
     const y0 = groundUnder(nave);
-    src = canvasPiece(ch.nave.wallSrc, nave.d);
     walls(nave, y0, ch.nave.wall, ch.nave.wallColour);
-    onlyEnds = true;
     gable(nave, y0, ch.nave.wall, ch.nave.rise, ch.nave.roofColour, ch.nave.wallColour);
-    onlyEnds = false;
-    src = canvasPiece(ch.nave.roofSrc, nave.d);
-    roofOnly(nave, y0, ch.nave.wall, ch.nave.rise, ch.nave.roofColour);
-    src = DABS;
     for (const side of [-1, 1]) for (const x of [-5, 0, 5]) panel(nave, y0, x, 2.6, 1.0, 3.0, side, DARK);
     const towerH = ch.tower.wall;
-    src = canvasPiece(ch.tower.wallSrc, tower.w);
     walls(tower, y0, towerH, ch.tower.wallColour);
-    src = canvasPiece(ch.tower.roofSrc, tower.w);
     const P = frame(tower, y0);
     const t = tower.w / 2 + 0.25;
     const cs = [[-t, -t], [t, -t], [t, t], [-t, t]];
@@ -308,17 +255,10 @@ export async function buildVillage(base: string) {
       const a = cs[i], b = cs[(i + 1) % 4];
       tri(P(a[0], towerH, a[1]), P(0, ch.spireTop, 0), P(b[0], towerH, b[1]), ch.tower.roofColour);
     }
-    src = DABS;
     panel(tower, y0, 0, 0, 1.5, 2.5, 1, DOOR);
     panel(tower, y0, 0, towerH * 0.62, 0.9, 2.2, 1, DARK);
-    src = canvasPiece(ch.wing.wallSrc, wing.w);
     walls(wing, y0, ch.wing.wall, ch.wing.wallColour);
-    onlyEnds = true;
     gable(wing, y0, ch.wing.wall, ch.wing.rise, ch.wing.roofColour, ch.wing.wallColour);
-    onlyEnds = false;
-    src = canvasPiece(ch.wing.roofSrc, wing.w);
-    roofOnly(wing, y0, ch.wing.wall, ch.wing.rise, ch.wing.roofColour);
-    src = PLAIN;
     footprints.push(nave, tower, wing);
   }
 
@@ -401,6 +341,8 @@ export async function buildVillage(base: string) {
   // --- the rest of the village: houses shoulder to shoulder along the same
   // streets, their doors on the street, only where the start view cannot see
   // them, and never in a street or inside another building
+  const wallsBorrowed = data.houses.map((h) => h.wallColour);
+  const roofsBorrowed = data.houses.map((h) => h.roofColour);
   let extra = 0;
   for (const rd of roads.slice(0, -1)) {
     const cum = [0];
@@ -424,9 +366,7 @@ export async function buildVillage(base: string) {
         d0 += w + (r.next() < 0.25 ? r.range(3, 9) : 0.3);
         const wallH = r.next() < 0.55 ? r.range(5.4, 6.4) : r.range(3.2, 4.1);
         if (seenFromStart(c.x, terrain(c.x, c.y) + wallH + 2, c.y) || overlaps(fp, 0.2) || onRoad(fp)) continue;
-        // a house he did not paint wears the paint of one he did
-        const any = () => data.houses[Math.floor(r.next() * data.houses.length)];
-        house(fp, { ...any(), roofSrc: any().roofSrc }, wallH, r.range(1.6, 3.0), r.next() < 0.35 ? 1 : 0, -sgn);
+        house(fp, wallH, r.range(1.6, 3.0), r.pick(wallsBorrowed), r.pick(roofsBorrowed), r.next() < 0.35 ? 1 : 0, -sgn);
         extra++;
       }
     }
@@ -556,11 +496,8 @@ export async function buildVillage(base: string) {
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  g.setAttribute('aUv', new THREE.Float32BufferAttribute(uvs, 2));
-  g.setAttribute('aRect', new THREE.Float32BufferAttribute(rects, 4));
-  g.setAttribute('aK', new THREE.Float32BufferAttribute(ks, 3));
   const group = new THREE.Group();
-  group.add(paintedForms(g, patch));
+  group.add(plainForms(g));
 
   /** True inside a building or wall: you cannot walk through it. */
   const blocked = (x: number, z: number) => {
