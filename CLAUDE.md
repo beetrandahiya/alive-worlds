@@ -487,6 +487,25 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       OWNER'S DIRECTION: do not get carried away; build a CONCEPT for the
       paint first, as was done for the place (bare forms before detail), and
       agree it before building.
+      PAINT CONCEPT agreed with owner (2026-11-14): paint houses the way the
+      sky, cypress and hills are painted. Real, individually placed raised
+      strokes, never rows; three coats (dark outlines along every edge; a few
+      broad strokes per plane, as few as his, always present; fine
+      hand-to-arm strokes only on houses near the walker, fading by
+      distance); colours taken stroke by stroke from his paint of that
+      building; direction follows the form. Judge on ONE house first (the big
+      dark house at the front, `data.houses[9]`), then the village, then
+      trees, field, asylum, each its own round. Budget: broad + outline for
+      the village about 25k; fine coats about 30k near the walker.
+      Study 19 BUILT 2026-11-14, AWAITING HEADSET TEST: that one house.
+      `village.py` gives each building `wallPal`/`roofPal` (28 single-stroke
+      colours each, points of the lightly smoothed 7000 px scan) and `outline`
+      (its darkest 12%). `paintHouse` in `village.ts` lays strokes with
+      `surfaceStrokes`: walls broad 1.6-2.8 x 0.5-0.8 m level, fine 0.4-0.8 x
+      0.09-0.15 m (fade 16-30 m); roofs broad ridge-to-eave, fine 0.5-1.1 m;
+      outlines 0.2 m wide along ridge, eaves, verges, corners, base; openings
+      get four strokes of their colour and a dark ring. This house: 358 broad,
+      78 outline, 7,666 fine. The plain wall beneath is the undercoat.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

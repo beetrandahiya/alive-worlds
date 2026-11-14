@@ -2,12 +2,13 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Still a bare model', 'Changed: the hillside in front is now one even tilted slope; the asylum stands on the ground; the field wall keeps one height.'],
-  ['The wheat field', 'It should read as one tilted field now, not a bulge. Stand above it, beside it and below it: can you take it in whole? Still feel too high?'],
-  ['From the bottom of the field', 'Look back up: the field, then the asylum above it. Right?'],
-  ['The field wall', 'Waist high above the wheat all the way up. Does it still vanish anywhere?'],
-  ['The asylum', 'Both storeys clear of the ground, on a low stone base. Any floor still buried?'],
-  ['The start view and the cypress', 'Should be as before. Still the painting?'],
+  ['One painted house', 'Only the tall dark house at the front of the village is painted. Everything else is as in Study 17. Walk down the lane to it.'],
+  ['From the lane, 40 m away', 'You see its outline and broad strokes only. Does it read as one of his houses?'],
+  ['From the street, 15 m', 'Fine strokes have come in over the broad ones. Did they arrive smoothly? Does it look painted, not patterned?'],
+  ['At arm\'s length', 'Real raised strokes, like the cypress. Thick paint, or flat cards? Right size?'],
+  ['Shimmer', 'Any sparkle or crawling on the wall as you move your head? This is the first time raised strokes sit on a flat wall.'],
+  ['Windows and door', 'A few strokes of yellow or dark, ringed in his dark line. Right idea?'],
+  ['Colour', 'It is dark because he painted this house dark. Too dark to read?'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

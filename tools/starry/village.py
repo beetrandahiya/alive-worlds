@@ -48,12 +48,36 @@ def colour(rect, cut=45):
     return [round(float(v) / 255, 3) for v in np.median(p, 0)[::-1]]
 
 
+prs = np.random.default_rng(9)
+soft = None
+
+
+def strokes_in(rect, n=28):
+    """Colours of individual strokes in a patch of canvas: single points of the
+    lightly smoothed scan, so each is one stroke's paint and not an average."""
+    global soft
+    if soft is None:
+        soft = cv2.GaussianBlur(img, (0, 0), 2.2)
+    x0, y0, x1, y1 = [int(v * K) for v in rect]
+    xs, ys = prs.integers(x0, max(x1, x0 + 2), n), prs.integers(y0, max(y1, y0 + 2), n)
+    return [[round(float(v) / 255, 3) for v in soft[y, x][::-1]] for x, y in zip(xs, ys)]
+
+
+def darkest(rect):
+    """His outline colour here: the dark line he drew round this building."""
+    x0, y0, x1, y1 = [int(v * K) for v in rect]
+    p = img[y0:y1, x0:x1].reshape(-1, 3).astype(np.float32)
+    lum = p @ np.array([0.114, 0.587, 0.299], np.float32)
+    return [round(float(v) / 255, 3) for v in np.median(p[lum <= np.percentile(lum, 12)], 0)[::-1]]
+
+
 def building(x0, x1, base, eave, top, wall, roof, lit=0, gable=False, cut=45):
     cx, cz, dist = ground((x0 + x1) / 2, base)
     scale = dist / F
     return dict(x=round(float(cx), 2), z=round(float(cz), 2), w=round(float((x1 - x0) * scale), 2),
                 wall=round(float(max((base - eave) * scale, 2.6)), 2), rise=round(float(max((eave - top) * scale, 1.2)), 2),
-                wallColour=colour(wall, cut), roofColour=colour(roof), lit=lit, gable=gable)
+                wallColour=colour(wall, cut), roofColour=colour(roof), lit=lit, gable=gable,
+                wallPal=strokes_in(wall), roofPal=strokes_in(roof), outline=darkest((x0, top, x1, base)))
 
 
 houses = [
