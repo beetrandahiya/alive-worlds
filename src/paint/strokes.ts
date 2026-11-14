@@ -22,6 +22,9 @@ export const shared = {
   // Light raking across the sky's "canvas", from the upper left as in a studio.
   uCanvasLight: { value: new THREE.Vector3(-0.55, 0.7, 0.35).normalize() },
   uAtlas: { value: null as THREE.Texture | null },
+  uRidge: { value: null as THREE.Texture | null },
+  uGround: { value: null as THREE.Texture | null },
+  uGroundRange: { value: new THREE.Vector2(1, 1) },
 };
 
 /** A strip of quads; the shaders bend it into a stroke. */
@@ -90,6 +93,14 @@ export interface SurfaceOptions {
   tile?: number;
   /** GLSL source of `float terrain(vec2 xz)`; needed when tiling. */
   terrain?: string;
+  /** 0..1: how much strokes take the colour of the ground they stand on. */
+  tint?: number;
+  /**
+   * Paint these over everything already drawn, in their own order (broad
+   * coats first), instead of sorting by depth. For coats that lie on top of
+   * one another on far ground, where depth cannot tell them apart.
+   */
+  overlay?: boolean;
 }
 
 /** Strokes laid on solid forms. `data` holds 24 floats per stroke (see StrokeWriter). */
@@ -110,11 +121,19 @@ export function surfaceStrokes(data: Float32Array, o: SurfaceOptions): THREE.Mes
       uAtlas: shared.uAtlas,
       uFade: { value: new THREE.Vector2(...(o.fade ?? [1e6, 2e6])) },
       uTile: { value: o.tile ?? 0 },
+      uRidge: shared.uRidge,
+      uGround: shared.uGround,
+      uGroundRange: shared.uGroundRange,
+      uTint: { value: o.tint ?? 0 },
       uNear: { value: new THREE.Vector2(...(o.near ?? [-2, -1])) },
     },
   );
   const mesh = new THREE.Mesh(g, m);
   mesh.frustumCulled = false;
+  if (o.overlay) {
+    m.depthWrite = false;
+    mesh.renderOrder = 20;
+  }
   return mesh;
 }
 
@@ -125,6 +144,10 @@ export function undercoat(g: THREE.BufferGeometry): THREE.Mesh {
     fragmentShader: UNDER_FRAG,
     uniforms: { uTime: shared.uTime, uWind: shared.uWind, uA2C: shared.uA2C },
     side: THREE.DoubleSide,
+    // Sit a hair behind the strokes laid on it, at any distance.
+    polygonOffset: true,
+    polygonOffsetFactor: 2,
+    polygonOffsetUnits: 12,
   });
   const mesh = new THREE.Mesh(g, m);
   mesh.frustumCulled = false;

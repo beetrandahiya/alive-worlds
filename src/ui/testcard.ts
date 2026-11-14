@@ -2,8 +2,12 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Nothing new to judge', 'This build only removes the canvas flecks. The next study brings real hills and a village.'],
-  ['Anything else', 'Whatever catches your eye, good or bad.'],
+  ['Frame rate', 'The land is now real 3D. Wrist number at the start, and again down in the valley. Still 72?'],
+  ['First view', 'Does it still read as the painting from where you start? Is the village as sharp as before?'],
+  ['Hills', 'Do they feel like real hills at a distance? Any shimmer or flicker on them as you move your head?'],
+  ['Walk down', 'Go forward down the slope into the valley (about a minute at full stick). How does it feel to leave the picture?'],
+  ['Valley floor', 'Expected for now: the village is flat paint that stretches as you approach. Is anything else wrong down there?'],
+  ['Look back', 'From the valley, turn round. Knoll, cypress and sky from below: right or odd?'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

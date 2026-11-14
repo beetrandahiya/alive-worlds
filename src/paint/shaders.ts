@@ -153,6 +153,9 @@ uniform vec2 uNear;      // broad strokes: absent within x, fully there by y
 uniform float uTile;     // > 0: strokes repeat on a square tile that follows you
 uniform vec3 uCentre;    // where you are
 uniform vec3 uMoon;
+uniform sampler2D uGround;   // the ground's own colour, seen from above
+uniform vec2 uGroundRange;  // nearest ring (m), log of farthest / nearest
+uniform float uTint;        // how much strokes take the colour of the ground they stand on
 varying vec2 vUv;
 varying vec3 vCol;
 varying vec3 vCol2;
@@ -192,6 +195,13 @@ void main() {
   vUv = vec2(u, aQuad.y * 0.5 + 0.5);
   vCol = iC.rgb;
   vCol2 = iC2.rgb;
+  if (uTint > 0.0) {
+    vec2 g = vec2(atan(root.x, -root.z) / 6.2831853 + 0.5, log(max(length(root.xz), uGroundRange.x) / uGroundRange.x) / uGroundRange.y);
+    vec3 earth = texture2D(uGround, g).rgb;
+    float own = dot(iC.rgb, vec3(0.333)) - 0.16;   // each stroke keeps its own lightness
+    vCol = mix(iC.rgb, earth + own * 0.8, uTint);
+    vCol2 = mix(iC2.rgb, earth * 0.82, uTint);
+  }
   vShape = iC2.w;
   vLight = vec2(dot(uMoon, T), dot(uMoon, B));
   vec3 V = normalize(cameraPosition - pos);

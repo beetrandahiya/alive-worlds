@@ -56,7 +56,18 @@ follow; do not build for them yet. No museum yet.
 - Stroke scale: "repainted at human scale". From the viewpoint it matches the
   painting's big strokes; as you approach, forms resolve into more, smaller
   strokes (hand-to-arm sized near you), as if he set up his easel where you stand.
-- Unseen parts come only from his other Saint-Rémy works.
+- Unseen parts come only from his other Saint-Rémy works. References chosen
+  by owner 2026-11-14:
+  - Ground: both, by place. Cut wheat, stubble and sheaves from Landscape with
+    Wheat Sheaves and Rising Moon on the open slopes; road and verge from Road
+    with Cypress and Star for the lane down to the village.
+  - Hills: both, by distance. Mountains at Saint-Rémy for overall shape and
+    slopes; Les Peiroulets Ravine for rock at arm's length.
+  - Village: The Large Plane Trees / Road Menders for how he paints a street,
+    AND study what Saint-Rémy's houses and streets really looked like (period
+    photographs, surviving architecture, the town's layout), because he shows
+    too few houses to build a whole town. So: his paintings decide how things
+    are painted; the real town may inform what is there.
 - Inhabitants: no people. Small signs of life: a bird crossing the sky, a cat in
   the village (slips away if approached), fireflies in the fields. (Moths: no.)
 - Colour: DECIDED in headset 2026-11-14 — the canvas as it hangs today. Not
@@ -165,6 +176,8 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
   uniforms, seeded random).
 - `src/worlds/starry/` — this world: `sky.ts`, `cypress.ts`, `ground.ts`,
   `terrain.ts`. A new painting gets its own folder here and its own tools.
+  The land's formulas exist three times and must match: `analyse.py`
+  (`terrain_np`), `terrain.ts` (`terrain`) and the GLSL in `terrain.ts`.
 - `src/xr/rig.ts` movement; `src/ui/wrist.ts` study readout; `src/main.ts` boot.
 - Off-headset check: `?shot=painting` renders the exact painting view as a
   still (used with headless Chromium to compare against the scan).
@@ -186,7 +199,14 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       resolution, edge blur 0.5.
 - [x] Study 02 (2026-11-14): sky at 70% speed confirmed good; 72 fps stable;
       canvas flecks rejected and removed.
-- [ ] Step 2: terrain and composition matched from the viewpoint.
+- [ ] Step 2: terrain and composition matched from the viewpoint — Study 03
+      BUILT 2026-11-14, AWAITING HEADSET TEST. Real 3D knoll, valley floor
+      (28 m below the knoll), nearer hills (to ~60 m, about 700 m away) and far
+      mountains (to ~350 m, about 1.6 km away), all matching the painting's
+      outlines from the viewpoint. The painting's land strokes are laid on the
+      ground by projecting from the viewpoint. Village is still flat paint on
+      the valley floor (church about 190 m from the viewpoint). Walking limit
+      420 m. Stroke load rose to about 185k; frame rate unmeasured.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
@@ -253,8 +273,13 @@ All Saint-Remy period, all on Wikimedia Commons unless noted.
 
 - Get owner's headset report on step 1 (frame rate at each paint amount,
   shimmer, colour A vs B, flow speed, cypress up close) and act on it.
-- Owner to choose references for the unseen parts (list above), then build
-  step 2 (real hills and terrain) and step 3 (village).
+- Get owner's headset report on Study 03 (frame rate above all).
+- Step 3: the village in 3D. Before building, research real Saint-Rémy
+  houses and streets and bring the owner a layout proposal. The reference
+  paintings still need to be brought into `reference/` (Wikimedia refuses
+  larger downloads from the cloud machine; Cleveland's open-access copy of
+  The Large Plane Trees may be reachable; otherwise ask the owner as before).
+- Rework the ground's manner from the two chosen ground paintings.
 
 ## Known issues / open questions
 
@@ -265,8 +290,21 @@ All Saint-Remy period, all on Wikimedia Commons unless noted.
   finds single well-separated strokes, outline = shape, the photograph's light
   and shade on the paint = relief). Eight chosen by eye (candidates 4 6 10 1 19
   27 29 37). Relief is inferred from a flat photograph, not measured height.
-- Ground on the knoll is provisional: the painting does not show it. Colours
-  come from the bushes at its bottom edge. Needs his field studies as reference.
+- Ground detail (grass, lying strokes near you) is provisional in manner;
+  references are chosen (see Decisions) but not yet applied.
+- Land strokes are projected from the viewpoint, so away from it they stretch
+  along the old line of sight (strongly on the valley floor). Human-scale
+  strokes around the walker cover this near you; mid-distance still shows it.
+- Ground the viewpoint cannot see gets broad dark strokes in his field
+  colours (`lay_unseen`), nothing more considered yet.
+- Hills are a ring: each compass direction has one height and distance, so
+  from above they are concentric walls. Fine from the valley; needs real
+  shaping before anyone climbs them (step 4).
+- Ground strokes laid on far land are drawn over everything in a fixed order
+  rather than sorted by depth (`overlay`), because depth cannot separate coats
+  at that distance. Side effect to watch for in the headset: they could show
+  through something that should hide them only if it is drawn after them;
+  currently nothing is.
 - Sky behind the cypress is filled in by diffusion; two star halos next to the
   tree smear into rectangles there (visible if you walk sideways).
 - Extended sky: outside the frame each place takes direction and tone from
@@ -274,8 +312,6 @@ All Saint-Remy period, all on Wikimedia Commons unless noted.
   flow so bands continue (`analyse.py`, "LIC"). Remaining flaw: herringbone
   creases run diagonally out from the frame's upper corners, where "nearest
   painted sky" jumps from one edge to another. Checked only in flat stills.
-- Walking is limited to 55 m from the viewpoint; walking downhill shows the
-  backdrop village sliding with you (it is at infinity until step 3).
 - Wrap-around vs distant climbable hills: design needed at step 4 (village must
   be hidden by ridges from outside the valley so repeats are never seen; sky
   does not wrap). Fallback if it reads badly: ask owner again.

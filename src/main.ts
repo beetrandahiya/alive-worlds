@@ -5,7 +5,7 @@ import { WristReadout } from './ui/wrist';
 import { buildCypress } from './worlds/starry/cypress';
 import { buildGround } from './worlds/starry/ground';
 import { buildSky, type StarryMeta } from './worlds/starry/sky';
-import { terrain, WALK_RADIUS } from './worlds/starry/terrain';
+import { loadTerrain, terrain, WALK_RADIUS } from './worlds/starry/terrain';
 import { Rig } from './xr/rig';
 
 declare const __BUILD__: string;
@@ -30,7 +30,7 @@ async function start() {
   shared.uA2C.value = desktopA2C;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(60, 1, 0.05, 2500);
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 6000);
   const rig = new Rig(camera, renderer, terrain, WALK_RADIUS);
   scene.add(rig.group);
 
@@ -40,9 +40,10 @@ async function start() {
   atlas.anisotropy = 4;
   shared.uAtlas.value = atlas;
 
+  shared.uRidge.value = await loadTerrain(BASE);
   const sky = await buildSky(BASE, meta);
   const cypress = buildCypress(meta);
-  const ground = buildGround(meta);
+  const ground = await buildGround(BASE, meta);
   scene.add(sky.group, cypress.group, ground.group);
 
   // ---- study controls

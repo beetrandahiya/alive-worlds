@@ -1,49 +1,63 @@
 import * as THREE from 'three';
-import { rng, StrokeWriter, surfaceStrokes, undercoat } from '../../paint/strokes';
+import { rng, shared, StrokeWriter, surfaceStrokes, undercoat } from '../../paint/strokes';
 import type { StarryMeta } from './sky';
 import { terrain, TERRAIN_GLSL } from './terrain';
 
 /**
- * The hillside under your feet.
+ * The ground of the whole valley.
  *
- * PROVISIONAL: the painting does not show this ground. Colours are taken from
- * the dark bushes along its bottom edge; the dashes follow his field paintings
- * in manner only. To be reworked from his Saint-Rémy field studies at step 2.
- *
- * Layers: an undercoat, strokes lying on the earth, and upright dashes of
- * grass. The stroke layers repeat on tiles that follow you, so there is always
- * fine paint where you stand without painting the whole hill finely.
+ * - An undercoat over the land, coloured from the painting wherever the
+ *   viewpoint can see it.
+ * - The painting's own land strokes, laid on the ground so that from the
+ *   viewpoint they look as he painted them (`terrain_strokes.bin`). Away from
+ *   the viewpoint they stretch along your old line of sight. The village is
+ *   still only paint lying on the valley floor.
+ * - Fine strokes and grass that appear around you wherever you walk, tinted
+ *   by the ground they stand on. PROVISIONAL in manner: to be reworked from
+ *   Wheat Sheaves and Rising Moon and Road with Cypress and Star.
  */
-export function buildGround(meta: StarryMeta) {
-  const r = rng(42);
-  const pal = meta.palettes.bush;
-  const wts = meta.palettes.bushWeight.map((w, i) => (i < 5 ? w : i < 7 ? w * 0.12 : 0));
-  const up = new THREE.Vector3(0, 1, 0);
+export async function buildGround(base: string, meta: StarryMeta) {
+  const { na, nr, rMin, rMax } = meta.valley;
+  const [strokeData, colData] = await Promise.all([
+    fetch(base + 'terrain_strokes.bin').then((r) => r.arrayBuffer()),
+    fetch(base + 'ground_col.bin').then((r) => r.arrayBuffer()),
+  ]);
+  const cols = new Uint8Array(colData);
 
-  // --- undercoat
-  const RINGS = 70;
-  const SPOKES = 72;
+  // The ground's colour as a map the fine strokes can look up: compass
+  // direction across, distance from the viewpoint (logarithmic) down.
+  const rgba = new Uint8Array(na * nr * 4);
+  for (let i = 0; i < na * nr; i++) rgba.set([cols[i * 3], cols[i * 3 + 1], cols[i * 3 + 2], 255], i * 4);
+  const map = new THREE.DataTexture(rgba, na, nr, THREE.RGBAFormat);
+  map.wrapS = THREE.RepeatWrapping;
+  map.magFilter = map.minFilter = THREE.LinearFilter;
+  map.needsUpdate = true;
+  shared.uGround.value = map;
+  shared.uGroundRange.value.set(rMin, Math.log(rMax / rMin));
+
+  // --- undercoat: rings round the viewpoint, finer near it
+  const SPOKES = 256;
+  const step = na / SPOKES;
   const pos: number[] = [0, terrain(0, 0), 0];
-  const col: number[] = [...pal[2]];
+  const col: number[] = [cols[0] / 255, cols[1] / 255, cols[2] / 255];
   const idx: number[] = [];
-  for (let i = 1; i <= RINGS; i++) {
-    const rad = 170 * Math.pow(i / RINGS, 2.2);
+  for (let i = 0; i < nr; i++) {
+    const rad = rMin * Math.pow(rMax / rMin, i / (nr - 1));
     for (let j = 0; j < SPOKES; j++) {
-      const a = (j / SPOKES) * Math.PI * 2;
-      const x = Math.cos(a) * rad;
-      const z = Math.sin(a) * rad;
-      pos.push(x, terrain(x, z) - 0.02, z);
-      const k = Math.sin(x * 0.21 + 1) * Math.sin(z * 0.17) + 0.6 * Math.sin(x * 0.63 + z * 0.4);
-      const c = pal[k > 0.5 ? 3 : k > -0.3 ? 2 : 1];
-      col.push(c[0], c[1], c[2]);
+      const az = ((j * step + 0.5) / na) * Math.PI * 2 - Math.PI;
+      const x = rad * Math.sin(az);
+      const z = -rad * Math.cos(az);
+      pos.push(x, terrain(x, z) - 0.03, z);
+      const k = (i * na + j * step) * 3;
+      col.push(cols[k] / 255, cols[k + 1] / 255, cols[k + 2] / 255);
     }
   }
-  for (let j = 0; j < SPOKES; j++) idx.push(0, 1 + ((j + 1) % SPOKES), 1 + j);
-  for (let i = 1; i < RINGS; i++) {
+  for (let j = 0; j < SPOKES; j++) idx.push(0, 1 + j, 1 + ((j + 1) % SPOKES));
+  for (let i = 0; i < nr - 1; i++) {
     for (let j = 0; j < SPOKES; j++) {
-      const a = 1 + (i - 1) * SPOKES + j;
-      const b = 1 + (i - 1) * SPOKES + ((j + 1) % SPOKES);
-      idx.push(a, b, a + SPOKES, b, b + SPOKES, a + SPOKES);
+      const a = 1 + i * SPOKES + j;
+      const b = 1 + i * SPOKES + ((j + 1) % SPOKES);
+      idx.push(a, a + SPOKES, b, b, a + SPOKES, b + SPOKES);
     }
   }
   const g = new THREE.BufferGeometry();
@@ -52,6 +66,10 @@ export function buildGround(meta: StarryMeta) {
   g.setAttribute('aSway', new THREE.Float32BufferAttribute(new Float32Array(pos.length / 3), 1));
   g.setIndex(idx);
 
+  const r = rng(42);
+  const pal = meta.palettes.bush;
+  const wts = meta.palettes.bushWeight.map((w, i) => (i < 5 ? w : i < 7 ? w * 0.12 : 0));
+  const up = new THREE.Vector3(0, 1, 0);
   const p = new THREE.Vector3();
   const t = new THREE.Vector3();
   const n = new THREE.Vector3();
@@ -95,15 +113,16 @@ export function buildGround(meta: StarryMeta) {
   };
 
   const layer = (data: Float32Array, tile: number, fade: [number, number], segments: number, near?: [number, number]) =>
-    surfaceStrokes(data, { segments, tile, fade, near, terrain: TERRAIN_GLSL });
+    surfaceStrokes(data, { segments, tile, fade, near, terrain: TERRAIN_GLSL, tint: 0.7 });
 
-  const layers = [
+  const group = new THREE.Group();
+  group.add(
+    undercoat(g),
+    surfaceStrokes(new Float32Array(strokeData), { segments: 4, terrain: TERRAIN_GLSL, overlay: true }),
     layer(lying(9000, 120, [1.2, 2.8], [0.22, 0.4]), 120, [1e5, 2e5], 2, [9, 16]),
     layer(lying(14000, 36, [0.35, 0.8], [0.06, 0.11]), 36, [12, 17], 2),
     layer(tufts(12000, 72, [0.3, 0.65], [0.08, 0.14]), 72, [26, 35], 2),
     layer(tufts(15000, 18, [0.16, 0.42], [0.022, 0.045]), 18, [5.5, 8.5], 2),
-  ];
-  const group = new THREE.Group();
-  group.add(undercoat(g), ...layers);
+  );
   return { group };
 }

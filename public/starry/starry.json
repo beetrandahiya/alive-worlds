@@ -4,8 +4,16 @@
  "pitchDeg": 11.434926184559375,
  "aspect": 1.2628255722178374,
  "sky": 42169,
- "land": 57977,
+ "land": 4565,
  "stride": 20,
+ "valley": {
+  "floor": -28.0,
+  "na": 1024,
+  "nr": 160,
+  "rMin": 2.5,
+  "rMax": 3000.0,
+  "strokes": 68718
+ },
  "under": {
   "elMinDeg": -30.0
  },

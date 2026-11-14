@@ -8,6 +8,7 @@ export interface StarryMeta {
   aspect: number;
   sky: number;
   land: number;
+  valley: { floor: number; na: number; nr: number; rMin: number; rMax: number; strokes: number };
   under: { elMinDeg: number };
   palettes: {
     cypress: number[][]; cypressWeight: number[];
@@ -18,7 +19,7 @@ export interface StarryMeta {
 
 /**
  * The sky: an undercoat dome, the flowing sky strokes measured from the
- * painting, and (for this study) the hills and village as a painted backdrop.
+ * painting, and a second coat of small dabs on the stars and moon.
  * All of it sits at infinity and is drawn behind the world.
  */
 export async function buildSky(base: string, meta: StarryMeta) {
