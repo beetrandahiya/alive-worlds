@@ -321,6 +321,12 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       and village strokes (tipped, fading near the walker) are unchanged and
       still have the giant-stroke problem near the town: to be replaced by
       real 3D houses and trees.
+      Study 10 (headset, 2026-11-14): 72 fps; ground "still looks really
+      weird"; little difference seen from the start; slightly better by the
+      town; grass "a lot of strokes, out of place". Owner: "you're going
+      around in circles; let's start from basics"; the town matters much
+      more than the grass. AGREED: Studies 05-10 were all patches on one idea
+      (project the painting onto land from the viewpoint). Stop that.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
@@ -382,6 +388,34 @@ All Saint-Remy period, all on Wikimedia Commons unless noted.
   daytime pendant to Starry Night); Olive Trees (F714, Edinburgh).
 - Cypress up close: Cypresses (F613, Met); Wheat Field with Cypresses
   (National Gallery and Met versions).
+
+## Reference study: starrynightrider.com (reviewed 2026-11-14)
+
+Owner pointed to it for METHOD, not style (style is cartoonish, bright, a
+bicycle game with lamps and toon lighting; not wanted). Seen through headless
+software rendering for about a minute plus a read of its shipped code; audio
+and multiplayer not examined.
+- Same base as ours: three.js r187; the painting set at 60 degree width,
+  pitch 7.3; cypress about 17 m away; hills at about 440 m.
+- Loads only five images: the painting, the sky with the cypress painted
+  out, a flow map, a heavily blurred "fill" of the painting, a cypress mask.
+- THE WORLD IS A REAL PLACE BUILT IN METRES: streets, about a hundred houses
+  with roofs, doors, windows, chimneys, a church, groves of round trees,
+  fields, hills. It is not derived from the painting's pixels; it is laid
+  out so the start view resembles the painting.
+- PAINT IS DRAWN ON EACH SURFACE, IN THAT SURFACE'S OWN SPACE, PER PIXEL:
+  a rule in the surface's material lays rows of brush dabs (two interleaved
+  layers so it reads as overlapping wet paint), each with bristle streaks, a
+  lit upper edge and tapered ends. Dabs are therefore the right size on
+  every surface from every position, sharp at any distance, never fade or
+  pop, and cost no extra geometry.
+- The painting itself is projected onto the world only inside its window
+  from the start view, feathered at the edges into each object's own colour.
+- Sky: strokes computed per direction, coloured from the painting, moved
+  along the flow map. (Ours, with real stroke geometry, is richer.)
+Takeaway for us: stop deriving land from one viewpoint's projection. Build
+the place in metres; give every surface paint in its own space; use his
+colours and his real stroke shapes rather than invented dabs.
 
 ## Next
 
