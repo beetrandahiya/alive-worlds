@@ -158,6 +158,8 @@ export async function buildVillage(base: string) {
       pts: [V(-78, -92), V(-84, -110), V(-84, -186), V(-70, -204), V(72, -204), V(90, -190), V(90, -108), V(76, -92)],
       half: 2.2,
     },
+    // the lane from the asylum, down the outside of the field's right-hand wall, to the front street
+    { pts: [V(7, -6), V(26, -16), V(41.5, -36), V(42, -84), V(41, -92)], half: 1.4 },
   ];
   const distToRoad = (p: THREE.Vector2, rd: Road) => {
     let best = Infinity;
@@ -242,6 +244,57 @@ export async function buildVillage(base: string) {
     return !(px > 185 && px < 520); // the cypress stands in front of this part
   };
 
+  // --- the walled wheat field, directly below the start, as it lay below
+  // his window (letter 776: "an enclosed square of wheat"). The slope here
+  // falls faster than the bottom of the painted view, so none of it shows
+  // from the start. The far wall slants away to the right, as he drew it;
+  // a small stone hut stands at its right-hand end. Mid-June 1889: ripening
+  // wheat, "warm tones of a bread crust", flattened in places by the storm.
+  {
+    const c = [V(-42, -42), V(38, -42), V(38, -88), V(-42, -76)]; // near-left, near-right, far-right, far-left
+    const at = (u: number, v: number) => {
+      const near = c[0].clone().lerp(c[1], u), far = c[3].clone().lerp(c[2], u);
+      return near.lerp(far, v);
+    };
+    const WHEAT = [0.43, 0.37, 0.2], LAID = [0.33, 0.29, 0.31]; // dull yellow-ochre and violet, as in his moonrise painting of this field
+    const N = 16;
+    for (let i = 0; i < N; i++) {
+      for (let j = 0; j < N; j++) {
+        const g = (u: number, v: number) => {
+          const p = at(u / N, v / N);
+          return [p.x, terrain(p.x, p.y) + 0.45, p.y]; // standing wheat, knee high for now
+        };
+        const flat = Math.sin(i * 0.9 + 1.3) * Math.cos(j * 0.7 + i * 0.35) > 0.35; // where the storm laid it down
+        quad(g(i, j), g(i, j + 1), g(i + 1, j + 1), g(i + 1, j), (flat ? LAID : WHEAT).map((v) => v * r.range(0.93, 1.07)));
+      }
+    }
+    // Walls on three sides only: the near side was closed by the asylum itself.
+    // About 1.2 m high, so you can see the wheat over it from the lane, which
+    // runs a little below it. (A photograph of today's wall suggests 2 to
+    // 2.5 m; no 1889 figure was found. Owner chose to look over the wall.)
+    for (let i = 1; i < 4; i++) {
+      const a = c[i], b = c[(i + 1) % 4];
+      const len = a.distanceTo(b), n = Math.ceil(len / 3);
+      for (let k = 0; k < n; k++) {
+        const m = a.clone().lerp(b, (k + 0.5) / n);
+        const seg: Footprint = { x: m.x, z: m.y, yaw: Math.atan2(b.y - a.y, b.x - a.x), w: len / n + 0.15, d: 0.55 };
+        const y0 = terrain(m.x, m.y) - 0.6;
+        // Beside the lane, which lies lower, the wall is kept to chest height as seen from the lane.
+        const hgt = i === 1 ? Math.max(1.0, terrain(m.x + 3.6, m.y) + 1.15 - y0) : 1.8;
+        walls(seg, y0, hgt, STONE);
+        const P = frame(seg, y0 + hgt);
+        quad(P(-seg.w / 2, 0, -0.28), P(-seg.w / 2, 0, 0.28), P(seg.w / 2, 0, 0.28), P(seg.w / 2, 0, -0.28), STONE);
+        footprints.push(seg);
+      }
+    }
+    const hut: Footprint = { x: 33.5, z: -83.5, yaw: Math.atan2(c[2].y - c[3].y, c[2].x - c[3].x), w: 4.2, d: 3.2 };
+    const yh = groundUnder(hut);
+    walls(hut, yh, 2.7, STONE);
+    gable(hut, yh, 2.7, 1.1, [0.4, 0.27, 0.22], STONE);
+    panel(hut, yh, 0, 0.3, 0.9, 1.8, -1, DOOR);
+    footprints.push(hut);
+  }
+
   // --- the rest of the village: houses shoulder to shoulder along the same
   // streets, their doors on the street, only where the start view cannot see
   // them, and never in a street or inside another building
@@ -287,8 +340,6 @@ export async function buildVillage(base: string) {
   };
   const roadColour = data.road.map((c) => c * 0.8);
   for (const rd of roads) strip(rd.pts, rd.half, roadColour);
-  // the lane from the asylum down the slope to the front street
-  strip([V(7, -6), V(15, -30), V(12, -58), V(0, -80), V(-8, -92)], 1.4, roadColour);
 
   // --- trees: the ones he painted, where he painted them, then groves beyond the frame
   const ico = new THREE.IcosahedronGeometry(1, 1);
@@ -329,50 +380,20 @@ export async function buildVillage(base: string) {
     tree(x, z, wide, high, r.pick(greens));
   }
 
-  // --- the walled wheat field below the start (letter 776: "an enclosed square of wheat")
-  {
-    // PROVISIONAL place and size, on the slope left of the lane; research on the real field is under way
-    const c = new THREE.Vector2(-58, -52);
-    const half = [26, 20];
-    const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => new THREE.Vector2(c.x + a * half[0], c.y + b * half[1]));
-    const fieldColour = data.field.map((v, i) => v * [1.35, 1.25, 0.8][i]);
-    const N = 12;
-    for (let i = 0; i < N; i++) {
-      for (let j = 0; j < N; j++) {
-        const g = (u: number, v: number) => {
-          const x = c.x + (u / N - 0.5) * 2 * half[0], z = c.y + (v / N - 0.5) * 2 * half[1];
-          return [x, terrain(x, z) + 0.12, z];
-        };
-        quad(g(i, j), g(i, j + 1), g(i + 1, j + 1), g(i + 1, j), fieldColour.map((v) => v * (0.92 + 0.14 * (j % 2))));
-      }
-    }
-    for (let i = 0; i < 4; i++) {
-      const a = corners[i], b = corners[(i + 1) % 4];
-      const len = a.distanceTo(b), n = Math.ceil(len / 6);
-      for (let k = 0; k < n; k++) {
-        const m = a.clone().lerp(b, (k + 0.5) / n);
-        const seg: Footprint = { x: m.x, z: m.y, yaw: Math.atan2(b.y - a.y, b.x - a.x), w: len / n + 0.1, d: 0.5 };
-        walls(seg, terrain(m.x, m.y) - 0.3, 1.7, STONE);
-        const P = frame(seg, terrain(m.x, m.y) + 1.4);
-        quad(P(-seg.w / 2, 0, -0.25), P(-seg.w / 2, 0, 0.25), P(seg.w / 2, 0, 0.25), P(seg.w / 2, 0, -0.25), STONE);
-        footprints.push(seg);
-      }
-    }
-  }
-
   // --- the asylum behind the start: the men's wing with his window, and the chapel tower
   {
-    const wing: Footprint = { x: 4, z: 18, yaw: 0, w: 78, d: 12 }; // the map shows wings 75 to 100 m long
+    const wing: Footprint = { x: 4, z: 18, yaw: 0, w: 84, d: 12 }; // the men's east wing measures about 84 x 12 m on the map
     const y0 = groundUnder(wing);
     const pale = [0.5, 0.5, 0.46];
-    walls(wing, y0, 11.5, pale);
-    gable(wing, y0, 11.5, 2.4, [0.33, 0.27, 0.24], pale);
-    for (let f = 0; f < 3; f++) {
-      for (let i = 0; i < 19; i++) {
-        const x = -36 + i * 4;
-        const his = f === 2 && i === 8; // the lit upper window, straight behind the start
-        panel(wing, y0, x, 1.4 + f * 3.5, 1.1, 1.9, -1, his ? LIT : DARK);
-        panel(wing, y0, x, 1.4 + f * 3.5, 1.1, 1.9, 1, DARK);
+    // two storeys under a low tiled roof; his room was on the upper one
+    walls(wing, y0, 8.6, pale);
+    gable(wing, y0, 8.6, 2.4, [0.33, 0.27, 0.24], pale);
+    for (let f = 0; f < 2; f++) {
+      for (let i = 0; i < 21; i++) {
+        const x = -40 + i * 4;
+        const his = f === 1 && i === 9; // the lit upper window, straight behind the start
+        panel(wing, y0, x, 1.5 + f * 3.9, 1.1, 1.9, -1, his ? LIT : DARK);
+        panel(wing, y0, x, 1.5 + f * 3.9, 1.1, 1.9, 1, DARK);
       }
     }
     const chapel: Footprint = { x: 58, z: 28, yaw: Math.PI / 2, w: 24, d: 10 };

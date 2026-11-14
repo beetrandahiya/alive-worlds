@@ -2,13 +2,13 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Still a bare model', 'Only the town plan and the asylum size changed.'],
-  ['The start view', 'Still close to the painting?'],
-  ['Walk the streets', 'Down the lane to the front street, then along each street and cross lane. Does any road still run through a house, or any house into another or into the church?'],
-  ['Is it a town?', 'Houses face the streets with doors on them. Does it feel like a place people built, or still like scattered boxes? Too straight and grid-like?'],
-  ['Street widths', 'Church street is narrow (under 4 m); the front street is about 5 m. Right?'],
-  ['The asylum', 'Now 78 m long, nearer its real size. Better, or too much?'],
-  ['Wheat field', 'Moved left of the lane as a stand-in. Its real place is being researched; ignore it for now.'],
+  ['Still a bare model', 'New since the last version: the wheat field, the lane beside it, and the asylum corrected to two storeys.'],
+  ['The start view', 'The field should be invisible from here. Still the painting?'],
+  ['Step forward and look down', 'The walled wheat field lies on the slope below you: yellow wheat with darker patches where the storm laid it flat. Right place, right size (about 80 m across)?'],
+  ['Walk the lane', 'It runs down the outside of the field\'s right-hand wall, past a small stone hut, to the village. Can you see the wheat over the wall? Is the wall a good height?'],
+  ['The slope', 'The real field was nearly level; ours is on a steep hillside. Does that feel wrong?'],
+  ['Turn round at the start', 'The asylum is now two storeys, his lit window on the upper one. Better?'],
+  ['The town', 'Unchanged from Study 13. If you have not walked its streets yet, the questions from last time still stand.'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

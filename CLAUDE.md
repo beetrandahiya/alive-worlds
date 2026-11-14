@@ -401,6 +401,26 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       - `?up=230&pitch=89.9&x=5&z=-150` gives an overhead plan view for checks.
       Known: the plan is a straight grid inside the ring, not the winding
       lanes of the real old town.
+      Study 13 has NOT yet been tested in the headset (as of Study 14).
+      Owner's choices on the field (2026-11-14): directly below the start on
+      the slope; wheat as it was that week (mid-June 1889: ripening yellow,
+      storm-flattened); the lane runs along the outside of the wall, and you
+      look over the wall into the wheat.
+      Study 14 BUILT 2026-11-14, AWAITING HEADSET TEST (bare forms):
+      - Field in `village.ts`: corners (-42,-42) (38,-42) (38,-88) (-42,-76),
+        so about 80 m wide and 34-46 m deep on the map, far wall slanting away
+        to the right. Walls on three sides (near side open: the asylum closed
+        it), about 1.2 m high (shorter than the 2-2.5 m estimated for the real
+        wall, so the owner can look over it), a stone hut at the far right
+        corner. Wheat is a plain surface 0.45 m above the ground in two flat
+        colours (standing, and laid by the storm). It sits on the 36% slope;
+        the real field was nearly level. Not visible from the start view
+        (checked: start-view still differs from Study 13's by 0.3% of pixels,
+        all on the lane).
+      - The lane is now a road in `roads`: from the start, round the field's
+        near right corner, down outside its right wall to the front street.
+      - Asylum wing 84 x 12 m, two storeys (8.6 m to the eave), 21 windows a
+        row, his lit window on the upper row. Plain forms draw both faces.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

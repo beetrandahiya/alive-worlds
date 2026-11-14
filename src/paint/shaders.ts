@@ -92,7 +92,7 @@ uniform vec3 uMoon;
 varying vec3 vColor;
 varying vec3 vN;
 void main() {
-  vec3 n = normalize(vN);
+  vec3 n = normalize(vN) * (gl_FrontFacing ? 1.0 : -1.0);
   float light = 0.74 + 0.2 * max(dot(n, uMoon), 0.0) + 0.06 * n.y;
   gl_FragColor = vec4(vColor * light, 1.0);
 }`;

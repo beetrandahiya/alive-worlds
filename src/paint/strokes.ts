@@ -163,7 +163,7 @@ export function undercoat(g: THREE.BufferGeometry): THREE.Mesh {
 export function plainForms(g: THREE.BufferGeometry): THREE.Mesh {
   const mesh = new THREE.Mesh(
     g,
-    new THREE.ShaderMaterial({ vertexShader: PLAIN_VERT, fragmentShader: PLAIN_FRAG, uniforms: { uMoon: shared.uMoon } }),
+    new THREE.ShaderMaterial({ vertexShader: PLAIN_VERT, fragmentShader: PLAIN_FRAG, uniforms: { uMoon: shared.uMoon }, side: THREE.DoubleSide }),
   );
   mesh.frustumCulled = false;
   return mesh;
