@@ -2,13 +2,13 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['This is a bare model on purpose', 'Plain shapes, flat colours, no paint on the valley or village yet. Judge the PLACE, not the look.'],
-  ['From the start', 'Is the village in the right spot and about the right size against the painting in your memory? Church and spire right?'],
-  ['Walk down the lane into the village', 'About two minutes at full stick. Does the distance feel right?'],
-  ['In the streets', 'House sizes, door and window heights, street width: do they feel like a real village at your height?'],
-  ['Layout', 'Too regular? Too spread out? Should houses huddle closer round the church, as he painted them?'],
-  ['Trees', 'Olive trees are plain round blobs for now. Right size and number? In the right places?'],
-  ['Frame rate', 'Should be 72 with room to spare.'],
+  ['Still a bare model', 'Plain shapes and flat colours. Judge the place and the start view, not the look.'],
+  ['The start view', 'Each building he painted now stands where he painted it. Does the village read as the painting: church, red roof on the left, lit windows, grove behind, big bushes on the right?'],
+  ['Turn round', 'The asylum stands behind you: the long wing with one lit upper window (his), and the chapel tower to the right. Right distance? Too close, too big?'],
+  ['Below you, to the left', 'The walled wheat field. Right place and size?'],
+  ['Walk into the village', 'The painted houses were sized from the canvas. Do any feel wrong at your height: too tall, too small, oddly turned?'],
+  ['Behind the cypress and beyond the frame', 'The village carries on round a ring lane there. Does it feel like one village?'],
+  ['Frame rate', 'Should still be 72.'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

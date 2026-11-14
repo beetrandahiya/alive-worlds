@@ -46,9 +46,9 @@ async function start() {
   const sky = await buildSky(BASE, meta);
   const cypress = buildCypress(meta);
   const ground = await buildGround(BASE, meta);
-  const village = buildVillage(meta);
+  const village = await buildVillage(BASE);
   walls = village.blocked;
-  console.info('village', village.houses, 'houses', village.trees, 'trees, church at', village.church);
+  console.info('village', village.houses, 'houses', village.trees, 'trees');
   scene.add(sky.group, cypress.group, ground.group, village.group);
 
   // ---- study controls

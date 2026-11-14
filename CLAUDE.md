@@ -349,6 +349,32 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       house and tree sizes all right; the walk down "feels like a journey, a
       good experience"; layout "okay from far away". Owner asked for the real
       historical layout of Saint-Remy and asked where the asylum is.
+      Owner's choices after the research (2026-11-14):
+      - Asylum: yes, standing behind the start (men's wing with his lit barred
+        upper window, chapel tower beside it); can be walked up to, not entered.
+      - Village plan: take from the real town, bring it as close to his
+        imagination as possible, and IT MUST LOOK EXACTLY LIKE THE STARRY NIGHT
+        FROM THE START.
+      - The walled wheat field below the start: yes.
+      - Church: the one he painted (tall thin spire), not the real one.
+      Study 12 BUILT 2026-11-14, AWAITING HEADSET TEST (still bare forms):
+      - `tools/starry/village.py` lists the church and the twelve painted
+        buildings as read by eye off the scan (edges, ground line, eave, roof
+        top, in 1280 px units), follows each line of sight to the valley floor
+        for position and size in metres, and samples wall and roof colours
+        from the canvas -> `public/starry/village.json`. Also the five painted
+        trees/bushes and the three rows of grove behind the village.
+      - `village.ts`: those stand facing the start. The village continues
+        round an oval ring lane (78 x 58 m, centred left of the church) with
+        about 23 more houses, placed ONLY where the start view cannot see
+        (behind the cypress, px 185-520, or outside the frame); same rule for
+        extra trees. 35 houses, 190 trees.
+      - Asylum: wing 64 x 10.5 m, 11.5 m to the eave, three rows of windows,
+        one lit; chapel and a 21 m square tower with a pyramid roof; about
+        12 m behind the start. Forms are generic, not yet from his View of the
+        Asylum and Chapel or photographs.
+      - Walled wheat field 68 x 52 m at the foot of the knoll, left of the
+        lane; 1.7 m stone wall (blocks walking; no gate yet).
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
