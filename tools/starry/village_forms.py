@@ -27,7 +27,7 @@ PITCH = math.atan((710.0 - H / 2) / F)
 CP, SP = math.cos(PITCH), math.sin(PITCH)
 EYE = np.array([0.0, 1.6, 0.0])
 FLOOR = -28.0
-LOW = 1005.0          # his paint ends here; below is the canvas's bare edge
+LOW = 1009.0          # his paint ends here; below is the canvas's bare edge
 
 
 def ray(px, py):
@@ -81,6 +81,24 @@ def seen(p, low):
 
 
 buildings = []
+_small = cv2.resize(img, (1280, int(round(H))), interpolation=cv2.INTER_AREA).astype(np.int32)
+_lit = ((_small[..., 2] > 120) & (_small[..., 1] > 105) & (_small[..., 0] < 110) & (_small[..., 2] > _small[..., 0] + 40)).astype(np.uint8)
+_lit = cv2.dilate(_lit, np.ones((5, 7), np.uint8)).astype(np.float32)   # and the glow round each lamp
+
+
+def calm(x0, x1, y0, y1):
+    """The stretch of a painted wall with no lit window in it (at least 45% of the wall), for the
+    walls he could not see: a lamp he painted in one window must not shine from every side."""
+    lo, hi = sorted((x0, x1))
+    w = max(0.3 * (hi - lo), min(hi - lo, 8.0))
+    ya, yb = int(min(y0, y1)), int(max(y0, y1)) + 1
+    best = None
+    for a in np.arange(lo, hi - w + 0.01, 1.0):
+        n = _lit[ya:yb, int(a):int(a + w) + 1].sum() + 0.01 * abs(a + w / 2 - (lo + hi) / 2)
+        if best is None or n < best[0]:
+            best = (n, a)
+    return best[1], best[1] + w
+
 
 
 def face(kind, pts, uv):
@@ -157,7 +175,9 @@ def front(name, xl, xr, base, eave, ridge, depth, low=None, roof=True):
     up = lambda q, y: np.array([q[0], y, q[2]])
     at, bt, a2t, b2t = up(a, h), up(b, h), up(a2, h), up(b2, h)
     ua, ub, uat, ubt = [xl, low], [xr, low], [xl, el], [xr, er]
-    faces = [face("wall", [a, b, bt, at], [ua, ub, ubt, uat]), face("wall", [b2, a2, a2t, b2t], [ub, ua, uat, ubt])]
+    s0, s1 = calm(xl, xr, (el + er) / 2 + 1, low)
+    em = (el + er) / 2
+    faces = [face("wall", [a, b, bt, at], [ua, ub, ubt, uat]), face("wall", [b2, a2, a2t, b2t], [[s1, low], [s0, low], [s0, em], [s1, em]])]
     width = np.linalg.norm(b - a)
     sl = min(1.0, depth / width) * (xr - xl)
     if roof:
@@ -167,8 +187,8 @@ def front(name, xl, xr, base, eave, ridge, depth, low=None, roof=True):
         ra, rb = up(a + n * depth / 2, hr), up(b + n * depth / 2, hr)
         ura, urb = list(ridge[0]), list(ridge[1])
         faces += [face("roof", [at, bt, rb, ra], [uat, ubt, urb, ura]), face("roof", [b2t, a2t, ra, rb], [ubt, uat, ura, urb])]
-        faces += end_wall(a, a2, at, a2t, ra, [xl, 0], uat, sl, ua[1], uat[1] + 1)
-        faces += end_wall(b, b2, bt, b2t, rb, [xr, 0], ubt, -sl, ub[1], ubt[1] + 1)
+        faces += end_wall(a, a2, at, a2t, ra, [s0, 0], uat, s1 - s0, low, em + 1)
+        faces += end_wall(b, b2, bt, b2t, rb, [s1, 0], ubt, s0 - s1, low, em + 1)
     else:
         faces += [face("wall", [a, a2, a2t, at], [ua, [ua[0] + sl, ua[1]], [uat[0] + sl, uat[1]], uat]),
                   face("wall", [b, b2, b2t, bt], [ub, [ub[0] - sl, ub[1]], [ubt[0] - sl, ubt[1]], ubt])]
@@ -177,7 +197,7 @@ def front(name, xl, xr, base, eave, ridge, depth, low=None, roof=True):
     return a, b, a2, b2, at, bt, n
 
 
-def corner(name, xa, xc, xb, base, wg, eaves, apex, ridge_far, low=None):
+def corner(name, xa, xc, xb, base, wg, eaves, apex, ridge_far, low=None, wallsrc=None):
     """A gable end (from xa to the corner at xc) and a long side (from xc to xb) under one roof."""
     low = min(low or base, LOW)
     ea, ec, eb = eaves
@@ -212,14 +232,16 @@ def corner(name, xa, xc, xb, base, wg, eaves, apex, ridge_far, low=None):
     uc, ua, ub = [xc, low], [xa, low], [xb, low]
     uct, uat, ubt, uap = [xc, ec], [xa, ea], [xb, eb], list(apex)
     urf = list(ridge_far) if ridge_far else project(rf)
+    lw = wallsrc or [uc, ub, ubt, uct]      # the long wall's paint: his own, or (where the frame cuts it off) the gable end's
+    s0, s1 = calm(lw[0][0], lw[1][0], max(lw[2][1], lw[3][1]) + 1, lw[0][1])
+    wt = (lw[2][1] + lw[3][1]) / 2
     faces = [
         face("wall", [c, a, at, ct], [uc, ua, uat, uct]), face("wall", [ct, at, ap], [uct, uat, uap]),
-        face("wall", [c, b, bt, ct], [uc, ub, ubt, uct]),
+        face("wall", [c, b, bt, ct], lw),
         face("roof", [ct, bt, rf, ap], [uct, ubt, urf, uap]),
         face("roof", [at, dt, rf, ap], [uct, ubt, urf, uap]),
-        face("wall", [a, d, dt, at], [uc, ub, ubt, uct]),
-        face("wall", [b, d, dt, bt], [uc, ua, uat, uct]), face("wall", [bt, dt, rf], [uct, uat, uap]),
-    ]
+        face("wall", [a, d, dt, at], [[s0, lw[0][1]], [s1, lw[0][1]], [s1, wt], [s0, wt]]),
+    ] + end_wall(b, d, bt, dt, rf, [s0, 0], None, s1 - s0, lw[0][1], wt + 1)
     finish(name, faces, [c, b, d, a])
     print(f"         gable turned {math.degrees(math.acos(min(1, abs(np.dot(u, np.array([-cdir[2], 0, cdir[0]])))))):4.0f} deg from square-on, long side {t:4.1f} m, fit {best[0]:.1f} px")
 
@@ -263,7 +285,8 @@ def spire(name, base_pts, apex_px):
 # front row
 corner("dark", 722, 745, 792, 1022, 6.0, (926, 926, 926), (738, 899), (800, 898))
 front("striped", 780, 880, 1018, 986, ((798, 935), (893, 934)), 7.0)
-corner("pale", 1000, 968, 868, 1036, 5.5, (1002, 1000, 1000), (983, 948), (895, 958))
+corner("pale", 1000, 968, 868, 1036, 5.5, (1002, 1000, 1000), (983, 948), (895, 958),
+       wallsrc=[[998, 1008], [972, 1008], [972, 976], [998, 976]])
 front("low", 657, 725, 945, 921, ((662, 903), (727, 903)), 6.0)
 # the church: a small house against its left side, the nave with its gable to us and its roof running
 # back to the right, a second gabled body with the tower standing in its front, the spire
@@ -291,7 +314,7 @@ out = {"camera": {"F": F, "pitch": PITCH, "W": W, "H": H}, "floor": FLOOR, "buil
 
 # ---------------------------------------------------------------- a picture to check the reading
 Z = 5
-X0, Y0, X1, Y1 = 520, 620, 1280, 1014
+X0, Y0, X1, Y1 = 520, 620, 1280, 1014  # check picture
 dbg = cv2.resize(img[int(Y0 * K):int(Y1 * K), int(X0 * K):int(X1 * K)], ((X1 - X0) * Z, (Y1 - Y0) * Z), interpolation=cv2.INTER_AREA)
 order = sorted(buildings, key=lambda b: -b["dist"])
 for b in order:

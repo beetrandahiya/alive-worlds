@@ -2,7 +2,7 @@
 
 Writes `public/starry/village_canvas.jpg`: the scan itself, at its full
 sharpness, over the part of the painting where the village, its trees and the
-spire stand (1280-units x 520..1269, y 620..1006). And `village_run.png`: the
+spire stand (1280-units x 520..1269, y 620..1010). And `village_run.png`: the
 same area at 1 px per unit; red = the direction the stroke at that point runs
 (0..255 -> -90..+90 degrees, 0 = level, positive = rising to the right),
 green = how strongly the strokes there agree.
@@ -16,7 +16,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[2]
 img = cv2.imread(str(ROOT / "reference" / "starry_7000.jpg"))
 K = img.shape[1] / 1280.0
-X0, Y0, X1, Y1 = 520, 620, 1269, 1006
+X0, Y0, X1, Y1 = 520, 620, 1269, 1010
 x0, y0, x1, y1 = [int(round(v * K)) for v in (X0, Y0, X1, Y1)]
 crop = img[y0:y1, x0:x1]
 crop = cv2.resize(crop, (4096, int(round(4096 * crop.shape[0] / crop.shape[1]))), interpolation=cv2.INTER_AREA)

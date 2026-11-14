@@ -30,7 +30,7 @@ interface VillageData {
   road: number[];
   field: number[];
 }
-interface Form { name: string; x: number; z: number; yaw: number; w: number; d: number; faces: { kind: string; p: number[][]; uv: number[][]; n: number[] }[] }
+interface Form { name: string; x: number; z: number; yaw: number; w: number; d: number; top: number; faces: { kind: string; p: number[][]; uv: number[][]; n: number[] }[] }
 interface Footprint { x: number; z: number; yaw: number; w: number; d: number }
 
 const LIT = [0.93, 0.78, 0.22];
@@ -60,7 +60,8 @@ export async function buildVillage(base: string) {
     for (const p of [a, b, c]) {
       pos.push(p[0], p[1], p[2]);
       nor.push(n.x, n.y, n.z);
-      col.push(colour[0], colour[1], colour[2]);
+      if (fold && fold.round) col.push(...fold.off!); // a tree: where its paint is on the canvas, relative to where it stands
+      else col.push(colour[0], colour[1], colour[2]);
       if (fold) {
         if (fold.round) proj.push(p[0], p[1], p[2]); // a tree's skin is worked out pixel by pixel
         else proj.push(...lookup(fold, p, [n.x * out, n.y * out, n.z * out]));
@@ -163,7 +164,7 @@ export async function buildVillage(base: string) {
   // building, never stretched. Near you, real raised strokes lie over the
   // skin; each takes the colour of the canvas point beneath it and runs the
   // way his stroke runs there.
-  const CAN = [520, 620, 1269, 1006]; // the canvas picture's place in the 1280-wide painting (village_canvas.py)
+  const CAN = [520, 620, 1269, 1010]; // the canvas picture's place in the 1280-wide painting (village_canvas.py)
   const cam = data.camera;
   const CP = Math.cos(cam.pitch), SP = Math.sin(cam.pitch);
   const [canvasImg, runImg] = await Promise.all([
@@ -202,7 +203,7 @@ export async function buildVillage(base: string) {
     };
   };
   /** How a building's skin is laid: its middle, the level direction toward the start (f), the direction across (g), half sizes along each. */
-  interface Fold { cx: number; cz: number; fx: number; fz: number; gx: number; gz: number; hf: number; hg: number; round: boolean; cy?: number; rw?: number; ry?: number }
+  interface Fold { cx: number; cz: number; fx: number; fz: number; gx: number; gz: number; hf: number; hg: number; round: boolean; cy?: number; rw?: number; ry?: number; off?: number[] }
   let fold: Fold | null = null;
   const foldOf = (fp: Footprint): Fold => {
     const L = Math.hypot(fp.x, fp.z), ex = -fp.x / L, ez = -fp.z / L;
@@ -217,7 +218,7 @@ export async function buildVillage(base: string) {
   };
   const roundFold = (x: number, y: number, z: number, rw: number, ry: number): Fold => {
     const L = Math.hypot(x, z);
-    return { cx: x, cz: z, fx: -x / L, fz: -z / L, gx: z / L, gz: -x / L, hf: 0, hg: 0, round: true, cy: y, rw, ry };
+    return { cx: x, cz: z, fx: -x / L, fz: -z / L, gx: z / L, gz: -x / L, hf: 0, hg: 0, round: true, cy: y, rw, ry, off: [0, 0, 0] };
   };
   const foldWidth = (F: Fold) => (F.round ? 1000 : F.hg + 0.4);
   /** The point whose canvas pixel a point of a building shows (before the skin's turn at the building's edge). */
@@ -233,7 +234,7 @@ export async function buildVillage(base: string) {
       const dy = ry / F.ry!, df = Math.abs(pf) / F.rw!, dg = pg / F.rw!;
       const sin = Math.hypot(dy, dg) / (Math.hypot(dy, df, dg) || 1), th = Math.atan2(sin, df / (Math.hypot(dy, df, dg) || 1));
       const k = th > 1 ? (0.8415 + 0.5403 * (th - 1)) / Math.max(sin, 1e-4) : 1;
-      return [F.cx + F.gx * pg * k, F.cy! + ry * k, F.cz + F.gz * pg * k];
+      return [F.cx + F.gx * pg * k + F.off![0], F.cy! + ry * k + F.off![1], F.cz + F.gz * pg * k + F.off![2]];
     } else {
       const nf = n[0] * F.fx + n[2] * F.fz, ng = n[0] * F.gx + n[2] * F.gz;
       if (Math.abs(nf) >= Math.abs(ng)) {
@@ -300,14 +301,13 @@ export async function buildVillage(base: string) {
     coat.add({ p: root, t, n, length: L, width: wid * Math.min(1, 0.5 + (0.5 * L) / want), lift: 0, bend: r.range(-0.08, 0.08), colour: his.colour.map((x) => x * tone), streak: beside, seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0 });
   };
   const foldAt = (F: Fold, n: THREE.Vector3) => (p: THREE.Vector3) => seenAt(turned(F, lookup(F, [p.x, p.y, p.z], [n.x, n.y, n.z])));
-  const LEN: [number, number] = [0.34, 0.9], WID: [number, number] = [0.11, 0.24], COVER = 1.9;
   /**
    * One face of a building he painted (tools/starry/village_forms.py): a flat
    * polygon with, at each corner, the point of his canvas that belongs there.
    * Its skin is that piece of canvas; near you, raised strokes lie over it.
    */
   const SINK = 1.6; // walls carry on down into the ground, which dips a little below the floor they were measured on
-  const formFace = (f: Form['faces'][number]) => {
+  const formFace = (f: Form['faces'][number], LEN: [number, number], WID: [number, number], COVER: number, skin: boolean) => {
     const P = f.p.map((v) => new THREE.Vector3(v[0], v[1] < -27.99 ? v[1] - SINK : v[1], v[2]));
     const n = new THREE.Vector3(f.n[0], f.n[1], f.n[2]);
     const far = (uv: number[]) => {
@@ -316,7 +316,7 @@ export async function buildVillage(base: string) {
     };
     const tris: number[][] = [];
     for (let i = 1; i + 1 < P.length; i++) tris.push([0, i, i + 1]);
-    for (const t of tris) {
+    for (const t of skin ? tris : []) {
       for (const i of t) {
         pos.push(P[i].x, P[i].y, P[i].z);
         nor.push(n.x, n.y, n.z);
@@ -353,7 +353,7 @@ export async function buildVillage(base: string) {
         if (e + g2 > 1) { e = 1 - e; g2 = 1 - g2; }
         const s0 = A.clone().addScaledVector(ab, e).addScaledVector(ac, g2);
         const len = r.range(LEN[0], LEN[1]);
-        daub(at, s0, u, w2, n, len, r.range(WID[0], WID[1]), 0.035, (tu, tv) => {
+        daub(at, s0, u, w2, n, len, r.range(WID[0], WID[1]), skin ? 0.035 : 0.05, (tu, tv) => {
           const dir = u.clone().multiplyScalar(tu).addScaledVector(w2, tv).normalize();
           for (let L = len; L > len * 0.3; L *= 0.75) {
             if (inside(s0.clone().addScaledVector(dir, L / 2)) && inside(s0.clone().addScaledVector(dir, -L / 2))) return L;
@@ -480,7 +480,10 @@ export async function buildVillage(base: string) {
   void foldOf; void painted; void nave; void tower; void wing; void fixed;
   for (const b of forms.buildings) {
     beginSet(b.x, b.z, Math.hypot(b.w, b.d) / 2 + 1, [36, 52]);
-    for (const f of b.faces) formFace(f);
+    for (const f of b.faces) formFace(f, [0.34, 0.9], [0.11, 0.24], 1.9, true);
+    // and a closer coat, hand-sized, only when you stand by the wall
+    beginSet(b.x, b.z, Math.hypot(b.w, b.d) / 2 + 1, [7, 12]);
+    for (const f of b.faces) if (f.p.every((q) => q[1] < -28 + 9)) formFace(f, [0.14, 0.36], [0.05, 0.1], 1.25, false);
     footprints.push({ x: b.x, z: b.z, yaw: b.yaw, w: b.w, d: b.d });
   }
 
@@ -618,7 +621,7 @@ export async function buildVillage(base: string) {
   const ico = new THREE.IcosahedronGeometry(1, 1);
   const ip = ico.getAttribute('position');
   const treeAt: THREE.Vector3[] = [];
-  const tree = (x: number, z: number, wide: number, high: number, colour: number[], skinned = false) => {
+  const tree = (x: number, z: number, wide: number, high: number, colour: number[], skinned = false, paintAt?: number[]) => {
     const y = terrain(x, z) + high * 0.5;
     const turn = r.next() * 6.28;
     const v = (i: number) => {
@@ -630,6 +633,7 @@ export async function buildVillage(base: string) {
     if (skinned) {
       // a tree he painted: skinned with his paint of it, and raised strokes when you stand by it
       const F = roundFold(x, y, z, wide, high * 0.55);
+      if (paintAt) F.off = [paintAt[0] - x, paintAt[1] - y, paintAt[2] - z];
       fold = F;
       beginSet(x, z, Math.max(wide, high * 0.55) * 1.2, [22, 34]);
       const mid = new THREE.Vector3(x, y, z);
@@ -656,7 +660,33 @@ export async function buildVillage(base: string) {
     }
     treeAt.push(new THREE.Vector3(x, 0, z));
   };
-  for (const t of data.trees) {
+  // Each painted tree wears his paint of THAT tree: the canvas where he painted it, even if it has
+  // had to step aside. A tree that a house hides from the start has no paint of its own, so it
+  // wears the paint of the nearest tree of its size that he did show.
+  const hiddenFromStart = (x: number, y: number, z: number) => {
+    const L = Math.hypot(x, y - 1.6, z);
+    for (const b of forms.buildings) {
+      const c = Math.cos(b.yaw), sn = Math.sin(b.yaw);
+      for (let t = 0.3; t < 0.985; t += 0.004) {
+        const qx = x * t, qy = 1.6 + (y - 1.6) * t, qz = z * t;
+        if (qy > b.top || Math.abs(L * t - Math.hypot(b.x, b.z)) > 30) continue;
+        const dx = qx - b.x, dz = qz - b.z;
+        const along = dx * c + dz * sn, across = -dx * sn + dz * c;
+        if (Math.abs(along) < b.w / 2 + 0.5 && Math.abs(across) < b.d / 2 + 0.5) return true;
+      }
+    }
+    return false;
+  };
+  const shown = data.trees.map((t) => {
+    const y = terrain(t.x, t.z) + t.h * 0.5;
+    let n = 0;
+    for (const [du, dv] of [[0, 0], [-0.5, 0], [0.5, 0], [0, 0.35], [0, -0.3]]) {
+      const k = (du * t.r) / Math.hypot(t.x, t.z);
+      if (hiddenFromStart(t.x - t.z * k, y + dv * t.h * 0.55, t.z + t.x * k)) n++;
+    }
+    return n < 2;
+  });
+  data.trees.forEach((t, i) => {
     // a painted tree keeps its place unless a street or house needs it; then it steps aside
     let x = t.x, z = t.z;
     for (let k = 0; k < 14; k++) {
@@ -666,8 +696,17 @@ export async function buildVillage(base: string) {
       x = t.x + Math.cos(a) * (1.5 + k * 0.9);
       z = t.z + Math.sin(a) * (1.5 + k * 0.9);
     }
-    tree(x, z, t.r, t.h, t.colour.map((c) => c * 0.85), true);
-  }
+    let src = t;
+    if (!shown[i]) {
+      let best = Infinity;
+      data.trees.forEach((o, j) => {
+        if (!shown[j]) return;
+        const d = Math.hypot(o.x - t.x, o.z - t.z) + (o.r < t.r * 0.8 ? 60 : 0);
+        if (d < best) { best = d; src = o; }
+      });
+    }
+    tree(x, z, t.r, t.h, t.colour.map((c) => c * 0.85), true, [src.x, terrain(src.x, src.z) + src.h * 0.5, src.z]);
+  });
   const greens = data.trees.slice(0, 5).map((t) => t.colour.map((c) => c * 0.8));
   for (let k = 0; k < 420 && treeAt.length < 190; k++) {
     const a = r.range(0, Math.PI * 2), d = r.range(110, 330);
@@ -757,7 +796,7 @@ export async function buildVillage(base: string) {
   });
   const count = (w: StrokeWriter) => w.data().length / 24;
   console.info('village paint: no strokes always drawn;', fines.length, 'sets near you, total', sets.reduce((a, f) => a + count(f.w), 0),
-    'buildings', sets.filter((f) => f.fade[0] > 30).reduce((a, f) => a + count(f.w), 0));
+    'close coats', sets.filter((f) => f.fade[0] < 10).reduce((a, f) => a + count(f.w), 0), 'buildings', sets.filter((f) => f.fade[0] > 30).reduce((a, f) => a + count(f.w), 0));
   /** Call every frame with where the walker's head is. */
   const bare = new URLSearchParams(location.search).get('skin') === 'bare'; // study option: the skin alone, no raised strokes
   const update = (head: THREE.Vector3) => {

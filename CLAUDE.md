@@ -620,6 +620,18 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       by turning the house at most 12 degrees; each face still wears the
       canvas points traced for it. LESSON: his drawing's skew belongs to the
       paint, never to the solid form. Awaiting owner on the new stills.
+      Owner (2026-11-14): "house shapes look a bit better now; fix the other
+      things". DONE same day (stills, branch only): unseen walls take the
+      lamp-free stretch of that house's wall (`calm` in village_forms.py);
+      pale house's long wall borrows its gable end's paint (`wallsrc`); each
+      painted tree looks up his paint where HE painted it (offset carried in
+      the tree's colour slot), and a tree hidden from the start by a building
+      borrows the nearest shown tree's paint; a close coat (0.14-0.36 m
+      strokes, fading 12-7 m, about 14k per house, 262k in all sets, drawn
+      only by the wall you stand at). Canvas crop now y 620..1010.
+      OPEN, needs owner's choice: the ground inside the village (he shows
+      almost none; projecting the painting onto ground was rejected in
+      Studies 09/10; tiling a patch is forbidden by the lessons).
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
