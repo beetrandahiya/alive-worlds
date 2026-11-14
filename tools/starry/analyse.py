@@ -657,71 +657,6 @@ def lay_on_ground(d, scale, rank):
     return out[ok_]
 
 
-def lay_hills(count, r0, r1, length, width, which):
-    """A full coat for the hills in their own scale, so they are painted from
-    wherever you stand, not only from the viewpoint. Strokes hatch diagonally
-    down the slopes, as his hill strokes do; colour is the ground's own."""
-    rad = np.sqrt(rng.uniform(r0 * r0, r1 * r1, count * 3))
-    ang = rng.uniform(0, 2 * np.pi, count * 3)
-    x, z = rad * np.sin(ang), -rad * np.cos(ang)
-    r = ridge_at(ang - np.pi * 2 * np.floor((ang + np.pi) / (2 * np.pi)))
-    rise_ = r[:, which * 2] * bump(rad, r[:, which * 2 + 1])
-    keep = rise_ > 4.0
-    x, z = x[keep][:count], z[keep][:count]
-    n_ = len(x)
-    P = np.stack([x, np.zeros(n_), z], -1)
-    N = ground_normal(P)
-    contour = norm(np.cross(N, np.array([0.0, 1, 0])) + 1e-4)
-    down = np.cross(N, contour)
-    turn_ = 0.45 + rng.normal(0, 0.22, n_)
-    T = norm(contour * np.cos(turn_)[:, None] + down * np.sin(turn_)[:, None])
-    gi = np.clip(np.log(np.hypot(x, z) / R_MIN) / np.log(R_MAX / R_MIN) * (NR_V - 1), 0, NR_V - 1).astype(int)
-    gj = ((np.arctan2(x, -z) + np.pi) / (2 * np.pi) * NA).astype(int) % NA
-    earth = ground_lo[gi, gj]
-    pick = lambda: hill_pal[rng.integers(0, len(hill_pal), n_)]
-    out = np.zeros((n_, 24), np.float32)
-    out[:, 0], out[:, 1], out[:, 2] = x, 0.05, z
-    out[:, 3] = rng.uniform(length[0], length[1], n_)
-    out[:, 4:7], out[:, 7] = T, rng.uniform(width[0], width[1], n_)
-    out[:, 8:11] = N
-    out[:, 12:15], out[:, 15] = earth * 0.5 + pick() * 0.5, rng.uniform(0, 1, n_)
-    out[:, 16:19], out[:, 19] = earth * 0.5 + pick() * 0.5, rng.integers(0, 8, n_)
-    out[:, 22], out[:, 23] = rng.uniform(-0.06, 0.06, n_), 1.0
-    return out
-
-
-def lay_unseen(count, radius):
-    """Ground the viewpoint cannot see (the knoll's flanks, dips): his dark
-    field colours in broad strokes that run along the slope's contours."""
-    rad = radius * np.sqrt(rng.uniform(0.0004, 1, count * 5))
-    ang = rng.uniform(0, 2 * np.pi, count * 5)
-    x, z = rad * np.sin(ang), -rad * np.cos(ang)
-    P = np.stack([x, terrain_np(x, z), z], -1)
-    to_ = P - EYE
-    dist = np.linalg.norm(to_, axis=-1)
-    hidden = ~(cast(to_ / dist[:, None]) > dist * 0.97)
-    P = P[hidden][:count]
-    n_ = len(P)
-    e = 0.5
-    nx = terrain_np(P[:, 0] - e, P[:, 2]) - terrain_np(P[:, 0] + e, P[:, 2])
-    nz = terrain_np(P[:, 0], P[:, 2] - e) - terrain_np(P[:, 0], P[:, 2] + e)
-    N = norm(np.stack([nx, np.full(n_, 2 * e), nz], -1))
-    contour = norm(np.cross(N, np.array([0.0, 1, 0])) + 1e-4)
-    turn_ = rng.normal(0, 0.35, n_)
-    T = norm(contour * np.cos(turn_)[:, None] + np.cross(N, contour) * np.sin(turn_)[:, None])
-    w_ = bush_w * (np.arange(len(bush_w)) < 6)
-    pick = lambda: bush_pal[rng.choice(len(bush_pal), n_, p=w_ / w_.sum())]
-    out = np.zeros((n_, 24), np.float32)
-    out[:, 0], out[:, 1], out[:, 2] = P[:, 0], 0.05, P[:, 2]
-    out[:, 3] = rng.uniform(3.0, 7.0, n_)
-    out[:, 4:7], out[:, 7] = T, rng.uniform(0.8, 1.6, n_)
-    out[:, 8:11] = N
-    out[:, 12:15], out[:, 15] = pick(), rng.uniform(0, 1, n_)
-    out[:, 16:19], out[:, 19] = pick(), rng.integers(0, 8, n_)
-    out[:, 22], out[:, 23] = rng.uniform(-0.08, 0.08, n_), 1.0
-    return out
-
-
 # The ground's own colour everywhere, seen from above in rings round the
 # viewpoint: what the painting shows where the viewpoint can see it, his hill
 # and field colours where it cannot. It is the undercoat of the land, and
@@ -746,9 +681,17 @@ vis_lo = ((cast(gdir) > dist_ * 0.97) & (lo_sp < 0.3)).reshape(NR_V, NA).astype(
 gp, gdir, dist_ = ring_grid(NR, NA_C)
 seen_c = np.concatenate([field(gdir[i:i + 400000], scene_soft)[0] for i in range(0, len(gdir), 400000)])
 visible = cv2.resize(vis_lo, (NA_C, NR), interpolation=cv2.INTER_LINEAR).ravel()[:, None]
-hk = np.clip(0.4 + 0.22 * noise3(gp * 0.004, 1), 0, 0.999) * (len(hill_pal) - 1)
-far_ = (np.hypot(gp[:, 0], gp[:, 2]) > 330)[:, None]     # hills are his hill blues; knoll and valley his dark greens
-hidden_c = np.where(far_, hill_pal[hk.astype(int)], bush_pal[(hk * 0.6).astype(int)])
+# Beyond the frame the hills carry on in the blues of the painted hills (not
+# darker), in broad drifts of lighter and deeper blue; the join is gradual.
+gpx, gpy, gval = project(gdir)
+edge_ = np.minimum.reduce([gpx - INSET, W - INSET - gpx, gpy - INSET, H - INSET - gpy])
+visible = visible * (smoothstep(0, 170 * SX, edge_) * gval)[:, None]
+hk = np.clip(0.62 + 0.3 * noise3(gp * 0.004, 1) + 0.14 * noise3(gp * 0.02, 2), 0, 0.999) * (len(hill_pal) - 1)
+h0 = hk.astype(int)
+hill_c = hill_pal[h0] * (1 - (hk - h0))[:, None] + hill_pal[np.minimum(h0 + 1, len(hill_pal) - 1)] * (hk - h0)[:, None]
+bk_ = np.clip(0.25 + 0.2 * noise3(gp * 0.006, 2), 0, 0.999) * 5
+on_hill = (smoothstep(FLOOR + 4, FLOOR + 14, gp[:, 1]) * (np.hypot(gp[:, 0], gp[:, 2]) > 330))[:, None]
+hidden_c = hill_c * on_hill + bush_pal[bk_.astype(int)] * (1 - on_hill)   # knoll and valley: his dark greens
 ground_col = (seen_c * visible + hidden_c * (1 - visible)).reshape(NR, NA_C, 3).astype(np.float32)
 ground_col = cv2.GaussianBlur(ground_col, (0, 0), sigmaX=4.0, sigmaY=1.6)   # tone, not texture
 cv2.imwrite(str(OUT / "ground_col.jpg"), (np.clip(ground_col[:, :, ::-1], 0, 1) * 255).astype(np.uint8),
@@ -761,21 +704,27 @@ px, py, v = project(cand)
 cand = cand[v & (px > 0) & (px < W) & (py > 0) & (py < H)]
 _, _, _, liw = field(cand, scene_fine)
 cand = cand[liw]
-# Broad coats first; each later coat is painted over the ones before.
-broad = np.concatenate([
-    lay_hills(8000, 500.0, 2400.0, (30, 55), (7, 13), 1),
-    lay_hills(30000, 280.0, 1080.0, (11, 20), (3, 5), 0),
-    lay_unseen(16000, 330.0),
-])
+# The lie of the land everywhere (which way and how steeply it slopes), on the
+# same rings as the colour map. The strokes that follow the walker read it to
+# hatch down slopes and stand up as dabs on flat ground.
+sp_, _, _ = ring_grid(256, 1024)
+e_ = 1.0
+sx_ = (terrain_np(sp_[:, 0] + e_, sp_[:, 2]) - terrain_np(sp_[:, 0] - e_, sp_[:, 2])) / (2 * e_)
+sz_ = (terrain_np(sp_[:, 0], sp_[:, 2] + e_) - terrain_np(sp_[:, 0], sp_[:, 2] - e_)) / (2 * e_)
+shape_ = np.stack([np.zeros_like(sx_), np.clip(sz_ / 3.2 + 0.5, 0, 1), np.clip(sx_ / 3.2 + 0.5, 0, 1)], -1)  # BGR
+cv2.imwrite(str(OUT / "land_shape.png"), (shape_.reshape(256, 1024, 3) * 255).astype(np.uint8))
+# Only what the painting shows. Land beyond the frame is painted by the bands
+# of strokes that follow the walker, in the land's own colours.
+spx, spy, sv = project(still)
+still = still[sv & (spx > INSET) & (spx < W - INSET) & (spy > INSET) & (spy < H - INSET)]
 ground = np.concatenate([
     lay_on_ground(still, 1.0, 0.0),
     lay_on_ground(cand[:7000], 0.5, 0.25),
     lay_on_ground(cand[7000:25000], 0.27, 0.5),
     lay_on_ground(cand[25000:51000], 0.16, 0.75),
 ])
-broad.tofile(OUT / "terrain_broad.bin")
 ground.tofile(OUT / "terrain_strokes.bin")
-print("broad coat", len(broad), "painting's land strokes", len(ground), "hills up to", float(h1.max() + FLOOR), float(h2.max() + FLOOR), "m")
+print("painting's land strokes", len(ground), "hills up to", float(h1.max() + FLOOR), float(h2.max() + FLOOR), "m")
 
 
 def hexes(p):
@@ -786,7 +735,7 @@ meta = dict(
     source="Vincent van Gogh, The Starry Night, 1889. Google Art Project scan (public domain).",
     hfovDeg=65.0, pitchDeg=float(np.degrees(PITCH)), aspect=W / H,
     sky=len(sky), land=len(stars_fine), stride=20,
-    valley=dict(floor=FLOOR, rMin=R_MIN, rMax=R_MAX, strokes=len(ground) + len(broad)),
+    valley=dict(floor=FLOOR, rMin=R_MIN, rMax=R_MAX, strokes=len(ground)),
     under=dict(elMinDeg=-30.0),
     palettes=dict(cypress=hexes(cyp_pal), cypressWeight=[round(float(x), 4) for x in cyp_w],
                   bush=hexes(bush_pal), bushWeight=[round(float(x), 4) for x in bush_w],

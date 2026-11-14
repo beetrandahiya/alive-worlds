@@ -209,7 +209,17 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       far mountains (to ~350 m, about 1.6 km away), all matching the painting's
       outlines from the viewpoint. Village is still only strokes standing on
       the valley floor (church about 190 m away). Walking limit 260 m. Load now
-      about 240k strokes; frame rate at this load unmeasured.
+      about 240k strokes.
+      Study 04 (headset, 2026-11-14): 72 fps always; town sharp again; strokes
+      fade smoothly when approached; hills still "do not have enough paint".
+      Owner: the sky is the only thing with enough paint ("I can imagine a
+      true Van Gogh admirer crying looking at this"); make the hills as good
+      as the sky. THIS IS THE QUALITY BAR FOR ALL LAND.
+      Study 05 BUILT 2026-11-14, AWAITING HEADSET TEST: land painted in bands
+      of strokes that follow the walker (see Known issues, "How the land is
+      painted"); hills beyond the frame take the painted hills' blues. About
+      300k strokes; frame rate at this load unmeasured (`?bands=0.5` halves
+      the band strokes if needed for a test).
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
@@ -274,9 +284,8 @@ All Saint-Remy period, all on Wikimedia Commons unless noted.
 
 ## Next
 
-- Get owner's headset report on step 1 (frame rate at each paint amount,
-  shimmer, colour A vs B, flow speed, cypress up close) and act on it.
-- Get owner's headset report on Study 03 (frame rate above all).
+- Get owner's headset report on Study 05 (frame rate above all, then how
+  far the hills still are from the sky).
 - Step 3: the village in 3D. Before building, research real Saint-Rémy
   houses and streets and bring the owner a layout proposal. The reference
   paintings still need to be brought into `reference/` (Wikimedia refuses
@@ -295,24 +304,34 @@ All Saint-Remy period, all on Wikimedia Commons unless noted.
   27 29 37). Relief is inferred from a flat photograph, not measured height.
 - Ground detail (grass, lying strokes near you) is provisional in manner;
   references are chosen (see Decisions) but not yet applied.
-- How the land is painted (all in `analyse.py`, drawn by `ground.ts`):
+- How the land is painted (`analyse.py` bakes, `ground.ts` draws):
   1. Undercoat: solid ground coloured per pixel from `ground_col.jpg`, a map of
-     the ground in rings round the viewpoint (the painting where the viewpoint
-     sees it, his hill and field colours elsewhere), blurred to tone only.
-  2. Broad coat (`terrain_broad.bin`, hugging the ground): hills hatched
-     diagonally down their slopes at their own scale; dark field strokes on
-     ground the viewpoint cannot see.
-  3. The painting's land strokes (`terrain_strokes.bin`): placed where the
-     viewpoint's line of sight meets the ground. Within about 400 m they are
-     tipped toward the viewpoint so they are never seen edge-on (flat strokes
-     on the valley floor broke up and made the town fuzzy). On far hills they
-     lie on the slope (tipped ones stood above ridges like sails).
-  4. Fine strokes and grass on tiles that follow the walker, tinted by the map.
-  Coats 2 and 3 are drawn over everything in a fixed order, judged for depth
-  as if slightly nearer, fade when seen edge-on, and fade out within a few
-  stroke-lengths of the walker (seen from behind and close, tipped strokes are
-  giant slabs). Between about 35 m and the fade distance the valley floor is
-  mostly undercoat: a known thin zone.
+     the ground in rings round the viewpoint: the painting where the viewpoint
+     sees it inside the frame (fading out over the frame's outer part), beyond
+     that the painted hills' own blues on hills and his dark greens on knoll
+     and valley. Mottled in the shader ("broken colour") at a size that
+     follows distance, so it is never a flat wash.
+  2. Bands: six sizes of stroke (0.5 m to 49 m long), each on a tile that
+     follows the walker and present only between 10 and 25 stroke-lengths
+     away, so strokes are always about as big to the eye as the sky's.
+     Direction from `land_shape.png` (the land's slope): hatching diagonally
+     down slopes, standing as dabs on flat ground (a stroke lying on flat
+     ground is seen edge-on). Lying strokes are widened live so they keep
+     their size from where the walker stands (these hills are gentle, so their
+     slopes are seen at a shallow angle). Colour: the ground's colour, lighter
+     or darker per stroke. Far bands have the most strokes and contrast.
+  3. The painting's land strokes (`terrain_strokes.bin`), only inside the
+     frame: placed where the viewpoint's line of sight meets the ground. Within
+     about 400 m tipped toward the viewpoint so they are never edge-on; on far
+     hills lying on the slope (tipped ones stood above ridges like sails).
+  4. Fine strokes and grass at the walker's feet.
+  Coats 2 and 3 are drawn over everything in a fixed order (far bands first,
+  the painting's strokes last), judged for depth as if slightly nearer, fade
+  when seen edge-on, and fade out within a few stroke-lengths of the walker.
+- Not yet at the sky's level, honestly: band strokes have no measured flow to
+  follow (the sky's directions come from the painting), no dark contour lines
+  along ridges as he draws them, and their colours are tints of one ground
+  tone, where the sky mixes distinct pigments stroke by stroke.
 - Stroke relief had the canvas weave in it, which showed as a fabric pattern on
   large strokes; `lift_strokes.py` now smooths it out along the stroke.
 - Lesson: a speckled dark patch in headless renders is alpha-to-coverage

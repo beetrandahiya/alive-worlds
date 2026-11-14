@@ -60,10 +60,28 @@ export const GROUND_FRAG = /* glsl */ `
 uniform sampler2D uGround;
 uniform vec2 uGroundRange;
 varying vec3 vWorld;
+float hash(vec2 p) {
+  vec3 q = fract(vec3(p.xyx) * 0.1031);
+  q += dot(q, q.yzx + 33.33);
+  return fract((q.x + q.y) * q.z);
+}
+float blotch(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
+}
 void main() {
   float d = max(length(vWorld.xz), uGroundRange.x);
   vec2 uv = vec2(atan(vWorld.x, -vWorld.z) / 6.2831853 + 0.5, log(d / uGroundRange.x) / uGroundRange.y);
-  gl_FragColor = vec4(texture2D(uGround, uv).rgb, 1.0);
+  vec3 c = texture2D(uGround, uv).rgb;
+  // Broken colour: the underpainting is laid in patches of lighter and darker
+  // tone, sized for how far away you are, never a flat wash.
+  float size = 0.035 * distance(vWorld, cameraPosition);
+  float lod = log2(max(size, 0.05));
+  float s0 = exp2(floor(lod)), k = fract(lod);
+  float tone = mix(blotch(vWorld.xz / s0), blotch(vWorld.xz / (s0 * 2.0) + 17.0), k);
+  tone = tone * 0.6 + 0.4 * mix(blotch(vWorld.xz / (s0 * 4.0) + 5.0), blotch(vWorld.xz / (s0 * 8.0) + 9.0), k);
+  gl_FragColor = vec4(c * (0.72 + 0.56 * tone), 1.0);
 }`;
 
 export const DOME_VERT = /* glsl */ `
@@ -176,6 +194,9 @@ uniform sampler2D uGround;   // the ground's own colour, seen from above
 uniform vec2 uGroundRange;  // nearest ring (m), log of farthest / nearest
 uniform float uTint;        // how much strokes take the colour of the ground they stand on
 uniform float uEdgeFade;    // 1: strokes seen edge-on thin away instead of ghosting
+uniform sampler2D uShape;   // the lie of the land: slope east and south
+uniform float uOrient;      // 1: strokes take their direction from the lie of the land
+uniform float uContrast;    // how strongly strokes differ in lightness from their neighbours
 varying vec2 vUv;
 varying vec3 vCol;
 varying vec3 vCol2;
@@ -199,18 +220,45 @@ void main() {
   grow *= (1.0 - smoothstep(uFade.x, uFade.y, dist)) * smoothstep(uNear.x, uNear.y, dist);
 
   vec3 T = iT.xyz, N = iN.xyz;
+  float stand = 0.0;
+  if (uOrient > 0.5) {
+    // On slopes, strokes hatch diagonally downhill, as his hill strokes do.
+    // On flat ground they stand up as dabs, as his bushes and groves do,
+    // because a stroke lying on flat ground is seen edge-on from eye height.
+    vec2 q = vec2(atan(root.x, -root.z) / 6.2831853 + 0.5, log(max(length(root.xz), uGroundRange.x) / uGroundRange.x) / uGroundRange.y);
+    vec2 slope = (texture2D(uShape, q).rg - 0.5) * 3.2;
+    vec3 N0 = normalize(vec3(-slope.x, 1.0, -slope.y));
+    vec3 contour = normalize(cross(N0, vec3(0.0, 1.0, 0.0)) + vec3(1e-4, 0.0, 0.0));
+    float a = 0.45 + (iC.w - 0.5) * 0.6;
+    vec3 lie = normalize(contour * cos(a) + cross(N0, contour) * sin(a));
+    float yaw = iC.w * 43.0;
+    vec3 up = normalize(vec3(cos(yaw) * 0.55, 1.0, sin(yaw) * 0.55));
+    stand = (1.0 - smoothstep(0.14, 0.32, length(slope))) * min(1.0, 5.0 / iP.w);
+    T = normalize(mix(lie, up, stand));
+    N = normalize(mix(N0, cross(up, vec3(-sin(yaw), 0.0, cos(yaw))), stand));
+    N = normalize(N - T * dot(N, T));
+  }
   vec3 B = normalize(cross(N, T));
   if (uEdgeFade > 0.5) {
     vec3 at = vec3(root.x, iW.w > 0.5 ? terrain(root.xz) : root.y, root.z);
     vec3 toEye = cameraPosition - at;
     // A flat stroke seen exactly edge-on cannot be drawn cleanly; let it go.
-    grow *= smoothstep(0.03, 0.14, abs(dot(iN.xyz, normalize(toEye))));
+    grow *= smoothstep(0.03, 0.14, abs(dot(N, normalize(toEye))));
     // Strokes sized for a distant view give way as you come near; the fine
     // strokes around you take over (the view is repainted at your scale).
     grow *= smoothstep(2.5 * iP.w, 6.0 * iP.w, length(toEye));
   }
   float len = iP.w * mix(0.35, 1.0, grow);
   float wid = iT.w * grow;
+  if (uOrient > 0.5) {
+    // A stroke lying on a slope you see at a shallow angle looks squashed.
+    // Widen it so that, from where you stand, it has the size it should:
+    // the land is painted for your view, as the sky is.
+    vec3 toYou = normalize(uCentre - root);
+    float lying = 1.0 - stand;
+    wid *= mix(1.0, 1.0 / max(sqrt(1.0 - pow(dot(B, toYou), 2.0)), 0.16), lying);
+    len *= mix(1.0, 1.0 / max(sqrt(1.0 - pow(dot(T, toYou), 2.0)), 0.4), lying);
+  }
   float u = aQuad.x;
   vec3 c = root + T * (u * len) + N * (iN.w * u * u * len) + B * (iW.z * sin(u * 3.14159) * len);
 
@@ -220,15 +268,17 @@ void main() {
   c += uWind * (iW.x * gust + iW.y * u * u * (gust + 0.5 * flutter));
 
   vec3 pos = c + B * (aQuad.y * wid * 0.68);
-  if (iW.w > 0.5) pos.y = terrain(pos.xz) + iP.y + iN.w * u * u * len;
+  if (iW.w > 0.5) pos.y = mix(terrain(pos.xz) + iP.y + iN.w * u * u * len, pos.y, stand);
   vUv = vec2(u, aQuad.y * 0.5 + 0.5);
   vCol = iC.rgb;
   vCol2 = iC2.rgb;
   if (uTint > 0.0) {
     vec2 g = vec2(atan(root.x, -root.z) / 6.2831853 + 0.5, log(max(length(root.xz), uGroundRange.x) / uGroundRange.x) / uGroundRange.y);
     vec3 earth = texture2D(uGround, g).rgb;
-    float own = dot(iC.rgb, vec3(0.333)) - 0.16;   // each stroke keeps its own lightness
-    vCol = mix(iC.rgb, earth + own * 0.8, uTint);
+    // Each stroke is the ground's colour, lighter or darker than its
+    // neighbours, with a little of its own hue.
+    float own = dot(iC.rgb, vec3(0.333)) - 0.33;
+    vCol = mix(iC.rgb * 0.8, earth * (1.0 + own * uContrast), uTint);
     vCol2 = mix(iC2.rgb, earth * 0.82, uTint);
   }
   vShape = iC2.w;
