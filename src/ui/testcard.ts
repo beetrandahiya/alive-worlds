@@ -2,12 +2,11 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Still a bare model', 'Changed: the field wall, the streets, and the asylum.'],
-  ['The field wall', 'Now one smooth low wall riding the ground, pale blue-grey as he painted it, about waist high. Is the jaggedness gone? Height right?'],
-  ['The streets', 'They wander now and their edges are uneven. Enough character, too much, or still too straight?'],
-  ['Houses and streets', 'Houses follow the bends. Does any street touch or run through a house?'],
-  ['The asylum', 'Turn round at the start and walk up to it. Built from his paintings: ochre walls, green shutters, red tiled roof, a door with a balcony; the grey chapel and its short square tower to the right. Does it read as his asylum?'],
-  ['The start view', 'Still the painting?'],
+  ['Still a bare model', 'Changed: the asylum now stands on the ground, and the field wall keeps one height.'],
+  ['The asylum', 'Both storeys should be clear of the ground, on a low stone base where the ground falls away. Any floor still buried?'],
+  ['The field wall', 'It should stay waist high above the wheat the whole way up the slope. Does it still vanish anywhere?'],
+  ['From the lane', 'The lane now runs close beside the wall. Can you still see wheat over it, or is it too tall from down there?'],
+  ['The start view', 'Unchanged, pixel for pixel. Still the painting?'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

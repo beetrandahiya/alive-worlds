@@ -445,6 +445,24 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
         streets wander but still meet at junctions; edges wobble in width.
         Houses are placed by distance walked along the bent street and turn
         with it.
+      Study 15 (headset, 2026-11-14): streets "look OK"; asylum "looks okay"
+      but some floors were inside the ground; the field wall "kind of
+      disappears up the slope"; the field "feels a bit too high" and cannot be
+      seen whole from around it; the church looks off-centre for a town (owner:
+      "doesn't matter so much", it is his imagination).
+      Study 16 BUILT 2026-11-14, AWAITING HEADSET TEST (bare forms):
+      - Asylum and chapel floors are set at the HIGHEST ground under them
+        (`groundOver`) with a stone base down to the lowest; before, they were
+        set at the lowest corner and the knoll buried the lower storey.
+      - Field wall is 0.95 m above the field's ground everywhere (the lane-side
+        rule had let it sink below the wheat uphill). Lane moved to x 40.4,
+        close beside the wall, drift 0.12. Wheat surface lowered to 0.3 m.
+      - Start view identical to Study 15 (0 pixels differ).
+      OPEN: the field on a 36% convex slope cannot be seen whole and reads as
+      too high. A level field cannot be hidden from the start view anywhere in
+      front (the slope must fall 0.3 m per metre to stay under the frame).
+      Church: houses cannot be added behind it without showing in the painted
+      view, so it stays near the village's far edge.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

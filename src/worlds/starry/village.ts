@@ -72,6 +72,18 @@ export async function buildVillage(base: string) {
     }
     return lo - 0.3;
   };
+  /** The highest ground under a building: its floor goes here, so no storey is ever buried. */
+  const groundOver = (fp: Footprint) => {
+    let hi = -Infinity;
+    const P = frame(fp, 0);
+    for (let i = 0; i <= 8; i++) {
+      for (let j = 0; j <= 2; j++) {
+        const p = P((i / 8 - 0.5) * fp.w, 0, (j / 2 - 0.5) * fp.d);
+        hi = Math.max(hi, terrain(p[0], p[2]));
+      }
+    }
+    return hi;
+  };
   const walls = (fp: Footprint, y0: number, h: number, colour: number[]) => {
     const P = frame(fp, y0);
     const w = fp.w / 2, d = fp.d / 2;
@@ -159,7 +171,7 @@ export async function buildVillage(base: string) {
       half: 2.2,
     },
     // the lane from the asylum, down the outside of the field's right-hand wall, to the front street
-    { pts: [V(7, -6), V(26, -16), V(41.5, -36), V(42, -84), V(41, -92)], half: 1.4 },
+    { pts: [V(7, -6), V(26, -16), V(40.4, -36), V(40.4, -84), V(41, -92)], half: 1.3 },
   ];
   // Old lanes are never ruled lines. Every street is cut into short lengths
   // and each point drifts a little by where it lies, so streets wander and
@@ -170,7 +182,7 @@ export async function buildVillage(base: string) {
       p.y + k * (1.5 * Math.sin(p.x * 0.088 + 0.7) + 0.9 * Math.sin(p.x * 0.039 + p.y * 0.027 + 2.0)),
     );
   roads.forEach((rd, i) => {
-    const k = i === roads.length - 1 ? 0.3 : 1;
+    const k = i === roads.length - 1 ? 0.12 : 1;
     const out: THREE.Vector2[] = [];
     for (let j = 0; j < rd.pts.length - 1; j++) {
       const n = Math.max(1, Math.round(rd.pts[j].distanceTo(rd.pts[j + 1]) / 5));
@@ -280,7 +292,7 @@ export async function buildVillage(base: string) {
       for (let j = 0; j < N; j++) {
         const g = (u: number, v: number) => {
           const p = at(u / N, v / N);
-          return [p.x, terrain(p.x, p.y) + 0.45, p.y]; // standing wheat, knee high for now
+          return [p.x, terrain(p.x, p.y) + 0.3, p.y]; // standing wheat, shin high for now
         };
         const flat = Math.sin(i * 0.9 + 1.3) * Math.cos(j * 0.7 + i * 0.35) > 0.35; // where the storm laid it down
         quad(g(i, j), g(i, j + 1), g(i + 1, j + 1), g(i + 1, j), (flat ? LAID : WHEAT).map((v) => v * r.range(0.93, 1.07)));
@@ -288,8 +300,7 @@ export async function buildVillage(base: string) {
     }
     // Walls on three sides only: the near side was closed by the asylum itself.
     // One continuous low wall that rides the ground, as he painted it: pale
-    // blue-grey, about waist high (F720, F735). Beside the lane, which lies
-    // lower, it is kept to waist height as seen from the lane.
+    // blue-grey, about waist high above the field all the way round (F720, F735).
     const WALL = [0.4, 0.42, 0.5];
     for (let i = 1; i < 4; i++) {
       const a = c[i], b = c[(i + 1) % 4];
@@ -298,7 +309,7 @@ export async function buildVillage(base: string) {
       const post = (t: number) => {
         const m = a.clone().lerp(b, t);
         const g = terrain(m.x, m.y);
-        const top = (i === 1 ? Math.max(g + 0.35, terrain(m.x + 3.6, m.y) + 0.95) : g + 0.95) + 0.06 * Math.sin(t * len * 0.9);
+        const top = g + 0.95 + 0.06 * Math.sin(t * len * 0.9);
         return { m, lo: g - 0.6, top };
       };
       for (let k = 0; k < n; k++) {
@@ -432,7 +443,8 @@ export async function buildVillage(base: string) {
   {
     const OCHRE = [0.5, 0.42, 0.23], TILE = [0.42, 0.17, 0.12], SHUTTER = [0.24, 0.4, 0.3], TRIM = [0.56, 0.52, 0.4];
     const wing: Footprint = { x: 4, z: 18, yaw: 0, w: 84, d: 12 }; // about 84 x 12 m on the map
-    const y0 = groundUnder(wing);
+    const y0 = groundOver(wing) + 0.35;
+    walls(wing, groundUnder(wing), y0 - groundUnder(wing), TRIM.map((v) => v * 0.7)); // a stone base where the ground falls away
     walls(wing, y0, 8.6, OCHRE);
     gable(wing, y0, 8.6, 2.2, TILE, OCHRE);
     for (const side of [-1, 1]) {
@@ -456,7 +468,10 @@ export async function buildVillage(base: string) {
     // the chapel, to the right of the wing
     const GREY = [0.36, 0.43, 0.42], SLATE = [0.27, 0.34, 0.4];
     const nave: Footprint = { x: 62, z: 30, yaw: Math.PI / 2, w: 26, d: 9 };
-    const yc = groundUnder(nave);
+    const yc = Math.max(groundOver(nave), groundOver({ x: 55.5, z: 30, yaw: Math.PI / 2, w: 22, d: 5 })) + 0.3;
+    for (const b of [nave, { x: 55.5, z: 30, yaw: Math.PI / 2, w: 22, d: 5 }, { x: 62, z: 15.5, yaw: 0, w: 6.5, d: 4.5 }, { x: 54, z: 21, yaw: 0, w: 5.4, d: 5.4 }]) {
+      walls(b, groundUnder(b), yc - groundUnder(b), GREY.map((v) => v * 0.8));
+    }
     walls(nave, yc, 10, GREY);
     gable(nave, yc, 10, 3.2, SLATE, GREY);
     const aisle: Footprint = { x: 55.5, z: 30, yaw: Math.PI / 2, w: 22, d: 5 };
