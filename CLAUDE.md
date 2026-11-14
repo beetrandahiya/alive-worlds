@@ -302,6 +302,25 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       fixed, tipped toward the viewpoint like the in-frame valley strokes.
       `lay_unseen` cut from 16k to 6k to pay for it. Total about 253k.
       This is paint only: no 3D trees, hedges or lane yet.
+      Study 09 (headset, 2026-11-14): REJECTED. From the start it looked
+      good, but walking: valley strokes far bigger than the hills', single
+      giant strokes near the town, human-height strands on the knoll, and
+      their fading "feels so weird". Cause: strokes sized by angle from the
+      viewpoint and tipped to face it are metres long near the walker.
+      LESSON: view-sized strokes are only for things the walker never gets
+      near (sky, far hills). Flat ground the walker crosses must not be made
+      of them, and nothing may be tipped up to face the viewpoint.
+      Study 10 BUILT 2026-11-14, AWAITING HEADSET TEST: PAINTED GROUND. The
+      ground's own surface carries his paint: `ground_col.jpg` is now sharp
+      (4096 x 2048, from `scene_fine`, no blur), with mipmaps, anisotropy 8
+      and a seam-free compass lookup. From the viewpoint it shows the painting
+      (and, beyond the frame, his grove paint) exactly; no strokes stand or
+      fade. Within 25-90 m of the walker it settles to its general tone so
+      stretched paint does not show as blobs. Study 09's valley strokes are
+      removed; `lay_unseen` back to 16k. About 235k strokes. In-frame valley
+      and village strokes (tipped, fading near the walker) are unchanged and
+      still have the giant-stroke problem near the town: to be replaced by
+      real 3D houses and trees.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

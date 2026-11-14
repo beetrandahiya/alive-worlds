@@ -62,8 +62,16 @@ uniform vec2 uGroundRange;
 varying vec3 vWorld;
 void main() {
   float d = max(length(vWorld.xz), uGroundRange.x);
-  vec2 uv = vec2(atan(vWorld.x, -vWorld.z) / 6.2831853 + 0.5, log(d / uGroundRange.x) / uGroundRange.y);
-  gl_FragColor = vec4(texture2D(uGround, uv).rgb, 1.0);
+  // The compass direction is worked out two ways so the place where it
+  // wraps round never shows as a line.
+  float a1 = atan(vWorld.x, -vWorld.z) / 6.2831853 + 0.5;
+  float a2 = atan(-vWorld.x, vWorld.z) / 6.2831853 + 1.0;
+  vec2 uv = vec2(fwidth(a1) <= fwidth(a2) ? a1 : a2, log(d / uGroundRange.x) / uGroundRange.y);
+  // Seen from far off this is his paint, sharp. Close to you the same paint
+  // would be stretched very large, so there it settles to its general tone
+  // and the strokes at your feet do the painting.
+  float sharp = smoothstep(25.0, 90.0, distance(vWorld, cameraPosition));
+  gl_FragColor = vec4(mix(textureLod(uGround, uv, 5.0).rgb, texture2D(uGround, uv).rgb, sharp), 1.0);
 }`;
 
 export const DOME_VERT = /* glsl */ `
@@ -226,7 +234,7 @@ void main() {
   vCol2 = iC2.rgb;
   if (uTint > 0.0) {
     vec2 g = vec2(atan(root.x, -root.z) / 6.2831853 + 0.5, log(max(length(root.xz), uGroundRange.x) / uGroundRange.x) / uGroundRange.y);
-    vec3 earth = texture2D(uGround, g).rgb;
+    vec3 earth = textureLod(uGround, g, 5.0).rgb;   // the ground's general tone here
     float own = dot(iC.rgb, vec3(0.333)) - 0.16;   // each stroke keeps its own lightness
     vCol = mix(iC.rgb, earth + own * 0.8, uTint);
     vCol2 = mix(iC2.rgb, earth * 0.82, uTint);

@@ -824,7 +824,7 @@ def lay_unseen(count, radius):
 # and field colours where it cannot. It is the undercoat of the land, and
 # tints the fine strokes that appear where you walk.
 R_MIN, R_MAX = 2.5, 3000.0
-NR_V, NR, NA_C = 160, 512, 4096
+NR_V, NR, NA_C = 160, 2048, 4096
 
 
 def ring_grid(nr, na):
@@ -840,15 +840,16 @@ def ring_grid(nr, na):
 gp, gdir, dist_ = ring_grid(NR_V, NA)
 vis_lo = (cast(gdir) > dist_ * 0.97).reshape(NR_V, NA).astype(np.float32)
 gp, gdir, dist_ = ring_grid(NR, NA_C)
-seen_c = np.concatenate([field(gdir[i:i + 400000], scene_soft, land=True)[0] for i in range(0, len(gdir), 400000)])
+# Sharp: this map IS the paint on flat ground. From the viewpoint it shows
+# his strokes exactly as painted; nothing stands up and nothing fades.
+seen_c = np.concatenate([field(gdir[i:i + 400000], scene_fine, land=True)[0] for i in range(0, len(gdir), 400000)])
 visible = cv2.resize(vis_lo, (NA_C, NR), interpolation=cv2.INTER_LINEAR).ravel()[:, None]
 hk = np.clip(0.6 + 0.3 * noise3(gp * 0.004, 1), 0, 0.999) * (len(hill_pal) - 1)
 far_ = (np.hypot(gp[:, 0], gp[:, 2]) > 330)[:, None]     # hills are his hill blues; knoll and valley his dark greens
 hidden_c = np.where(far_, hill_pal[hk.astype(int)], bush_pal[(hk * 0.6).astype(int)])
 ground_col = (seen_c * visible + hidden_c * (1 - visible)).reshape(NR, NA_C, 3).astype(np.float32)
-ground_col = cv2.GaussianBlur(ground_col, (0, 0), sigmaX=4.0, sigmaY=1.6)   # tone, not texture
 cv2.imwrite(str(OUT / "ground_col.jpg"), (np.clip(ground_col[:, :, ::-1], 0, 1) * 255).astype(np.uint8),
-            [cv2.IMWRITE_JPEG_QUALITY, 90])
+            [cv2.IMWRITE_JPEG_QUALITY, 88])
 ground_lo = cv2.resize(ground_col, (NA, NR_V), interpolation=cv2.INTER_AREA)
 
 # hills and village inside the frame are painted with smaller strokes
@@ -858,7 +859,7 @@ cand = cand[v & (px > 0) & (px < W) & (py > 0) & (py < H)]
 _, _, _, liw = field(cand, scene_fine)
 cand = cand[liw]
 # Broad coats first; each later coat is painted over the ones before.
-broad = lay_unseen(6000, 330.0)
+broad = lay_unseen(16000, 330.0)
 # THE HILLS: one piece, the same all the way round. Three coats, broad to
 # fine, each several strokes deep like the sky. Inside the frame the colours
 # and directions are the painting's; beyond it, the painting's carried on.
@@ -869,8 +870,6 @@ hills = np.concatenate([
 ])
 # THE VALLEY inside the frame (village, fields, bushes), as painted.
 valley = np.concatenate([
-    lay_on_ground(valley_dirs(1.3, 1.0), 1.0, 'valley'),
-    lay_on_ground(valley_dirs(1.5, 0.6), 0.6, 'valley'),
     lay_on_ground(still, 1.0, 'valley'),
     lay_on_ground(cand[:7000], 0.5, 'valley'),
     lay_on_ground(cand[7000:25000], 0.27, 'valley'),

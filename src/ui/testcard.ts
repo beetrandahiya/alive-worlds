@@ -2,12 +2,12 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Only the valley floor beyond the painting changed', 'It now wears the paint of his groves, all the way round to the foot of the hills.'],
-  ['Frame rate', 'About 253,000 strokes, a little over what we have tested. Still 72?'],
-  ['Base of the hills', 'Is the blurred, empty band gone?'],
-  ['From the start, turn a full circle', 'Does the valley read as painted land? Too busy, too pale, or right?'],
-  ['Flicker', 'More, less or the same as before on the valley?'],
-  ['Walk down', 'The new strokes are sized for the start view and fade as you near them. Anything odd, such as giant strokes?'],
+  ['Only the valley floor changed', 'The standing strokes from last time are gone. The ground itself now carries his paint.'],
+  ['From the start, turn a full circle', 'Does the valley read as painted land? Is the base of the hills still empty?'],
+  ['Walk down and around', 'Nothing should stand taller than grass, and nothing should fade away as you near it. True?'],
+  ['Underfoot in the valley', 'The ground paint goes soft within about 25 m of you. Natural, or do you notice it change?'],
+  ['Flicker', 'More, less or the same on the valley floor?'],
+  ['Frame rate', 'Back to about 235,000 strokes. Still 72?'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

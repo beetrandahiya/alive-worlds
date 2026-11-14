@@ -30,8 +30,10 @@ export async function buildGround(base: string, meta: StarryMeta) {
   map.colorSpace = THREE.NoColorSpace;
   map.flipY = false;
   map.wrapS = THREE.RepeatWrapping;
-  map.generateMipmaps = false;
-  map.magFilter = map.minFilter = THREE.LinearFilter;
+  map.generateMipmaps = true;
+  map.magFilter = THREE.LinearFilter;
+  map.minFilter = THREE.LinearMipmapLinearFilter;
+  map.anisotropy = 8;
   map.needsUpdate = true;
   shared.uGround.value = map;
   shared.uGroundRange.value.set(rMin, Math.log(rMax / rMin));
