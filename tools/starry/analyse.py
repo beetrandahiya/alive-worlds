@@ -326,6 +326,10 @@ AZ_L, AZ_R = np.arctan2(_fold[:, 0], -_fold[:, 2])
 _hr = np.random.default_rng(7)
 HATCH = [(int(k), float(sl), float(ph)) for k, sl, ph in zip(_hr.integers(30, 150, 7), _hr.uniform(0.5, 0.95, 7), _hr.uniform(0, 6.28, 7))]
 
+_g = unproject(np.array([770 * SX, 1250 * SX]), np.array([HORIZON_Y, HORIZON_Y]))
+GZ_L, GZ_R = np.arctan2(_g[:, 0], -_g[:, 2])
+GROVE_TOP, GROVE_H = np.radians(-0.8), np.radians(4.0)
+
 LIC = None
 FLOW_S = None
 
@@ -401,10 +405,24 @@ def field(d, colour_img, jitter=None, land=False):
     pym = np.maximum(pym, np.interp(pxm, np.arange(W), ridge_y) + 9 * SX)      # never the sky
     hill_img = hills_soft if colour_img is scene_soft else hills_fine
     c_hill = samp(hill_img, pxm, pym)
-    bk = np.clip(0.3 + 0.12 * noise3(d * 6.0, 2) + jit * 0.5, 0, 0.999) * 5
-    c_low = bush_pal[bk.astype(int)]
-    c_land = c_hill + (c_low - c_hill) * smoothstep(0.0, np.radians(2.5), EL_BASE - el)[:, None]
+    # The valley floor beyond the frame wears the paint of his groves: the
+    # swirling blue-green bushes between the village and the hills. That band
+    # is walked along and folded up and down, row after row toward you.
+    below = np.maximum(EL_BASE - el, 0)
+    u2 = (az - GZ_L) / (GZ_R - GZ_L) + 0.09 * np.sin(below * 38 + az * 3.0) + 0.05 * np.sin(below * 90 - az * 7.0)
+    tri2 = 1 - np.abs(1 - np.mod(u2, 2))
+    flip2 = np.mod(np.floor(u2), 2) != 0
+    az_g = GZ_L + tri2 * (GZ_R - GZ_L)
+    vv = GROVE_H - np.abs(np.mod(below * 0.8, 2 * GROVE_H) - GROVE_H)
+    d_g = dirs(az_g, GROVE_TOP - vv)
+    pxg, pyg, _ = project(d_g)
+    pyg = np.maximum(pyg, np.interp(pxg, np.arange(W), ridge_y) + 9 * SX)
+    w_low = smoothstep(0.0, np.radians(1.2), below)
+    c_land = c_hill + (samp(hill_img, pxg, pyg) - c_hill) * w_low[:, None]
     is_sky = smoothstep(-0.006, 0.006, el - r_el)
+    use_g = w_low > 0.5
+    pxm, pym, d_m, az_m = np.where(use_g, pxg, pxm), np.where(use_g, pyg, pym), np.where(use_g[:, None], d_g, d_m), np.where(use_g, az_g, az_m)
+    flipped = np.where(use_g, flip2, flipped)
     lm = samp(line, pxm, pym)
     t_m = norm(unproject(pxm + lm[:, 0] * 2, pym + lm[:, 1] * 2) - d_m)
     east_m = np.stack([np.cos(az_m), np.zeros(n_), np.sin(az_m)], -1)
@@ -746,6 +764,16 @@ def lay_on_ground(d, scale, zone):
 HILLS_FROM = 430.0   # metres from the viewpoint: beyond this the land is "the hills"
 
 
+def valley_dirs(coverage, scale):
+    """Directions from the viewpoint over the valley floor outside the frame."""
+    lo, hi = np.radians(-17.0), EL_BASE + np.radians(0.4)
+    n_ = int(coverage * 360.0 * np.degrees(hi - lo) / (2.75 * 0.61 * 0.75 * scale * scale))
+    dd = dirs(rng.uniform(-np.pi, np.pi, n_), rng.uniform(lo, hi, n_))
+    px, py, v = project(dd)
+    inside = v & (px > INSET + FEATHER) & (px < W - INSET - FEATHER) & (py < H - INSET - FEATHER)
+    return dd[~inside]
+
+
 def hill_dirs(coverage, scale):
     """Directions from the viewpoint spread evenly over the band of hills, all
     the way round, enough for `coverage` coats of strokes at this scale."""
@@ -830,7 +858,7 @@ cand = cand[v & (px > 0) & (px < W) & (py > 0) & (py < H)]
 _, _, _, liw = field(cand, scene_fine)
 cand = cand[liw]
 # Broad coats first; each later coat is painted over the ones before.
-broad = lay_unseen(16000, 330.0)
+broad = lay_unseen(6000, 330.0)
 # THE HILLS: one piece, the same all the way round. Three coats, broad to
 # fine, each several strokes deep like the sky. Inside the frame the colours
 # and directions are the painting's; beyond it, the painting's carried on.
@@ -841,6 +869,8 @@ hills = np.concatenate([
 ])
 # THE VALLEY inside the frame (village, fields, bushes), as painted.
 valley = np.concatenate([
+    lay_on_ground(valley_dirs(1.3, 1.0), 1.0, 'valley'),
+    lay_on_ground(valley_dirs(1.5, 0.6), 0.6, 'valley'),
     lay_on_ground(still, 1.0, 'valley'),
     lay_on_ground(cand[:7000], 0.5, 'valley'),
     lay_on_ground(cand[7000:25000], 0.27, 'valley'),

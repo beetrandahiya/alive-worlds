@@ -289,6 +289,19 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       with bent turning points, laid by depth below the ridge with stretch
       limited to 0.75-1.35 and folded back where the source runs out (the
       bands in Study 06 were low left-hand hills stretched over tall ones).
+      Study 08 (headset, 2026-11-14): HILLS PASSED. 72 fps, "hills look
+      good", no streaks, no repeats noticed. Join "still just alright, a
+      clear difference but better". Base of the hills "looks like nothing,
+      only blurred background" (the valley floor outside the frame had no
+      strokes).
+      Study 09 BUILT 2026-11-14, AWAITING HEADSET TEST: VALLEY FLOOR beyond
+      the frame painted with his grove paint (the swirling bushes between
+      village and hills, px 770-1250, elevation -0.8 to -4.8 degrees), walked
+      along and folded row after row (`GZ_L/GZ_R`, `GROVE_*`, `valley_dirs`
+      in `analyse.py`); two coats (scales 1.0 and 0.6), about 18k strokes,
+      fixed, tipped toward the viewpoint like the in-frame valley strokes.
+      `lay_unseen` cut from 16k to 6k to pay for it. Total about 253k.
+      This is paint only: no 3D trees, hedges or lane yet.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
