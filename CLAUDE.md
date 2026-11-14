@@ -584,6 +584,33 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       the stroke limit). Claude's recommendation: C with D's closer coat.
       In all four the ground between houses is still plain, and unseen walls
       mirror seen ones (his windows reappear on backs).
+      Owner on the four (2026-11-14): chose C (canvas as the skin) but the
+      FORMS are wrong: every building was a plain box facing the start, so
+      his paint for two or three faces was stretched over one wall (church
+      worst), and paint was reflected through buildings. Asked for a deeper
+      reading of each building, research, then a proper 3D reconstruction.
+      FACE-BY-FACE REBUILD BUILT 2026-11-14, AWAITING OWNER (stills only, on
+      the branch, not published): `tools/starry/village_forms.py` lists each
+      painted building as the faces he drew (kinds: `front` = wall + roof
+      slope; `corner` = gable end + long side, turned so the gable has a given
+      real width; `gablefront`; tower; spire), follows each painted corner
+      along its line of sight onto the building's planes, and writes
+      `public/starry/village_forms.json` (3D polygon + canvas point per
+      corner) and the check picture `reference/debug_village_forms.jpg`.
+      Church = annex + nave (gable to us, roof running back right) + body
+      (second gable with the tower in its front) + spire; checked against his
+      pen drawing F1540. Unseen faces take the opposite face's paint (wall
+      for wall, roof for roof). `village.ts` `formFace` draws each face with
+      the canvas skin (shader mode 3: canvas point given outright) and lays
+      raised strokes within 52 m. The old painted boxes are no longer drawn;
+      `data.houses`/`church` in village.json are now unused for drawing.
+      Canvas crop is y 620..1006 (`village_canvas.py`). Known: lit windows
+      repeat on back walls; pale front house's long wall nearly black; ground
+      between houses plain; frame rate unmeasured.
+      Research (2026-11-14): no published study or 3D reconstruction of the
+      individual houses exists; sources are his drawings F1540 (pen copy of
+      the painting) and F1541v (bird's-eye village), saved in
+      `reference/vangogh/`.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

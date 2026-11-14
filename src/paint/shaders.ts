@@ -97,6 +97,80 @@ void main() {
   gl_FragColor = vec4(vColor * light, 1.0);
 }`;
 
+/**
+ * Solid forms whose skin is the canvas itself. Each point carries a point of
+ * the world to look up (`aProj`): for a face the start can see, itself; for a
+ * face it cannot, the matching point of the face it can. That point is seen
+ * from the start eye and takes the painting's own pixel there.
+ */
+export const CANVAS_VERT = /* glsl */ `
+attribute vec3 color;
+attribute vec3 aProj;
+attribute vec4 aFoldA;  // building centre xz, sideways axis xz
+attribute vec4 aFoldB;  // 1 = building: half width the skin folds within. 2 = tree: radius, centre height, half height
+varying vec3 vColor;
+varying vec3 vN;
+varying vec3 vProj;
+varying vec4 vFoldA;
+varying vec4 vFoldB;
+void main() {
+  vColor = color;
+  vN = normal;
+  vProj = aProj;
+  vFoldA = aFoldA;
+  vFoldB = aFoldB;
+  gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+}`;
+
+export const CANVAS_FRAG = /* glsl */ `
+uniform vec3 uMoon;
+uniform sampler2D uCanvas;
+uniform vec4 uCam;    // focal length, cos pitch, sin pitch, eye height
+uniform vec4 uRect;   // the canvas picture's place in the painting: x0, y0, x1, y1
+uniform vec2 uSize;   // painting width, height
+varying vec3 vColor;
+varying vec3 vN;
+varying vec3 vProj;
+varying vec4 vFoldA;
+varying vec4 vFoldB;
+void main() {
+  if (vFoldB.x < 0.5) {
+    vec3 n = normalize(vN) * (gl_FrontFacing ? 1.0 : -1.0);
+    float light = 0.74 + 0.2 * max(dot(n, uMoon), 0.0) + 0.06 * n.y;
+    gl_FragColor = vec4(vColor * light, 1.0);
+    return;
+  }
+  vec3 q = vProj;
+  if (vFoldB.x > 2.5) {
+    // a face read off the canvas: the point of the painting it carries is given outright
+  } else if (vFoldB.x > 1.5) {
+    // a tree: exact on its near face, let out round the rim, far half mirrored (as lookup() in village.ts)
+    vec2 rel = q.xz - vFoldA.xy;
+    float pf = abs(dot(rel, vec2(vFoldA.w, -vFoldA.z)));
+    float pg = dot(rel, vFoldA.zw);
+    float ry = q.y - vFoldB.z;
+    vec3 e = vec3(ry / vFoldB.w, pf / vFoldB.y, pg / vFoldB.y);
+    float len = max(length(e), 1e-5);
+    float sn = length(e.xz) / len;
+    float th = atan(sn, e.y / len);
+    float k = th > 1.0 ? (0.8415 + 0.5403 * (th - 1.0)) / max(sn, 1e-4) : 1.0;
+    q = vec3(vFoldA.x + vFoldA.z * pg * k, vFoldB.z + ry * k, vFoldA.y + vFoldA.w * pg * k);
+  } else {
+    float hg = vFoldB.y;
+    float gc = dot(q.xz - vFoldA.xy, vFoldA.zw);
+    float m = mod(gc + hg, 4.0 * hg);
+    float f = (m < 2.0 * hg ? m : 4.0 * hg - m) - hg;   // past the building's edge the skin turns back
+    q.xz += vFoldA.zw * (f - gc);
+  }
+  vec3 d = q - vec3(0.0, uCam.w, 0.0);
+  float fwd = max(-d.z * uCam.y + d.y * uCam.z, 1.0);
+  float up = d.y * uCam.y + d.z * uCam.z;
+  vec2 px = vec2(uSize.x * 0.5 + uCam.x * d.x / fwd, uSize.y * 0.5 - uCam.x * up / fwd);
+  vec2 uv = (px - uRect.xy) / (uRect.zw - uRect.xy);
+  uv = clamp(1.0 - abs(1.0 - mod(uv, 2.0)), 0.0004, 0.9996);   // past the picture's edge the paint turns back
+  gl_FragColor = vec4(texture2D(uCanvas, vec2(uv.x, 1.0 - uv.y)).rgb, 1.0);
+}`;
+
 export const DOME_VERT = /* glsl */ `
 varying vec3 vDir;
 void main() {

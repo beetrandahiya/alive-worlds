@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import {
   PLAIN_FRAG,
   PLAIN_VERT,
+  CANVAS_VERT,
+  CANVAS_FRAG,
   GROUND_FRAG,
   GROUND_VERT,
   SKY_FRAG,
@@ -164,6 +166,27 @@ export function plainForms(g: THREE.BufferGeometry): THREE.Mesh {
   const mesh = new THREE.Mesh(
     g,
     new THREE.ShaderMaterial({ vertexShader: PLAIN_VERT, fragmentShader: PLAIN_FRAG, uniforms: { uMoon: shared.uMoon }, side: THREE.DoubleSide }),
+  );
+  mesh.frustumCulled = false;
+  return mesh;
+}
+
+/** Solid forms skinned with the canvas (see CANVAS_FRAG). Parts with aFoldB.x = 0 stay plain. */
+export function canvasForms(g: THREE.BufferGeometry, canvas: THREE.Texture, cam: { F: number; pitch: number; W: number; H: number }, rect: number[]): THREE.Mesh {
+  const mesh = new THREE.Mesh(
+    g,
+    new THREE.ShaderMaterial({
+      vertexShader: CANVAS_VERT,
+      fragmentShader: CANVAS_FRAG,
+      uniforms: {
+        uMoon: shared.uMoon,
+        uCanvas: { value: canvas },
+        uCam: { value: new THREE.Vector4(cam.F, Math.cos(cam.pitch), Math.sin(cam.pitch), 1.6) },
+        uRect: { value: new THREE.Vector4(rect[0], rect[1], rect[2], rect[3]) },
+        uSize: { value: new THREE.Vector2(cam.W, cam.H) },
+      },
+      side: THREE.DoubleSide,
+    }),
   );
   mesh.frustumCulled = false;
   return mesh;
