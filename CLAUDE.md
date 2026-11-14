@@ -611,6 +611,15 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       individual houses exists; sources are his drawings F1540 (pen copy of
       the painting) and F1541v (bird's-eye village), saved in
       `reference/vangogh/`.
+      Owner (2026-11-14) on the face-by-face stills: "going in a better
+      direction" but the houses looked "skewed to the back, horrendous".
+      Cause: his freehand slant (roof top edge set to one side) was copied
+      into the solid form, so ridges sat off-centre and gable ends leaned.
+      FIXED same day: every house is an upright box, level eave, level ridge
+      over its middle, gable point over the gable's middle; his slant is met
+      by turning the house at most 12 degrees; each face still wears the
+      canvas points traced for it. LESSON: his drawing's skew belongs to the
+      paint, never to the solid form. Awaiting owner on the new stills.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

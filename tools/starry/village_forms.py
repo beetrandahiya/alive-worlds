@@ -122,29 +122,58 @@ def end_wall(a, a2, at, a2t, apex, uv_a, uv_at, slice_px, low_py, high_py):
 
 
 def front(name, xl, xr, base, eave, ridge, depth, low=None, roof=True):
-    """A long side square to us: a wall, and above it a roof slope up to the ridge."""
+    """A long side toward us: a wall, and above it a roof slope up to the ridge.
+    The house is a true upright box with a level ridge over its middle; the
+    slant he gave the roof (its top edge set to one side of its bottom edge)
+    is met by turning the whole house, not by leaning it."""
     low = min(low or base, LOW)
     el, er = (eave, eave) if np.isscalar(eave) else eave
-    a, b = G(xl, base), G(xr, base)
-    n = away(a, b)
+    m = G((xl + xr) / 2, base)
+    mdir = level(m)
+    def build(th):
+        c0, s0 = math.cos(th), math.sin(th)
+        t0 = np.array([-mdir[2], 0.0, mdir[0]])
+        if project(m + t0)[0] < project(m)[0]:
+            t0 = -t0
+        t = np.array([t0[0] * c0 - t0[2] * s0, 0.0, t0[0] * s0 + t0[2] * c0])
+        n = np.array([-t[2], 0.0, t[0]])
+        if np.dot(n, mdir) < 0:
+            n = -n
+        h = lift(m, (el + er) / 2)[1]
+        ks = np.arange(0.5, 30.0, 0.05)
+        ka = min(ks, key=lambda k: abs(project([m[0] - t[0] * k, h, m[2] - t[2] * k])[0] - xl))
+        kb = min(ks, key=lambda k: abs(project([m[0] + t[0] * k, h, m[2] + t[2] * k])[0] - xr))
+        return m - t * ka, m + t * kb, n, h
+    th = 0.0
+    if roof:
+        want = (ridge[0][0] + ridge[1][0]) / 2
+        def miss(th):
+            a, b, n, h = build(th)
+            c = (a + b) / 2 + n * depth / 2
+            return abs(project([c[0], h + 2.5, c[2]])[0] - want)
+        th = min(np.radians(np.arange(-12, 12.5, 0.5)), key=miss)
+    a, b, n, h = build(th)
     a2, b2 = a + n * depth, b + n * depth
-    at, bt = lift(a, el), lift(b, er)
-    a2t, b2t = a2 + [0, at[1] - a[1], 0], b2 + [0, bt[1] - b[1], 0]
-    ua, ub, uat, ubt = seen(a, low), seen(b, low), project(at), project(bt)
+    up = lambda q, y: np.array([q[0], y, q[2]])
+    at, bt, a2t, b2t = up(a, h), up(b, h), up(a2, h), up(b2, h)
+    ua, ub, uat, ubt = [xl, low], [xr, low], [xl, el], [xr, er]
     faces = [face("wall", [a, b, bt, at], [ua, ub, ubt, uat]), face("wall", [b2, a2, a2t, b2t], [ub, ua, uat, ubt])]
     width = np.linalg.norm(b - a)
     sl = min(1.0, depth / width) * (xr - xl)
     if roof:
-        ra, rb = on_plane(*ridge[0], a + n * depth / 2, n), on_plane(*ridge[1], a + n * depth / 2, n)
-        ura, urb = project(ra), project(rb)
+        mid = (a + b) / 2 + n * depth / 2
+        hr = lift(mid, (ridge[0][1] + ridge[1][1]) / 2)[1]
+        hr = min(max(hr, h + 0.3 * depth), h + 0.75 * depth)     # a roof a mason would build
+        ra, rb = up(a + n * depth / 2, hr), up(b + n * depth / 2, hr)
+        ura, urb = list(ridge[0]), list(ridge[1])
         faces += [face("roof", [at, bt, rb, ra], [uat, ubt, urb, ura]), face("roof", [b2t, a2t, ra, rb], [ubt, uat, ura, urb])]
-        mid = (uat[1] + ua[1]) / 2
         faces += end_wall(a, a2, at, a2t, ra, [xl, 0], uat, sl, ua[1], uat[1] + 1)
         faces += end_wall(b, b2, bt, b2t, rb, [xr, 0], ubt, -sl, ub[1], ubt[1] + 1)
     else:
         faces += [face("wall", [a, a2, a2t, at], [ua, [ua[0] + sl, ua[1]], [uat[0] + sl, uat[1]], uat]),
                   face("wall", [b, b2, b2t, bt], [ub, [ub[0] - sl, ub[1]], [ubt[0] - sl, ubt[1]], ubt])]
     finish(name, faces, [a, b, b2, a2])
+    print(f"         turned {math.degrees(th):5.1f} deg")
     return a, b, a2, b2, at, bt, n
 
 
@@ -172,13 +201,17 @@ def corner(name, xa, xc, xb, base, wg, eaves, apex, ridge_far, low=None):
     t = min(np.arange(3.0, 26.0, 0.05), key=lambda s: abs(project(lift(c + v * s, eb))[0] - xb))
     b = c + v * t
     d = a + v * t
-    at, bt = lift(a, ea), lift(b, eb)
-    dt = d + [0, at[1] - a[1] + bt[1] - b[1] - (ct[1] - c[1]), 0]
-    ap = on_plane(*apex, c, v)
-    rf = on_plane(*ridge_far, b, v) if ridge_far else ap + (b - c)
-    rf[1] = max(rf[1], bt[1] + 0.6)
-    uc, ua, ub = seen(c, low), seen(a, low), seen(b, low)
-    uct, uat, ubt, uap, urf = project(ct), project(at), project(bt), project(ap), project(rf)
+    h = (lift(a, ea)[1] + ct[1] + lift(b, eb)[1]) / 3            # one level eave all round
+    up = lambda q, y: np.array([q[0], y, q[2]])
+    ct, at, bt, dt = up(c, h), up(a, h), up(b, h), up(d, h)
+    gm = (a + c) / 2
+    hr = lift(gm, apex[1])[1]
+    hr = min(max(hr, h + 0.3 * wg), h + 0.75 * wg)
+    ap = up(gm, hr)                                               # the gable stands upright, its point over its middle
+    rf = ap + (b - c)
+    uc, ua, ub = [xc, low], [xa, low], [xb, low]
+    uct, uat, ubt, uap = [xc, ec], [xa, ea], [xb, eb], list(apex)
+    urf = list(ridge_far) if ridge_far else project(rf)
     faces = [
         face("wall", [c, a, at, ct], [uc, ua, uat, uct]), face("wall", [ct, at, ap], [uct, uat, uap]),
         face("wall", [c, b, bt, ct], [uc, ub, ubt, uct]),
@@ -199,9 +232,9 @@ def gablefront(name, xl, xr, base, eave, apex, depth, roofsrc, low=None):
     a2, b2 = a + n * depth, b + n * depth
     at, bt = lift(a, eave), lift(b, eave)
     a2t, b2t = a2 + [0, at[1] - a[1], 0], b2 + [0, bt[1] - b[1], 0]
-    ap = on_plane(*apex, a, n)
+    ap = lift((a + b) / 2, apex[1])
     ap2 = ap + n * depth
-    ua, ub, uat, ubt, uap = seen(a, low), seen(b, low), project(at), project(bt), project(ap)
+    ua, ub, uat, ubt, uap = [xl, low], [xr, low], [xl, eave], [xr, eave], list(apex)
     sl = min(1.0, depth / np.linalg.norm(b - a)) * (xr - xl) / 2
     q = roofsrc   # eave near, ridge near, ridge far, eave far
     faces = [
