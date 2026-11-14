@@ -535,6 +535,59 @@ Newspaper, IGN altimetry. Items marked (unconfirmed) were not read on a page.
   entrance); View of the Asylum and Chapel (the only one showing the tower);
   Garden of Saint-Paul Hospital (inside the walled garden).
 
+### The walled wheat field and the asylum buildings (researched 2026-11-14)
+
+"(measured)" = taken from today's OpenStreetMap outlines or coarse elevation
+tiles, not an 1889 survey. Offsets are metres east/north of the cloister.
+- His real bedroom was on the upper floor (one above ground) of the men's
+  EAST wing, now a closed working hospital, 30-110 m north of the cloister.
+  The room shown to visitors (above the cloister's east gallery) is a
+  reconstruction, not his. Both look east over the same enclosure. Studio:
+  ground floor (possibly north wing).
+- The field lies directly below the window, between the building and the
+  park wall: "a field enclosed by stone walls just beneath his window".
+  Size (measured): the enclosure is about 145 m north-south; opposite the
+  men's wing it is about 80 x 80 m ("an enclosed square of wheat"). The far
+  (east) wall is not parallel to the wing: it slants away to the right
+  (Kroller-Muller: "slopes steeply diagonally to the right"). The ground is
+  nearly level: about 3 m fall to the east and north (measured).
+- Wall: pale grey coursed stone, on the north, east and south sides (the
+  buildings close the west); about 2-2.5 m high judging from a photograph
+  (no figure found); a small tiled stone hut at its right-hand end. Beyond
+  it: "the grey foliage of a few olive trees, some huts and the hills"
+  (letter, about 9 June 1889). No gate found.
+- Through his year: late May green with poppies and daisies in front; about
+  9 June flattened by a storm; 16 June "turning yellow... warm tones of a
+  bread crust"; reaped late June; 6 July stacks stand in it; October parched
+  clods; November young wheat in furrows, rain. MID-JUNE 1889 (Starry Night):
+  ripening yellow wheat, storm-flattened, about a week before reaping.
+- Night/twilight colour: Wheat Sheaves and Rising Moon (F735) is "dull
+  yellow-ochre and violet"; its light purple has faded to whitish. Rising
+  Sun (F737): "field is purple and yellow-green".
+- He painted the field about fourteen times (F720, F611, F617, F618, F619,
+  F735, F641, F625, F706, F650, F722, F737...). F803 View of the Asylum and
+  Chapel was painted from inside the field and is his only work showing the
+  tower; F1602r is a drawing of the wall alone.
+- Buildings (measured): men's east wing about 84 m long, 11-14 m deep, long
+  axis about 5 degrees west of north, a 33 m return eastward at its south
+  end; north wing about 98 x 12 m; cloister and church block about 104 x 70 m
+  to the south; walled garden about 93 x 104 m in the angle to the west
+  (one hectare on three levels). Two storeys plus attic, pale ochre render,
+  Roman-tile roof (recalled, unconfirmed). Garden walls red ochre (letter).
+- Bell tower: Romanesque, square, two stages with paired openings on twin
+  colonnettes, Lombard bands, a sundial, pyramidal roof of limestone slabs.
+  Height not found.
+- Not found: wall height in 1889, any gate, tower height, the wing's eave
+  height and window count, shutters, the size or position of his room.
+- Photographs worth opening next: Wikimedia Commons categories "Vincent van
+  Gogh's room in Saint-Paul de Mausole" and "Monastere Saint-Paul-de-Mausole";
+  blogs.futura-sciences.com/e-luminet (window view and an aerial).
+- OUR WORLD VERSUS THIS: we stand on a knoll 28 m above a valley, as the
+  painting implies; in reality he was one floor above a level field. In our
+  terrain the slope below the brow falls faster than the bottom edge of the
+  painted view, so everything on that slope (out to about 85 m) is invisible
+  from the start: a field there does not alter the painted view.
+
 ## Next
 
 - Agree the modular rebuild plan with the owner, then build it one module
