@@ -12,11 +12,11 @@ import { terrain } from './terrain';
 const DISTANCE = 14;
 const AZIMUTH = THREE.MathUtils.degToRad(-21);
 const FLAMES = [
-  { x: 0.0, z: 0.0, h: 14.3, r: 1.5, phase: 0.0 },
+  { x: 0.0, z: 0.0, h: 14.3, r: 1.75, phase: 0.0 },
   { x: -0.95, z: 0.3, h: 11.1, r: 0.5, phase: 1.7 },
-  { x: 1.0, z: 0.2, h: 7.5, r: 0.62, phase: 3.1 },
-  { x: 1.75, z: -0.5, h: 7.4, r: 0.92, phase: 4.4 },
-  { x: 3.4, z: 0.1, h: 4.6, r: 1.15, phase: 5.6 },
+  { x: 1.0, z: 0.2, h: 7.5, r: 0.95, phase: 3.1 },
+  { x: 1.8, z: -0.5, h: 7.4, r: 1.2, phase: 4.4 },
+  { x: 3.1, z: 0.1, h: 4.6, r: 1.4, phase: 5.6 },
 ];
 const SWAY_TOP = 0.38; // metres the highest tip moves in the wind
 

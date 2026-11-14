@@ -1,6 +1,7 @@
 """Measure The Starry Night and bake the data the sky is built from.
 
-Reads   reference/starry_1280.jpg   (Google Art Project scan, public domain)
+Reads   reference/starry_7000.jpg   (Google Art Project scan, public domain;
+        measured at 3200 px wide)
 Writes  public/starry/sky_under.jpg     undercoat for the sky dome (equirect)
         public/starry/sky_strokes.bin   flowing sky strokes  (20 floats each)
         public/starry/land_strokes.bin  static backdrop strokes (hills, village)
@@ -21,7 +22,9 @@ OUT.mkdir(parents=True, exist_ok=True)
 rng = np.random.default_rng(1889)
 
 # ---------------------------------------------------------------- the painting
-img8 = cv2.imread(str(ROOT / "reference" / "starry_1280.jpg"))
+full = cv2.imread(str(ROOT / "reference" / "starry_7000.jpg"))
+img8 = cv2.resize(full, (3200, round(3200 * full.shape[0] / full.shape[1])), interpolation=cv2.INTER_AREA)
+del full
 img = img8[:, :, ::-1].astype(np.float32) / 255.0
 H, W = img.shape[:2]
 SX = W / 1280.0  # by-eye coordinates below were read off the 1280 px scan
@@ -108,7 +111,10 @@ sky_mask = cv2.GaussianBlur((yy < ridge_y[None, :]).astype(np.float32), (0, 0), 
 # The cypress becomes a real tree in the world, so the backdrop needs sky behind
 # it. Mean colour is diffused in from the edges; stroke-scale light/dark detail
 # is borrowed from the paint just outside the tree.
-base = cv2.inpaint(img8, cyp, 9 * SX, cv2.INPAINT_TELEA)[:, :, ::-1].astype(np.float32) / 255
+# (the fill is smooth, so it is worked out small and enlarged)
+_s8 = cv2.resize(img8, (1280, round(1280 * H / W)), interpolation=cv2.INTER_AREA)
+_sm = cv2.resize(cyp, (_s8.shape[1], _s8.shape[0]), interpolation=cv2.INTER_NEAREST)
+base = cv2.resize(cv2.inpaint(_s8, _sm, 9, cv2.INPAINT_TELEA), (W, H), interpolation=cv2.INTER_CUBIC)[:, :, ::-1].astype(np.float32) / 255
 lum = img @ np.array([0.299, 0.587, 0.114], np.float32)
 hp = lum - cv2.GaussianBlur(lum, (0, 0), 7 * SX)
 cols = np.arange(W)
@@ -148,7 +154,7 @@ line = np.stack([np.cos(theta), np.sin(theta)], -1).astype(np.float32)
 # Strokes have a direction but no arrow. Give the sky one consistent sense of
 # travel by spreading a choice outward from the most certain spot, always
 # crossing to the best-agreeing neighbour first.
-STEP = 8
+STEP = int(round(8 * SX))
 lc = line[STEP // 2::STEP, STEP // 2::STEP].copy()
 cc = coher[STEP // 2::STEP, STEP // 2::STEP]
 gh, gw = lc.shape[:2]
@@ -502,7 +508,8 @@ _, _, _, liw = field(cand, scene_fine)
 cand = cand[liw]
 land_b = bake(cand[:7000], 0.5, 0.0)
 land_c = bake(cand[7000:25000], 0.27, 0.0)
-land = np.concatenate([stars_fine, land_a, land_b, land_c])
+land_d = bake(cand[25000:51000], 0.16, 0.0)
+land = np.concatenate([stars_fine, land_a, land_b, land_c, land_d])
 sky.tofile(OUT / "sky_strokes.bin")
 land.tofile(OUT / "land_strokes.bin")
 

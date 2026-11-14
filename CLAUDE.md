@@ -148,6 +148,8 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
 
 ## Code map
 
+- `tools/starry/lift_strokes.py` — lifts real strokes from the scan into the
+  stroke atlas `public/starry/strokes.png` (replaces `make_strokes.py`).
 - `tools/starry/analyse.py` — measures the scan (stroke direction, flow sense,
   colour, palettes) and bakes `public/starry/*`. `make_strokes.py` makes the
   stroke shapes. Re-run both after changing them (needs numpy, scipy, opencv).
@@ -186,16 +188,18 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
   notes, his letters on cypresses and night, Loving Vincent's method, and which
   Saint-Rémy paintings to use for ground, village streets and hills. Put the
   usable numbers here.
-- Ask owner to add the full-resolution scan to `reference/` (see Known issues).
 
 ## Known issues / open questions
 
-- Reference scan is only 1280 px wide. Wikimedia refuses larger downloads from
-  the cloud machine. Owner can download the original "Van Gogh - Starry Night -
-  Google Art Project.jpg" from Wikimedia Commons in a browser and add it to
-  `reference/`. Needed for: real stroke shapes, sharper stars and village.
-- Stroke shapes are generated, not lifted from the canvas (breaks "invent
-  nothing"; fix once the large scan is in).
+- Reference scan: `reference/starry_7000.jpg` (7000 px wide, added by owner
+  2026-11-14, cut down from the 663 MB original which stays on the owner's
+  Mac; ask for full-detail crops if ever needed). Analysis runs at 3200 px.
+- Stroke shapes are now lifted from the canvas (`tools/starry/lift_strokes.py`:
+  finds single well-separated strokes, outline = shape, the photograph's light
+  and shade on the paint = relief). Eight chosen by eye (candidates 4 6 10 1 19
+  27 29 37). Relief is inferred from a flat photograph, not measured height.
+- Gaps between strokes show a blurred-painting undercoat. On the real canvas
+  the gaps show bare beige canvas with weave. Taste question for the owner.
 - Ground on the knoll is provisional: the painting does not show it. Colours
   come from the bushes at its bottom edge. Needs his field studies as reference.
 - Sky behind the cypress is filled in by diffusion; two star halos next to the
@@ -205,7 +209,6 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
   flow so bands continue (`analyse.py`, "LIC"). Remaining flaw: herringbone
   creases run diagonally out from the frame's upper corners, where "nearest
   painted sky" jumps from one edge to another. Checked only in flat stills.
-- Small stars near the top edge of the painting are soft smudges.
 - Walking is limited to 55 m from the viewpoint; walking downhill shows the
   backdrop village sliding with you (it is at infinity until step 3).
 - Wrap-around vs distant climbable hills: design needed at step 4 (village must
