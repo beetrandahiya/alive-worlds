@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import {
+  PAINT_FRAG,
+  PAINT_VERT,
   PLAIN_FRAG,
   PLAIN_VERT,
   GROUND_FRAG,
@@ -164,6 +166,21 @@ export function plainForms(g: THREE.BufferGeometry): THREE.Mesh {
   const mesh = new THREE.Mesh(
     g,
     new THREE.ShaderMaterial({ vertexShader: PLAIN_VERT, fragmentShader: PLAIN_FRAG, uniforms: { uMoon: shared.uMoon }, side: THREE.DoubleSide }),
+  );
+  mesh.frustumCulled = false;
+  return mesh;
+}
+
+/** Painted solid forms: see PAINT_FRAG. `patch` holds the pieces of canvas. */
+export function paintedForms(g: THREE.BufferGeometry, patch: THREE.Texture): THREE.Mesh {
+  const mesh = new THREE.Mesh(
+    g,
+    new THREE.ShaderMaterial({
+      vertexShader: PAINT_VERT,
+      fragmentShader: PAINT_FRAG,
+      uniforms: { uMoon: shared.uMoon, uAtlas: shared.uAtlas, uA2C: shared.uA2C, uPatch: { value: patch } },
+      side: THREE.DoubleSide,
+    }),
   );
   mesh.frustumCulled = false;
   return mesh;

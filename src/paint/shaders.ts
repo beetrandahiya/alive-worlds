@@ -97,6 +97,91 @@ void main() {
   gl_FragColor = vec4(vColor * light, 1.0);
 }`;
 
+/**
+ * Painted solid forms. Each wall or roof carries a piece of his canvas (the
+ * paint of that very building) laid across it at the size he painted it.
+ * Close to you the surface resolves into smaller strokes, each one of his
+ * real stroke shapes, each taking its colour from the canvas piece beneath
+ * it: the building repainted at the scale you stand at. All of it is worked
+ * out on the surface itself, so it is the same from every position.
+ */
+export const PAINT_VERT = /* glsl */ `
+attribute vec3 color;
+attribute vec2 aUv;    // position on the surface, in metres (x along the strokes)
+attribute vec4 aRect;  // the canvas piece in the atlas
+attribute vec3 aK;     // metres per canvas piece (0: flat colour), its width/height, 1: paint strokes on it
+varying vec3 vColor;
+varying vec3 vN;
+varying vec2 vUv;
+varying vec4 vRect;
+varying vec3 vK;
+varying float vDist;
+void main() {
+  vColor = color; vN = normal; vUv = aUv; vRect = aRect; vK = aK;
+  vec4 w = modelMatrix * vec4(position, 1.0);
+  vDist = distance(w.xyz, cameraPosition);
+  gl_Position = projectionMatrix * viewMatrix * w;
+}`;
+
+export const PAINT_FRAG = /* glsl */ `
+${COMMON}
+uniform vec3 uMoon;
+uniform sampler2D uAtlas;
+uniform sampler2D uPatch;
+varying vec3 vColor;
+varying vec3 vN;
+varying vec2 vUv;
+varying vec4 vRect;
+varying vec3 vK;
+varying float vDist;
+
+float h21(vec2 p) {
+  vec3 q = fract(vec3(p.xyx) * 0.1031);
+  q += dot(q, q.yzx + 33.33);
+  return fract((q.x + q.y) * q.z);
+}
+// His paint for this surface at a point given in metres.
+vec3 canvas(vec2 m) {
+  if (vK.x <= 0.0) return vColor;
+  vec2 t = vec2(m.x, m.y * vK.y) / vK.x;
+  vec2 f = abs(fract(t * 0.5) * 2.0 - 1.0);   // carried on by folding back and forth
+  return texture2D(uPatch, vRect.xy + clamp(f, 0.04, 0.96) * vRect.zw).rgb;
+}
+// One coat of strokes laid in staggered rows. Returns colour and cover.
+vec4 coat(vec2 m, vec2 size, float seed) {
+  float row = floor(m.y / size.y);
+  float shift = h21(vec2(row, seed)) * size.x;
+  float colu = floor((m.x + shift) / size.x);
+  vec2 id = vec2(colu, row);
+  float a = h21(id + seed), b = h21(id * 1.7 + seed + 3.1);
+  vec2 f = vec2(fract((m.x + shift) / size.x), fract(m.y / size.y)) - 0.5;
+  f.y += f.x * (b - 0.5) * 0.7;                          // each stroke leans a little its own way
+  vec2 uv = f / vec2(1.12, 0.78 + 0.3 * a) + 0.5;        // strokes overlap their neighbours end to end
+  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return vec4(0.0);
+  vec4 t = texture2D(uAtlas, atlasUv(uv, floor(a * 7.99)));
+  vec2 centre = vec2((colu + 0.5) * size.x - shift, (row + 0.5) * size.y);
+  vec3 c = canvas(centre) * (0.78 + 0.5 * b);
+  c *= 1.0 + 0.3 * dot(t.rg * 2.0 - 1.0, vec2(-0.5, 0.75));   // light on the ridges of the paint
+  return vec4(c, smoothstep(0.42, 0.58, t.a));
+}
+void main() {
+  vec3 n = normalize(vN) * (gl_FrontFacing ? 1.0 : -1.0);
+  float near = 1.0 - smoothstep(16.0, 42.0, vDist);
+  // From afar a wall is its own colour, gently varied by its piece of canvas;
+  // the full variety of the paint comes in with the strokes as you approach.
+  vec3 c = mix(vColor, canvas(vUv), vK.x > 0.0 ? mix(0.3, 0.75, near) : 0.0);
+  if (vK.z > 0.5) {
+    if (near > 0.0) {
+      vec4 a = coat(vUv, vec2(0.62, 0.15), 1.0);
+      vec4 b = coat(vUv + vec2(0.23, 0.07), vec2(0.46, 0.12), 7.0);
+      c = mix(c, mix(c * 0.86, a.rgb, a.a), near);
+      c = mix(c, b.rgb, b.a * near);
+    }
+  }
+  float light = 0.8 + 0.16 * max(dot(n, uMoon), 0.0) + 0.04 * n.y;
+  gl_FragColor = vec4(c * light, 1.0);
+}`;
+
 export const DOME_VERT = /* glsl */ `
 varying vec3 vDir;
 void main() {

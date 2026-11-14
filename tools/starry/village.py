@@ -48,12 +48,29 @@ def colour(rect, cut=45):
     return [round(float(v) / 255, 3) for v in np.median(p, 0)[::-1]]
 
 
+patches = []
+
+
+def patch(rect):
+    """Cut this piece of the canvas out, to be the paint of a wall or a roof.
+    Returns its place in the atlas: [u, v, w, h, width / height]."""
+    x0, y0, x1, y1 = [int(round(v * K)) for v in rect]
+    crop = img[y0:y1, x0:x1]
+    patches.append(cv2.resize(crop, (PW, PH), interpolation=cv2.INTER_AREA))
+    i = len(patches) - 1
+    return [(i % 2) * 0.5, (i // 2) * PH / AH, 0.5, PH / AH, round((x1 - x0) / (y1 - y0), 3)]
+
+
+PW, PH, AH = 256, 128, 2048
+
+
 def building(x0, x1, base, eave, top, wall, roof, lit=0, gable=False, cut=45):
     cx, cz, dist = ground((x0 + x1) / 2, base)
     scale = dist / F
     return dict(x=round(float(cx), 2), z=round(float(cz), 2), w=round(float((x1 - x0) * scale), 2),
                 wall=round(float(max((base - eave) * scale, 2.6)), 2), rise=round(float(max((eave - top) * scale, 1.2)), 2),
-                wallColour=colour(wall, cut), roofColour=colour(roof), lit=lit, gable=gable)
+                wallColour=colour(wall, cut), roofColour=colour(roof), lit=lit, gable=gable,
+                wallSrc=patch(wall), roofSrc=patch(roof))
 
 
 houses = [
@@ -103,6 +120,10 @@ for base, size in ((858, 62), (832, 56), (808, 50)):          # the grove behind
 
 out = dict(camera=dict(F=F, pitch=PITCH, W=W, H=H), houses=houses, church=church, trees=trees,
            road=colour((1100, 950, 1180, 962)), field=colour((600, 955, 715, 995)))
+atlas = np.zeros((AH, PW * 2, 3), np.uint8)
+for i, pt in enumerate(patches):
+    atlas[(i // 2) * PH:(i // 2 + 1) * PH, (i % 2) * PW:(i % 2 + 1) * PW] = pt
+cv2.imwrite(str(ROOT / "public" / "starry" / "village_paint.jpg"), atlas, [cv2.IMWRITE_JPEG_QUALITY, 93])
 (ROOT / "public" / "starry" / "village.json").write_text(json.dumps(out))
 print(len(houses), "houses", len(trees), "trees; church nave", church["nave"], "spire top", church["spireTop"])
 for h in houses:

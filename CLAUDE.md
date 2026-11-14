@@ -475,6 +475,29 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
         ground in front must fall about 0.3 m per metre to stay under the
         painted view's bottom edge.
       - Cypress base lowered 0.335 m to keep it exactly where it stood.
+      Study 17 (headset, 2026-11-14): "all looks good, go on". THE PLACE IS
+      APPROVED: start view, village plan, wandering streets, asylum, walled
+      field on the evened slope, lane. Next: paint.
+      Study 18 BUILT 2026-11-14, AWAITING HEADSET TEST: FIRST PAINT, houses
+      and church only.
+      - `village.py` cuts each painted building's wall patch and roof patch
+        out of the 7000 px scan into an atlas (`village_paint.jpg`, 256x128
+        cells; `wallSrc`/`roofSrc` in village.json = atlas rect + aspect).
+      - `PAINT_FRAG` (`paintedForms`): per pixel, on the surface's own
+        coordinates in metres (`aUv`, computed in `tri`: x level on walls, down
+        the slope on roofs). Far: the face's flat colour, 30% varied by its
+        canvas piece. Within 42-16 m: two staggered coats of strokes (0.62 x
+        0.15 m and 0.46 x 0.12 m), each one of the eight real stroke shapes
+        from `strokes.png`, coloured from the canvas piece at the stroke's
+        centre, with ridge lighting. No extra geometry; nothing depends on the
+        viewpoint except the smooth per-pixel fade by distance.
+      - Houses he did not paint wear the patches of ones he did. Windows,
+        doors, chimneys: strokes over a flat colour. Still plain: asylum,
+        field, lanes, trees, ground.
+      - Tried and dropped: showing the canvas piece at full strength from afar
+        (the back-and-forth folding made kaleidoscope patterns).
+      - Not yet: his dark outlines round roofs and walls; raised stroke
+        geometry near the walker.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
