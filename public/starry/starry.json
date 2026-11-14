@@ -3,14 +3,14 @@
  "hfovDeg": 65.0,
  "pitchDeg": 11.434926184559375,
  "aspect": 1.2628255722178374,
- "sky": 42169,
- "land": 4565,
+ "sky": 42109,
+ "land": 4566,
  "stride": 20,
  "valley": {
   "floor": -28.0,
   "rMin": 2.5,
   "rMax": 3000.0,
-  "strokes": 103725
+  "strokes": 91306
  },
  "under": {
   "elMinDeg": -30.0

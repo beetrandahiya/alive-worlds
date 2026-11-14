@@ -127,8 +127,21 @@ donor_hp = cv2.remap(hp, np.clip(donor_x, 0, W - 1).astype(np.float32), yy, cv2.
 m = (cyp > 0)
 scene = img.copy()
 scene[m] = np.clip(base[m] + (np.clip(donor_hp, -0.16, 0.16) * ok)[m][:, None], 0, 1)
+# Land hidden by the tree: the land beside it, mirrored across the tree's edge
+# (a diffused fill reads as a grey patch once it is laid on real ground).
+donor_col = cv2.remap(img, np.clip(donor_x, 0, W - 1).astype(np.float32), yy, cv2.INTER_LINEAR)
+land_m = m & ok & (yy > ridge_y[None, :] + 2 * SX)
+scene[land_m] = donor_col[land_m]
 scene_soft = cv2.GaussianBlur(scene, (0, 0), 5.5 * SX)
 scene_fine = cv2.GaussianBlur(scene, (0, 0), 1.1 * SX)
+# The hills alone, as a source for carrying them on beyond the frame: the
+# church spire stands in front of them in the painting and must not be copied.
+spire = np.zeros((H, W), np.uint8)
+cv2.fillPoly(spire, [poly([(712, 800), (716, 700), (724, 632), (731, 632), (742, 700), (748, 800)])], 255)
+spire = cv2.dilate(spire, np.ones((int(9 * SX), int(9 * SX)), np.uint8))
+hills_src = cv2.inpaint((scene * 255).astype(np.uint8), spire, 6 * SX, cv2.INPAINT_TELEA).astype(np.float32) / 255
+hills_soft = cv2.GaussianBlur(hills_src, (0, 0), 5.5 * SX)
+hills_fine = cv2.GaussianBlur(hills_src, (0, 0), 1.1 * SX)
 
 # ------------------------------------------------------- stroke direction field
 g = cv2.GaussianBlur(scene @ np.array([0.299, 0.587, 0.114], np.float32), (0, 0), 1.2 * SX)
@@ -250,11 +263,55 @@ while len(stars) < 17:
     stars.append(dict(c=c, e=e, n=np.cross(c, e), rot=srng.uniform(0, 6.28), src=STAR_SRC[len(stars) % len(STAR_SRC)]))
 
 
+# ------------------------------------------------- the land's skyline all round
+NA = 1024
+def line_to_az_el(points):
+    pts = np.array(points, np.float32) * SX
+    xs = np.arange(pts[0, 0], pts[-1, 0])
+    dd = unproject(xs, np.interp(xs, pts[:, 0], pts[:, 1]))
+    return np.arctan2(dd[:, 0], -dd[:, 2]), np.arcsin(dd[:, 1])
+
+
+az_t = (np.arange(NA) + 0.5) / NA * 2 * np.pi - np.pi
+# nearer hills: the blue hills behind the village, and the low hills on the left
+a1, e1 = line_to_az_el([(14, 735), (100, 750), (190, 760), (480, 742), (520, 702), (560, 690), (610, 700), (650, 716),
+                        (700, 700), (760, 652), (840, 634), (900, 650), (950, 664), (1000, 652), (1100, 640),
+                        (1200, 626), (1266, 616)])
+# far mountains: the dark Alpilles on the right
+a2, e2 = line_to_az_el([(900, 668), (1000, 640), (1100, 600), (1150, 570), (1172, 526), (1210, 518), (1266, 514)])
+ext = ridge_ext(az_t)
+el1 = np.where(az_t < a1[0], ext, np.interp(az_t, a1, e1))
+right_of = az_t > a1[-1]
+el1[right_of] = np.radians(1.5) + (e1[-1] - np.radians(1.5)) * np.exp(-(az_t[right_of] - a1[-1]) / np.radians(20))
+el1[right_of] += np.radians(1.0) * np.sin(az_t[right_of] * 7) * (1 - np.exp(-(az_t[right_of] - a1[-1]) / 0.2))
+el2 = np.full(NA, -1.0)
+inside2 = (az_t >= a2[0]) & (az_t <= a2[-1])
+el2[inside2] = np.interp(az_t[inside2], a2, e2)
+el2[az_t > a2[-1]] = ext[az_t > a2[-1]]
+el2 = np.where(el2 > el1 + np.radians(0.4), el2, -1.0)
+EL_TOP = np.where(el2 > -0.5, np.maximum(el1, el2), el1)
+EL_BASE = np.radians(-3.2)      # foot of the hills, seen from the viewpoint
+
+
+def el_top(az):
+    return np.interp(az, az_t, EL_TOP, period=2 * np.pi)
+
+
+def dirs(az, el):
+    return np.stack([np.sin(az) * np.cos(el), np.sin(el), -np.cos(az) * np.cos(el)], -1)
+
+
+# The painted hills are carried on round the horizon by folding the painted
+# span back and forth (a mirror at each end), so beyond the frame the hills
+# are still his paint, and the join is exact.
+_fold = unproject(np.array([INSET + FEATHER / 2, W - INSET - FEATHER / 2]), np.array([HORIZON_Y, HORIZON_Y]))
+AZ_L, AZ_R = np.arctan2(_fold[:, 0], -_fold[:, 2])
+
 LIC = None
 FLOW_S = None
 
 
-def field(d, colour_img, jitter=None):
+def field(d, colour_img, jitter=None, land=False):
     """Colour, travel direction (3D tangent), speed 0..1 for sky directions d."""
     n_ = len(d)
     az = np.arctan2(d[:, 0], -d[:, 2])
@@ -300,13 +357,32 @@ def field(d, colour_img, jitter=None):
         c_sky = lo + (hi - lo) * band[:, None]
     glow = (0.6 * w_x ** 2)[:, None]
     c_sky = c_sky * (1 - glow) + edge_col * glow
-    r_el = ridge_ext(az)
-    hk = np.clip(0.45 + 0.2 * noise3(d * 9.0, 1) + jit * 0.8, 0, 0.999) * (len(hill_pal) - 1)
-    c_hill = hill_pal[hk.astype(int)]
+    r_el = el_top(az)
+    u_ = (az - AZ_L) / (AZ_R - AZ_L)
+    tri = 1 - np.abs(1 - np.mod(u_, 2))
+    flipped = np.mod(np.floor(u_), 2) != 0
+    az_m = AZ_L + tri * (AZ_R - AZ_L)
+    frac = np.clip((el - EL_BASE) / np.maximum(r_el - EL_BASE, 1e-3), -0.4, 1.0)
+    d_m = dirs(az_m, EL_BASE + frac * (el_top(az_m) - EL_BASE))
+    pxm, pym, _ = project(d_m)
+    pym = np.maximum(pym, np.interp(pxm, np.arange(W), ridge_y) + 9 * SX)      # never the sky
+    hill_img = hills_soft if colour_img is scene_soft else hills_fine
+    hk = np.clip(0.55 + 0.25 * noise3(d * 9.0, 1) + jit * 0.8, 0, 0.999) * (len(hill_pal) - 1)
+    far_w = (0.45 * smoothstep(np.radians(60), np.radians(160), np.abs(az)))[:, None]
+    c_hill = samp(hill_img, pxm, pym) * (1 - far_w) + hill_pal[hk.astype(int)] * far_w
     bk = np.clip(0.3 + 0.12 * noise3(d * 6.0, 2) + jit * 0.5, 0, 0.999) * 5
     c_low = bush_pal[bk.astype(int)]
-    c_land = c_hill + (c_low - c_hill) * smoothstep(0.0, np.radians(7), r_el - el)[:, None]
+    c_land = c_hill + (c_low - c_hill) * smoothstep(0.0, np.radians(2.5), EL_BASE - el)[:, None]
     is_sky = smoothstep(-0.006, 0.006, el - r_el)
+    # ...and their strokes run as his do, mirrored where the span is folded.
+    lm = samp(line, pxm, pym)
+    t_m = norm(unproject(pxm + lm[:, 0] * 2, pym + lm[:, 1] * 2) - d_m)
+    east_m = np.stack([np.cos(az_m), np.zeros(n_), np.sin(az_m)], -1)
+    ce = (t_m * east_m).sum(-1) * np.where(flipped, -1.0, 1.0)
+    cn = (t_m * np.cross(d_m, east_m)).sum(-1)
+    east = np.stack([np.cos(az), np.zeros(n_), np.sin(az)], -1)
+    t_land = norm(ce[:, None] * east + cn[:, None] * np.cross(d, east))
+    t_ext = np.where(is_sky[:, None] > 0.5, t_ext, t_land)
     c_ext = c_land + (c_sky - c_land) * is_sky[:, None]
     s_ext = is_sky.copy()
 
@@ -344,6 +420,8 @@ def field(d, colour_img, jitter=None):
     speed = s_ext
     if inside.any():
         pxi, pyi = px[inside], py[inside]
+        if land:   # ground that stands a little above the painted skyline still takes land paint
+            pyi = np.maximum(pyi, np.interp(pxi, np.arange(W), ridge_y) + 5 * SX)
         col = samp(colour_img, pxi, pyi)
         l2 = samp(line, pxi, pyi)
         a2 = samp(arrow, pxi, pyi)
@@ -352,17 +430,13 @@ def field(d, colour_img, jitter=None):
         d2 = unproject(pxi + l2[:, 0] * 2, pyi + l2[:, 1] * 2)
         t3 = norm(d2 - d[inside])
         sm = samp(sky_mask, pxi, pyi)
-        sp = sm * np.clip(np.linalg.norm(a2, axis=-1) * 1.25, 0, 1)
+        sp = sm * np.clip(np.linalg.norm(a2, axis=-1) * 1.25, 0, 1) * (0.0 if land else 1.0)
         wi = w_p[inside][:, None]
         colour[inside] = c_ext[inside] * (1 - wi) + col * wi
         t[inside] = norm(t_ext[inside] * (1 - wi) + t3 * wi)
         speed[inside] = s_ext[inside] * (1 - wi[:, 0]) + sp * wi[:, 0]
     land_in_window = inside & (speed < 0.3) & (w_p > 0.5)
     return colour.astype(np.float32), t.astype(np.float32), speed.astype(np.float32), land_in_window
-
-
-def dirs(az, el):
-    return np.stack([np.sin(az) * np.cos(el), np.sin(el), -np.cos(az) * np.cos(el)], -1)
 
 
 def eq_sample(grid, d):
@@ -511,7 +585,6 @@ stars_fine.tofile(OUT / "land_strokes.bin")  # (name kept: drawn after the sky)
 # holds the same formulas; keep the two in step.
 EYE = np.array([0.0, 1.6, 0.0])
 FLOOR = -28.0       # valley floor below the knoll top; sets the church spire near 40 m
-NA = 1024
 
 
 def knoll(x, z):
@@ -524,8 +597,13 @@ def knoll(x, z):
     return -slope * f + und * smoothstep(3, 8, d)
 
 
-def bump(d, D):
-    return smoothstep(0.42 * D, D, d) * (1 - 0.75 * smoothstep(D, 1.5 * D, d))
+def bump(d, D, start):
+    return smoothstep(start * D, D, d) * (1 - 0.75 * smoothstep(D, 1.5 * D, d))
+
+
+# Where each range begins to rise, as a share of its distance. The painted
+# hills are a band above the village, not a long ramp from the valley floor.
+RISE_1, RISE_2 = 0.78, 0.6
 
 
 def smax(a, b, k):
@@ -533,30 +611,6 @@ def smax(a, b, k):
     return b * (1 - h) + a * h + k * h * (1 - h)
 
 
-def line_to_az_el(points):
-    pts = np.array(points, np.float32) * SX
-    xs = np.arange(pts[0, 0], pts[-1, 0])
-    dd = unproject(xs, np.interp(xs, pts[:, 0], pts[:, 1]))
-    return np.arctan2(dd[:, 0], -dd[:, 2]), np.arcsin(dd[:, 1])
-
-
-az_t = (np.arange(NA) + 0.5) / NA * 2 * np.pi - np.pi
-# nearer hills: the blue hills behind the village, and the low hills on the left
-a1, e1 = line_to_az_el([(14, 735), (100, 750), (190, 760), (480, 742), (520, 702), (560, 690), (610, 700), (650, 716),
-                        (700, 700), (760, 652), (840, 634), (900, 650), (950, 664), (1000, 652), (1100, 640),
-                        (1200, 626), (1266, 616)])
-# far mountains: the dark Alpilles on the right
-a2, e2 = line_to_az_el([(900, 668), (1000, 640), (1100, 600), (1150, 570), (1172, 526), (1210, 518), (1266, 514)])
-ext = ridge_ext(az_t)
-el1 = np.where(az_t < a1[0], ext, np.interp(az_t, a1, e1))
-right_of = az_t > a1[-1]
-el1[right_of] = np.radians(1.5) + (e1[-1] - np.radians(1.5)) * np.exp(-(az_t[right_of] - a1[-1]) / np.radians(20))
-el1[right_of] += np.radians(1.0) * np.sin(az_t[right_of] * 7) * (1 - np.exp(-(az_t[right_of] - a1[-1]) / 0.2))
-el2 = np.full(NA, -1.0)
-inside2 = (az_t >= a2[0]) & (az_t <= a2[-1])
-el2[inside2] = np.interp(az_t[inside2], a2, e2)
-el2[az_t > a2[-1]] = ext[az_t > a2[-1]]
-el2 = np.where(el2 > el1 + np.radians(0.4), el2, -1.0)
 D1 = 700 + 120 * np.sin(az_t * 3 + 1.0)
 D2 = 1600 + 200 * np.sin(az_t * 2)
 h1 = np.maximum(EYE[1] + D1 * np.tan(el1) - FLOOR, 0)
@@ -580,7 +634,7 @@ def terrain_np(x, z):
     floor = FLOOR + 1.2 * np.sin(x * 0.013 + 0.5) * np.sin(z * 0.011 + 1.0)
     base = smax(knoll(x, z), floor, 3.0)
     r = ridge_at(np.arctan2(x, -z))
-    return base + np.maximum(r[..., 0] * bump(d, r[..., 1]), r[..., 2] * bump(d, r[..., 3]))
+    return base + np.maximum(r[..., 0] * bump(d, r[..., 1], RISE_1), r[..., 2] * bump(d, r[..., 3], RISE_2))
 
 
 T_STEPS = 2.0 * (4000 / 2.0) ** (np.arange(240) / 239)
@@ -613,20 +667,22 @@ def ground_normal(P):
     return norm(np.stack([nx, np.full(len(P), 2 * e), nz], -1))
 
 
-def lay_on_ground(d, scale, rank):
+def lay_on_ground(d, scale, zone):
     """The painting's land strokes, set on the ground where the viewpoint sees
     them. A stroke lying flat on far ground would be seen almost edge-on and
     break up, so each is tipped up toward the viewpoint just enough to be seen
     at a fair angle (like a dab on a bush rather than a stain on the earth).
     From the viewpoint they look exactly as painted."""
     n_ = len(d)
-    col, t3, _, _ = field(d, scene_fine, rng.uniform(0, 1, n_))
+    col, t3, _, _ = field(d, scene_fine, rng.uniform(0, 1, n_), land=True)
     side = norm(np.cross(d, t3))
-    col2, _, _, _ = field(norm(d + side * np.radians(0.45) * scale), scene_fine, rng.uniform(0, 1, n_))
+    col2, _, _, _ = field(norm(d + side * np.radians(0.45) * scale), scene_fine, rng.uniform(0, 1, n_), land=True)
     t0 = cast(d)
     ok_ = np.isfinite(t0) & (t0 < 3500)
     t0 = np.where(ok_, t0, 1.0)
     P = EYE + t0[:, None] * d
+    far_ground = np.hypot(P[:, 0], P[:, 2]) > HILLS_FROM
+    ok_ &= far_ground if zone == 'hills' else ~far_ground
     N = ground_normal(P)
     # Only on the valley floor and knoll. On the far hills a tipped stroke
     # would stand above the ridge like a sail when seen from the valley.
@@ -657,37 +713,20 @@ def lay_on_ground(d, scale, rank):
     return out[ok_]
 
 
-def lay_hills(count, r0, r1, length, width, which):
-    """A full coat for the hills in their own scale, so they are painted from
-    wherever you stand, not only from the viewpoint. Strokes hatch diagonally
-    down the slopes, as his hill strokes do; colour is the ground's own."""
-    rad = np.sqrt(rng.uniform(r0 * r0, r1 * r1, count * 3))
-    ang = rng.uniform(0, 2 * np.pi, count * 3)
-    x, z = rad * np.sin(ang), -rad * np.cos(ang)
-    r = ridge_at(ang - np.pi * 2 * np.floor((ang + np.pi) / (2 * np.pi)))
-    rise_ = r[:, which * 2] * bump(rad, r[:, which * 2 + 1])
-    keep = rise_ > 4.0
-    x, z = x[keep][:count], z[keep][:count]
-    n_ = len(x)
-    P = np.stack([x, np.zeros(n_), z], -1)
-    N = ground_normal(P)
-    contour = norm(np.cross(N, np.array([0.0, 1, 0])) + 1e-4)
-    down = np.cross(N, contour)
-    turn_ = 0.45 + rng.normal(0, 0.22, n_)
-    T = norm(contour * np.cos(turn_)[:, None] + down * np.sin(turn_)[:, None])
-    gi = np.clip(np.log(np.hypot(x, z) / R_MIN) / np.log(R_MAX / R_MIN) * (NR_V - 1), 0, NR_V - 1).astype(int)
-    gj = ((np.arctan2(x, -z) + np.pi) / (2 * np.pi) * NA).astype(int) % NA
-    earth = ground_lo[gi, gj]
-    pick = lambda: hill_pal[rng.integers(0, len(hill_pal), n_)]
-    out = np.zeros((n_, 24), np.float32)
-    out[:, 0], out[:, 1], out[:, 2] = x, 0.05, z
-    out[:, 3] = rng.uniform(length[0], length[1], n_)
-    out[:, 4:7], out[:, 7] = T, rng.uniform(width[0], width[1], n_)
-    out[:, 8:11] = N
-    out[:, 12:15], out[:, 15] = earth * 0.5 + pick() * 0.5, rng.uniform(0, 1, n_)
-    out[:, 16:19], out[:, 19] = earth * 0.5 + pick() * 0.5, rng.integers(0, 8, n_)
-    out[:, 22], out[:, 23] = rng.uniform(-0.06, 0.06, n_), 1.0
-    return out
+HILLS_FROM = 430.0   # metres from the viewpoint: beyond this the land is "the hills"
+
+
+def hill_dirs(coverage, scale):
+    """Directions from the viewpoint spread evenly over the band of hills, all
+    the way round, enough for `coverage` coats of strokes at this scale."""
+    top = EL_TOP + np.radians(0.25)
+    lo = EL_BASE - np.radians(2.0)
+    area_deg2 = np.degrees(top - lo).sum() * 360.0 / NA
+    n_ = int(coverage * area_deg2 / (2.75 * 0.61 * 0.75 * scale * scale))
+    az = rng.uniform(-np.pi, np.pi, n_ * 2)
+    el = rng.uniform(lo, np.radians(13), n_ * 2)
+    keep = el < el_top(az) + np.radians(0.25)
+    return dirs(az[keep], el[keep])[:n_]
 
 
 def lay_unseen(count, radius):
@@ -741,12 +780,11 @@ def ring_grid(nr, na):
 
 
 gp, gdir, dist_ = ring_grid(NR_V, NA)
-_, _, lo_sp, _ = field(gdir, scene_soft)
-vis_lo = ((cast(gdir) > dist_ * 0.97) & (lo_sp < 0.3)).reshape(NR_V, NA).astype(np.float32)
+vis_lo = (cast(gdir) > dist_ * 0.97).reshape(NR_V, NA).astype(np.float32)
 gp, gdir, dist_ = ring_grid(NR, NA_C)
-seen_c = np.concatenate([field(gdir[i:i + 400000], scene_soft)[0] for i in range(0, len(gdir), 400000)])
+seen_c = np.concatenate([field(gdir[i:i + 400000], scene_soft, land=True)[0] for i in range(0, len(gdir), 400000)])
 visible = cv2.resize(vis_lo, (NA_C, NR), interpolation=cv2.INTER_LINEAR).ravel()[:, None]
-hk = np.clip(0.4 + 0.22 * noise3(gp * 0.004, 1), 0, 0.999) * (len(hill_pal) - 1)
+hk = np.clip(0.6 + 0.3 * noise3(gp * 0.004, 1), 0, 0.999) * (len(hill_pal) - 1)
 far_ = (np.hypot(gp[:, 0], gp[:, 2]) > 330)[:, None]     # hills are his hill blues; knoll and valley his dark greens
 hidden_c = np.where(far_, hill_pal[hk.astype(int)], bush_pal[(hk * 0.6).astype(int)])
 ground_col = (seen_c * visible + hidden_c * (1 - visible)).reshape(NR, NA_C, 3).astype(np.float32)
@@ -762,20 +800,26 @@ cand = cand[v & (px > 0) & (px < W) & (py > 0) & (py < H)]
 _, _, _, liw = field(cand, scene_fine)
 cand = cand[liw]
 # Broad coats first; each later coat is painted over the ones before.
-broad = np.concatenate([
-    lay_hills(8000, 500.0, 2400.0, (30, 55), (7, 13), 1),
-    lay_hills(30000, 280.0, 1080.0, (11, 20), (3, 5), 0),
-    lay_unseen(16000, 330.0),
+broad = lay_unseen(16000, 330.0)
+# THE HILLS: one piece, the same all the way round. Three coats, broad to
+# fine, each several strokes deep like the sky. Inside the frame the colours
+# and directions are the painting's; beyond it, the painting's carried on.
+hills = np.concatenate([
+    lay_on_ground(hill_dirs(2.2, 0.8), 0.8, 'hills'),
+    lay_on_ground(hill_dirs(2.4, 0.5), 0.5, 'hills'),
+    lay_on_ground(hill_dirs(1.4, 0.3), 0.3, 'hills'),
 ])
-ground = np.concatenate([
-    lay_on_ground(still, 1.0, 0.0),
-    lay_on_ground(cand[:7000], 0.5, 0.25),
-    lay_on_ground(cand[7000:25000], 0.27, 0.5),
-    lay_on_ground(cand[25000:51000], 0.16, 0.75),
+# THE VALLEY inside the frame (village, fields, bushes), as painted.
+valley = np.concatenate([
+    lay_on_ground(still, 1.0, 'valley'),
+    lay_on_ground(cand[:7000], 0.5, 'valley'),
+    lay_on_ground(cand[7000:25000], 0.27, 'valley'),
+    lay_on_ground(cand[25000:51000], 0.16, 'valley'),
 ])
+ground = np.concatenate([hills, valley])
 broad.tofile(OUT / "terrain_broad.bin")
 ground.tofile(OUT / "terrain_strokes.bin")
-print("broad coat", len(broad), "painting's land strokes", len(ground), "hills up to", float(h1.max() + FLOOR), float(h2.max() + FLOOR), "m")
+print("unseen ground", len(broad), "hills", len(hills), "valley", len(valley), "hills up to", float(h1.max() + FLOOR), float(h2.max() + FLOOR), "m")
 
 
 def hexes(p):

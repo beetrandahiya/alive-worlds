@@ -18,7 +18,10 @@ const smooth = (a: number, b: number, x: number) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
 };
-const bump = (d: number, D: number) => smooth(0.42 * D, D, d) * (1 - 0.75 * smooth(D, 1.5 * D, d));
+// Where each range begins to rise, as a share of its distance (see analyse.py).
+const RISE_1 = 0.78;
+const RISE_2 = 0.6;
+const bump = (d: number, D: number, start: number) => smooth(start * D, D, d) * (1 - 0.75 * smooth(D, 1.5 * D, d));
 
 function knoll(x: number, z: number, d: number): number {
   const fwd = -z / Math.max(d, 1e-3);
@@ -41,7 +44,7 @@ export function terrain(x: number, z: number): number {
   const p = (((i0 % NA) + NA) % NA) * 4;
   const q = ((i0 + 1 + NA) % NA) * 4;
   const r = (k: number) => ridge[p + k] * (1 - f) + ridge[q + k] * f;
-  return base + Math.max(r(0) * bump(d, r(1)), r(2) * bump(d, r(3)));
+  return base + Math.max(r(0) * bump(d, r(1), RISE_1), r(2) * bump(d, r(3), RISE_2));
 }
 
 /** Load the hill heights. Returns the texture the shaders read them from. */
@@ -60,8 +63,8 @@ export async function loadTerrain(base: string): Promise<THREE.DataTexture> {
 
 export const TERRAIN_GLSL = /* glsl */ `
 uniform sampler2D uRidge;
-float hillBump(float d, float D) {
-  return smoothstep(0.42 * D, D, d) * (1.0 - 0.75 * smoothstep(D, 1.5 * D, d));
+float hillBump(float d, float D, float start) {
+  return smoothstep(start * D, D, d) * (1.0 - 0.75 * smoothstep(D, 1.5 * D, d));
 }
 float terrain(vec2 p) {
   float d = length(p);
@@ -75,7 +78,7 @@ float terrain(vec2 p) {
   float h = clamp(0.5 + 0.5 * (a - fl) / 3.0, 0.0, 1.0);
   float base = mix(fl, a, h) + 3.0 * h * (1.0 - h);
   vec4 r = texture2D(uRidge, vec2(atan(p.x, -p.y) / 6.2831853 + 0.5, 0.5));
-  return base + max(r.x * hillBump(d, r.y), r.z * hillBump(d, r.w));
+  return base + max(r.x * hillBump(d, r.y, 0.78), r.z * hillBump(d, r.w, 0.6));
 }`;
 
 /** How far you can walk from the viewpoint in this study. */

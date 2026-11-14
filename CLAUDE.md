@@ -242,6 +242,20 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       Pieces: sky (done, the standard), cypress (done), hills, valley fields,
       grass underfoot, roads/tracks, village. Each: own rules, own reference,
       a fixed share of ~240k strokes, a designed join with its neighbours.
+      Study 06 BUILT 2026-11-14, AWAITING HEADSET TEST: HILLS as one piece.
+      All strokes fixed in the world. Beyond the frame the painted hills are
+      carried on round the horizon by folding the painted span back and forth
+      (mirror at each end, `AZ_L`/`AZ_R` in `analyse.py`), so colour and
+      stroke direction are his everywhere and the join is exact; the church
+      spire is removed from that source. Three coats (scales 0.8, 0.5, 0.3),
+      about 40k strokes, placed by line of sight from the viewpoint beyond
+      430 m. Hills now rise as a band (start at 78% / 60% of their distance)
+      instead of a long ramp. Land hidden by the cypress takes the land beside
+      it (fixes the grey rectangle); land never samples sky colour (fixes the
+      pale peak). Total about 230k strokes. Known flaws: a pale upright smear
+      in the hills left of the cypress; from the valley the hill strokes are
+      still those laid for the viewpoint; valley floor ends in a hard dark
+      edge right of the painted view (next piece: valley fields).
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
