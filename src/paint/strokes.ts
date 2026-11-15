@@ -198,7 +198,7 @@ export function groundUndercoat(g: THREE.BufferGeometry): THREE.Mesh {
   const m = new THREE.ShaderMaterial({
     vertexShader: GROUND_VERT,
     fragmentShader: GROUND_FRAG,
-    uniforms: { uGround: shared.uGround, uGroundRange: shared.uGroundRange },
+    uniforms: { uGround: shared.uGround, uGroundRange: shared.uGroundRange, uCentre: shared.uCentre },
     side: THREE.DoubleSide,
     // No depth offset here: on far mountains it would push the ground onto the
     // sky's depth and let sky strokes speckle through. Coats laid on the land

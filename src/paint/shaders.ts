@@ -59,6 +59,7 @@ void main() {
 export const GROUND_FRAG = /* glsl */ `
 uniform sampler2D uGround;
 uniform vec2 uGroundRange;
+uniform vec3 uCentre;
 varying vec3 vWorld;
 void main() {
   float d = max(length(vWorld.xz), uGroundRange.x);
@@ -72,7 +73,8 @@ void main() {
   // and the strokes at your feet do the painting.
   // For now only the far hills carry sharp paint. The valley is being
   // rebuilt as a real place and wears a plain soft tone until it is painted.
-  float sharp = smoothstep(380.0, 470.0, length(vWorld.xz));
+  // his paint on the land from just behind the groves outward; nearer, and near the walker, a soft tone
+  float sharp = smoothstep(285.0, 330.0, length(vWorld.xz)) * smoothstep(45.0, 120.0, distance(vWorld.xz, uCentre.xz));
   // Far flat ground wears the painting as the start sees it (the land the groves stand on, the pale
   // fields with their dark outlines). Only behind the cypress, where he painted nothing and the
   // fill would run to streaks, does flat ground stay a soft tone; the hills there are painted.

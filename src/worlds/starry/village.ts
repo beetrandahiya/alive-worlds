@@ -955,6 +955,23 @@ export async function buildVillage(base: string) {
     }
     return false;
   };
+  // TREES HE PAINTED THAT WERE MISSING (found 2026-11-15 by drawing our trees over his canvas): the
+  // top grove row on the foot of the hills, the mound right of it, and the dark bushes right of the lit
+  // house. Each is read off the canvas (centre column, foot row, width, height, in 1280 units) and stood
+  // where its line of sight from the start meets the land.
+  const more: number[][] = [];
+  for (let cx = 888; cx < 1130; cx += 33) more.push([cx, 762 - ((cx - 888) / 242) * 6, 46, 44]);
+  more.push([1160, 754, 58, 34], [1206, 750, 62, 38], [1252, 752, 58, 34], [1036, 872, 62, 38], [1090, 875, 58, 34]);
+  for (const [cx, base, wpx, hpx] of more) {
+    const a = (cx - cam.W / 2) / cam.F, b = -(base - cam.H / 2) / cam.F;
+    const d = new THREE.Vector3(a, b * CP + SP, -(CP - b * SP)).normalize();
+    for (let t = 80; t < 900; t += 1) {
+      const q = new THREE.Vector3(d.x * t, 1.6 + d.y * t, d.z * t);
+      if (q.y > terrain(q.x, q.z)) continue;
+      data.trees.push({ x: q.x, z: q.z, r: ((wpx / 2) * t) / cam.F, h: (hpx * t) / cam.F, colour: [0.14, 0.2, 0.26] });
+      break;
+    }
+  }
   const shown = data.trees.map((t) => {
     const y = terrain(t.x, t.z) + t.h * 0.5;
     let n = 0;

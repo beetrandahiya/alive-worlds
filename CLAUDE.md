@@ -852,6 +852,26 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       the distance of the tree just below it. 339 outline strokes on trees.
       In stills the outlines read clearly on the groves; the top edge of the
       far row against the hills is still weaker than his.
+      Study 31 (owner, headset screenshot, 2026-11-15): the marked places
+      were STILL without their dark outlines: above the left grove row, the
+      upper right, and the gap right of the lit house. "Don't make me go over
+      this again and again."
+      ROOT CAUSE, found by drawing our trees as circles over his canvas
+      (do this check FIRST next time): the grove rows in village.py were three
+      level rows at canvas rows 808-858, but his upper row climbs to rows
+      720-760 on the foot of the hills. No tree stood where the owner was
+      pointing, so no outline could land there; and the land just behind the
+      left row (285-380 m) was a soft tone.
+      Study 32 PUBLISHED 2026-11-15, AWAITING HEADSET TEST:
+      - 13 trees added in village.ts (`more`: 8 along the top row px 888-1120,
+        3 for the mound px 1160-1252, 2 dark bushes right of the lit house),
+        each stood where its line of sight meets the land (the top row is
+        about 650 m out, on the hill foot). They wear his paint and catch his
+        traced outlines (399 outline strokes now).
+      - Land wears his paint from 285 m out (was 380), softening within
+        45-120 m of the walker (`uCentre` in the GROUND shader).
+      In the still the top row and mound now stand with their outlines; a
+      small soft patch remains just left of the spire.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
