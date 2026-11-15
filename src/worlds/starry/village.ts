@@ -739,12 +739,12 @@ export async function buildVillage(base: string) {
     let L = [0, 0, 0, 1, 0];
     const v = (i: number) => {
       const px = ip.getX(i), py = ip.getY(i), pz = ip.getZ(i);
-      const lump = 1 + 0.16 * Math.sin(px * 5 + turn + L[4]) * Math.cos(pz * 4 + py * 3 + L[4]);
+      const lump = HIS && skinned ? 1 : 1 + 0.16 * Math.sin(px * 5 + turn + L[4]) * Math.cos(pz * 4 + py * 3 + L[4]);
       const cx = px * Math.cos(turn + L[4]) - pz * Math.sin(turn + L[4]), cz = px * Math.sin(turn + L[4]) + pz * Math.cos(turn + L[4]);
       return [x + L[0] + cx * wide * lump * L[3], y + L[1] + py * high * 0.55 * lump * L[3], z + L[2] + cz * wide * lump * L[3]];
     };
     const lumps: number[][] = [[0, 0, 0, 1, 0]];
-    if (skinned) {
+    if (skinned && !HIS) {
       const n = 4 + Math.floor(r.next() * 3);
       for (let k = 0; k < n; k++) {
         const a = (k / n) * 6.283 + r.range(-0.5, 0.5), e = r.range(-0.15, 0.75), sz = r.range(0.42, 0.62);
@@ -768,7 +768,7 @@ export async function buildVillage(base: string) {
         n.normalize();
         if (n.dot(a.clone().addScaledVector(ab, 1 / 3).addScaledVector(ac, 1 / 3).sub(new THREE.Vector3(mid.x + L[0], mid.y + L[1], mid.z + L[2]))) < 0) n.negate();
         const u = ab.clone().normalize(), w2 = n.clone().cross(u);
-        const want = (area * 1.15 * dens) / (0.8 * 0.24);
+        const want = HIS ? 0 : (area * 1.15 * dens) / (0.8 * 0.24);
         const count = Math.floor(want) + (r.next() < want % 1 ? 1 : 0);
         for (let k = 0; k < count; k++) {
           let e = r.next(), g2 = r.next();
@@ -776,7 +776,7 @@ export async function buildVillage(base: string) {
           daub(foldAt(F, n), a.clone().addScaledVector(ab, e).addScaledVector(ac, g2), u, w2, n, r.range(0.5, 1.15), r.range(0.17, 0.3), 0.06, undefined, 1);
         }
         // and big boughs of paint that stand off the mass and break its outline, always there
-        const big = (area * 0.19 * dens) / (1.4 * 0.4);
+        const big = HIS ? 0 : (area * 0.19 * dens) / (1.4 * 0.4);
         const nb = Math.floor(big) + (r.next() < big % 1 ? 1 : 0);
         const keep = coat;
         coat = boughs;
@@ -802,6 +802,66 @@ export async function buildVillage(base: string) {
    * Each stroke takes its colour from his paint of that tree, read along the arch.
    */
   const ARCH = new URLSearchParams(location.search).get('trees') === 'arch';
+  /**
+   * HIS OWN STROKES ON THE TREES (?trees=his). tools/starry/tree_strokes.py traces
+   * each stroke he laid on the groves and bushes: its two ends, its bow, its
+   * width, its colour. Each is laid on the tree it belongs to as one long
+   * raised stroke, where he put it. From far a tree is those few long strokes
+   * and nothing else on top; the mass beneath wears the same paint.
+   */
+  const HIS = new URLSearchParams(location.search).get('trees') === 'his';
+  const hisStrokes = HIS ? new Float32Array((await fetch(base + 'tree_strokes.bin' + VER).then((q) => q.arrayBuffer())) as ArrayBuffer) : new Float32Array(0);
+  const long = new StrokeWriter();
+  const layHis = (x: number, y: number, z: number, wide: number, ry: number, src: number[], srcR: number, srcRy: number) => {
+    const ray = (px: number, py: number) => {
+      const a = (px - cam.W / 2) / cam.F, b = -(py - cam.H / 2) / cam.F;
+      const d = new THREE.Vector3(a, b * CP + SP, -(CP - b * SP));
+      return d.normalize();
+    };
+    // where a line of sight from the start meets his tree, as a point of the unit ball (or the nearest point of its rim)
+    const onBall = (px: number, py: number) => {
+      const d = ray(px, py);
+      const o = new THREE.Vector3((0 - src[0]) / srcR, (1.6 - src[1]) / srcRy, (0 - src[2]) / srcR);
+      const e = new THREE.Vector3(d.x / srcR, d.y / srcRy, d.z / srcR);
+      const A = e.dot(e), B = 2 * o.dot(e), C = o.dot(o) - 1;
+      const disc = B * B - 4 * A * C;
+      const t = disc > 0 ? (-B - Math.sqrt(disc)) / (2 * A) : -B / (2 * A);
+      return { q: o.addScaledVector(e, t).normalize(), hit: disc > 0, miss: disc < -4 * A * 0.35 };
+    };
+    const place = (q: THREE.Vector3, k: number) => new THREE.Vector3(x + q.x * wide * k, y + q.y * ry * k, z + q.z * wide * k);
+    const far = Math.hypot(src[0], src[2]), vx = src[0] / far, vz = src[2] / far;
+    for (let i = 0; i < hisStrokes.length; i += 12) {
+      const h = hisStrokes.subarray(i, i + 12);
+      const mx = (h[0] + h[2]) / 2, my = (h[1] + h[3]) / 2;
+      const c = onBall(mx, my);
+      if (!c.hit) continue;
+      const cx = h[2] - h[0], cy = h[3] - h[1], L = Math.hypot(cx, cy);
+      const a = onBall(h[0], h[1]), b = onBall(h[2], h[3]);
+      if (a.miss || b.miss) continue;
+      const m = onBall(mx - (cy / L) * h[4] * L, my + (cx / L) * h[4] * L).q; // the stroke's own middle, bowed off its chord
+      for (const back of [false, true]) {
+        const turn = (q: THREE.Vector3) => {
+          if (!back) return q.clone();
+          const along = q.x * vx + q.z * vz; // the far side: the near side seen through
+          return new THREE.Vector3(q.x - 2 * along * vx, q.y, q.z - 2 * along * vz);
+        };
+        const qa = turn(a.q), qb = turn(b.q), qm = turn(m);
+        const A3 = place(qa, 1.03), B3 = place(qb, 1.03), M3 = place(qm, 1.05);
+        const t = B3.clone().sub(A3);
+        const len = t.length();
+        if (len < 0.25) continue;
+        t.normalize();
+        const n = new THREE.Vector3(qm.x / wide, qm.y / ry, qm.z / wide).normalize();
+        n.addScaledVector(t, -n.dot(t)).normalize();
+        const side = n.clone().cross(t);
+        const dev = M3.clone().sub(A3.clone().lerp(B3, 0.5));
+        const wid = Math.max(0.12, (h[5] * Math.hypot(src[0], src[2]) / cam.F) * (wide / srcR));
+        // lifted off the ball by as much as the ball swells between the stroke's ends, so it lies along the surface
+        const sag = (len * len) / (8 * ((wide + ry) / 2)) + 0.04;
+        long.add({ p: A3.addScaledVector(n, sag * 0.8), t, n, length: len, width: wid * 1.15, lift: 0, bend: dev.dot(side) / len, colour: [h[6], h[7], h[8]], streak: [h[9], h[10], h[11]], seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0 });
+      }
+    }
+  };
   const arches = new StrokeWriter();
   const archTree = (x: number, z: number, wide: number, high: number, src: number[], srcR: number) => {
     const y0 = terrain(x, z) - 0.2;
@@ -916,6 +976,7 @@ export async function buildVillage(base: string) {
       });
     }
     const from = [src.x, terrain(src.x, src.z) + src.h * 0.5, src.z];
+    if (HIS) layHis(x, terrain(x, z) + t.h * 0.5, z, t.r, t.h * 0.55, from, src.r, src.h * 0.55);
     if (ARCH) archTree(x, z, t.r, t.h, from, src.r);
     else tree(x, z, t.r, t.h, t.colour.map((c) => c * 0.85), true, from);
   });
@@ -1003,6 +1064,8 @@ export async function buildVillage(base: string) {
   group.add(surfaceStrokes(lines.data(), { segments: 2 }));
   group.add(surfaceStrokes(boughs.data(), { segments: 3 }));
   if (ARCH) group.add(surfaceStrokes(arches.data(), { segments: 5 }));
+  if (HIS) group.add(surfaceStrokes(long.data(), { segments: 6 }));
+  if (HIS) console.info('village his tree strokes', long.data().length / 24);
   if (ARCH) console.info('village arch strokes', arches.data().length / 24);
   console.info('village tree boughs', boughs.data().length / 24);
   console.info('village outline strokes', lines.data().length / 24);

@@ -778,6 +778,20 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       all 47 painted trees. Reads as nested arches, but too dark (heart shows
       too much), too upright and uniform, stringy up close, and further from
       his painting from the start than the skinned trees. Shown to owner.
+      Owner (2026-11-15) on the arch first try: "ugly"; in the real painting
+      a tree from far is full long strokes each spanning about half the tree;
+      "do the stroke by stroke research again".
+      SECOND TRY, stills only, behind `?trees=his`: `tools/starry/
+      tree_strokes.py` follows each stroke on the canvas along the paint's own
+      direction while its colour holds (2,095 strokes; x0 y0 x1 y1 bow width
+      colour streak -> `public/starry/tree_strokes.bin`; check picture
+      `reference/debug_tree_strokes.jpg`). `layHis()` in village.ts lays each
+      on the tree its line of sight meets, as one long bowed raised stroke,
+      mirrored onto the far side; the mass beneath is the smooth skinned
+      ellipsoid, no lumps, no other strokes. About 2.7k strokes, always drawn.
+      Much closer to the painting from the start. Known: tracing cuts his
+      longest strokes short (median 1.2 cm, 90% 2.6 cm of canvas; his arches
+      run 3-5 cm); form is still a rounded mass. Shown to owner.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
