@@ -2,11 +2,11 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Hills behind the cypress', 'Step left of the start, or look from the valley. The gap in the hills there is filled: the hills now carry on behind the cypress at a gentle height, in his hill paint. Right?'],
-  ['From the start', 'The hills must look exactly as before on both sides of the cypress. The groves have more strokes standing on them now. Still his painting?'],
-  ['Trees, big', 'Every tree is now a mass with strokes of paint standing and curling off it, like the cypress. Walk up to the big one by the front houses. Better than the painted ball?'],
-  ['Trees, small', 'The small trees round the edges wear the whole of one of his trees, not a magnified piece: the horizontal bands should be gone.'],
-  ['Frame rate', 'About 16,000 more strokes are always drawn. Still 72, especially among the groves on the right?'],
+  ['Hills behind the cypress', 'Step left of the start, or look from the valley toward where the cypress stood in your view. There are hills there now, 40 to 45 m high, in his hill paint. (Last time I had raised the wrong line and nothing changed.) Are they there for you?'],
+  ['From the start', 'Sky, stars, moon and cypress are exactly the files you approved. The hills on the right were re-laid by the same rule, so single strokes differ. Anything look wrong?'],
+  ['Trees are back as they were', 'The trees are put back to the earlier version (his paint on a rounded mass, a few big strokes standing off). The shimmer behind the town should be gone. They are NOT the final trees: see the tree study page.'],
+  ['Small trees', 'Plain again for now, no stripes. They wait for the tree study too.'],
+  ['Frame rate', 'Still 72?'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

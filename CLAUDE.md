@@ -742,6 +742,33 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
         LESSON: whatever is under the strokes must itself read as his paint
         from the start.
       GROUND STUDY in progress (reference/vangogh/GROUND_STUDY.md).
+      Study 27 (headset, 2026-11-15): REJECTED on trees and hills. Trees "a
+      mess": a tree inside with strokes outside reads as two things; far
+      groves behind the town SHIMMER (too many small standing strokes far
+      away); small trees still striped; the start view looked odd because of
+      the trees. Hills behind the cypress STILL not there. Owner: start again
+      from basic principles (what an olive tree looks like in his paintings),
+      do not jump steps; do not build the roads yet.
+      WHY THE HILLS DID NOT CHANGE: analyse.py has TWO point lists. `RIDGE`
+      only separates sky from land in the picture; the hills' actual heights
+      come from `a1, e1 = line_to_az_el([...])` further down. Study 27 edited
+      RIDGE only. LESSON: after any terrain change, print ridge.bin by
+      compass direction and count hill strokes by direction before claiming
+      anything (both are one-liners; see this session).
+      Study 28 PUBLISHED 2026-11-15, AWAITING HEADSET TEST:
+      - Both lists now carry the hills on behind the cypress (px 200-455,
+        rows 684-712). Baked heights there: 40-45 m (were 2-6 m); hill strokes
+        there: about 380 per 5 degrees (were about 15). The dips at the
+        tree's two edges (px 190 and 480) are his and stay.
+      - Sky strokes, star dabs, sky undercoat and all palettes restored to the
+        Study 26 files byte for byte (a rebake re-rolls them). Start view
+        differs from Study 26 by 4.4% of pixels: hills right of the church
+        re-laid by the same rule, and trees.
+      - Trees put back to the Study 26 builder; small extra trees plain.
+      TREE STUDY shown to owner as an artifact (his trees are nested arches:
+      each grove tree is a fan of 5-8 bowed strokes with a dark contour; big
+      bushes are concentric shells). Nothing to be built until the owner
+      agrees the concept. GROUND: study shown, on hold until trees are right.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

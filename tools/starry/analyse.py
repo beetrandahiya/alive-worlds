@@ -102,8 +102,8 @@ cyp = cv2.dilate(cyp, np.ones((int(15 * SX), int(15 * SX)), np.uint8))
 RIDGE = np.array([
     # behind the cypress (px 195-440, hidden from the start) the hills carry on at a gentle height
     # instead of sinking to nothing: seen from anywhere else that gap was an empty blur
-    (0, 735), (100, 750), (190, 760), (195, 758), (230, 728), (300, 712), (380, 715), (440, 730),
-    (480, 742), (520, 702), (560, 690),
+    (0, 735), (100, 750), (190, 760), (200, 750), (235, 705), (290, 686), (340, 684), (390, 690), (425, 708),
+    (455, 730), (480, 742), (520, 702), (560, 690),
     (610, 700), (650, 716), (700, 700), (760, 652), (840, 634), (900, 650),
     (950, 664), (1000, 640), (1100, 600), (1150, 570), (1172, 526),
     (1210, 518), (1280, 514)], np.float32) * SX
@@ -278,7 +278,10 @@ def line_to_az_el(points):
 
 az_t = (np.arange(NA) + 0.5) / NA * 2 * np.pi - np.pi
 # nearer hills: the blue hills behind the village, and the low hills on the left
-a1, e1 = line_to_az_el([(14, 735), (100, 750), (190, 760), (480, 742), (520, 702), (560, 690), (610, 700), (650, 716),
+# (behind the cypress, px 200-455, he hid a dip in these hills; there they carry on at the height of
+# their neighbours, inside the tree's outline so the start view is untouched)
+a1, e1 = line_to_az_el([(14, 735), (100, 750), (190, 760), (200, 750), (235, 705), (290, 686), (340, 684), (390, 690), (425, 708),
+                        (455, 730), (480, 742), (520, 702), (560, 690), (610, 700), (650, 716),
                         (700, 700), (760, 652), (840, 634), (900, 650), (950, 664), (1000, 652), (1100, 640),
                         (1200, 626), (1266, 616)])
 # far mountains: the dark Alpilles on the right
