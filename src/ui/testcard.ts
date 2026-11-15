@@ -2,10 +2,10 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Hills behind the cypress', 'Step left of the start, or look from the valley toward where the cypress stood in your view. There are hills there now, 40 to 45 m high, in his hill paint. (Last time I had raised the wrong line and nothing changed.) Are they there for you?'],
-  ['From the start', 'Sky, stars, moon and cypress are exactly the files you approved. The hills on the right were re-laid by the same rule, so single strokes differ. Anything look wrong?'],
-  ['Trees are back as they were', 'The trees are put back to the earlier version (his paint on a rounded mass, a few big strokes standing off). The shimmer behind the town should be gone. They are NOT the final trees: see the tree study page.'],
-  ['Small trees', 'Plain again for now, no stripes. They wait for the tree study too.'],
+  ['Trees as they were', 'The trees and the land round them are back to how they were when the gable and spire were fixed. Do they look right again from the start?'],
+  ['Groves and hills', 'The far row of trees should meet the hills again, and the pale fields on the right should have his paint and dark outlines, not a blur.'],
+  ['Hills behind the cypress', 'Step left of the start: there should be hills where the cypress stood in your view, not a blurry gap.'],
+  ['Shimmer', 'Any shimmer in the trees behind the town?'],
   ['Frame rate', 'Still 72?'],
 ];
 

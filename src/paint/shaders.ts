@@ -73,8 +73,12 @@ void main() {
   // For now only the far hills carry sharp paint. The valley is being
   // rebuilt as a real place and wears a plain soft tone until it is painted.
   float sharp = smoothstep(380.0, 470.0, length(vWorld.xz));
-  // only the hills: far flat ground wearing the painting as seen from the start runs to streaks from anywhere else
-  sharp *= smoothstep(-25.0, -17.0, vWorld.y);
+  // Far flat ground wears the painting as the start sees it (the land the groves stand on, the pale
+  // fields with their dark outlines). Only behind the cypress, where he painted nothing and the
+  // fill would run to streaks, does flat ground stay a soft tone; the hills there are painted.
+  float azg = atan(vWorld.x, -vWorld.z);
+  float hidden = smoothstep(-0.50, -0.44, azg) * (1.0 - smoothstep(-0.16, -0.10, azg));
+  sharp *= mix(1.0, smoothstep(-25.0, -17.0, vWorld.y), hidden);
   vec3 tone = textureLod(uGround, uv, 5.0).rgb;
   // Right round the start every compass direction meets in a point, and the tone would fan out
   // from it like spokes; there the ground takes the one tone of the ring round the start.

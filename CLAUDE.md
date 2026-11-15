@@ -814,6 +814,19 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       LESSON: rebuilding his paint from parts by my own rules (arches, traced
       bars) loses what makes it his; where a thing already reads as his from
       the start, change its SHAPE if the shape is wrong, never its paint.
+      Owner then asked to look at what was different "back when we fixed the
+      gable and spire" (Studies 24/25), when the trees were good.
+      FOUND: the tree code was already the same as then. What had changed was
+      the LAND BEHIND THEM: Study 26 made all far flat ground a soft tone (to
+      stop streaks behind the cypress), which blurred the ground the groves
+      stand on and the pale fields on the right, so the trees no longer met
+      the hills. That was the "blurry, empty" look the owner marked.
+      Study 29 PUBLISHED 2026-11-15, AWAITING HEADSET TEST: far flat ground
+      wears the painting again as in Study 25, except in the compass span
+      hidden by the cypress (az -0.47..-0.13 rad), where it stays soft and
+      the new hills stand. Start view matches Study 25's still closely.
+      LESSON: when something that was good looks worse, diff against the
+      version where it was good BEFORE redesigning it.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
