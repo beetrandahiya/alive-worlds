@@ -876,6 +876,25 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       TREES AND OUTLINES PARKED HERE. Next piece proposed: the ground (lane,
       village streets, fields), per the ground study; concept and lane
       colours still need the owner's yes.
+      Owner (2026-11-15): "just build it"; the ground study had missed the
+      GOLDEN WHEAT and had given the town street the trees' blue colours; and
+      DO NOT read pictures with a Python script: LOOK at them directly (the
+      model's own vision) and describe what is there. STANDING INSTRUCTION.
+      Study 33 PUBLISHED 2026-11-15, AWAITING HEADSET TEST: THE GROUND.
+      Looked at F683, F657, F735 directly. Patches of his paint cut to
+      `public/starry/paint_{road,verge,wheat,street}.jpg`. In village.ts
+      (block "THE GROUND, IN HIS PAINT"): every road is cut into 20 m sets of
+      flat ground-hugging strokes (0.42-0.85 x 0.07-0.13 m) running along it,
+      each coloured from one point of the patch walked along the road; the
+      lane (last road) uses his night road + a 0.5 m green verge each side;
+      streets use the sand/ochre of F657 at 82%. A stroke on ground the start
+      can see takes the Starry Night's own colour there instead, and the
+      street surface keeps its dark tone there. Wheat: 17k standing leaning
+      strokes (0.55-1.0 m) over the walled field in F683's golds, laid flat
+      in storm patches. Sets show within 78 m, fade 62-42 m (wheat 110-70).
+      176k ground strokes in all, about 15-25k drawn at once (estimate).
+      Start view differs 1% from Study 32. Fields outside the walled one and
+      open valley ground are still plain.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

@@ -2,11 +2,11 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Top row of trees', 'The upper grove row on the right, on the foot of the hills, and the mound beside it were missing altogether. They now stand there with his dark outlines. Is your right-hand mark fixed?'],
-  ['Behind the spire', 'The land just behind the left grove row now wears his paint instead of a blur. Is your left-hand mark fixed?'],
-  ['By the lit house', 'Two dark bushes he painted now stand in the gap right of the lit house. Is the gap closed?'],
-  ['Walking', 'Walk out past the groves: the far ground wears his paint only at a distance and softens round you. Anything odd underfoot out there?'],
-  ['Frame rate', 'Still 72?'],
+  ['The lane', 'Walk down from the start. The lane is now his night road: long pale grey strokes running along it, green and yellow dashes among them, a ragged green verge. Right colours? Right size underfoot?'],
+  ['The wheat field', 'Over the wall: golden wheat from the field beside his night road, standing and leaning, flattened in places. Golden enough? Right height (about knee to waist)?'],
+  ['Village streets', 'Streets are warm sand and ochre strokes from his Large Plane Trees picture, a little dimmed for night. Where the start can see a street it keeps the painting\'s dark colour instead. Does that change of colour show as you walk?'],
+  ['From the start', 'Should look as before.'],
+  ['Frame rate', 'On the lane, by the field, and in a street: still 72? Do the ground strokes pop in as you walk (they appear within about 60 m)?'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

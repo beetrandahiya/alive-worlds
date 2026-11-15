@@ -1,7 +1,7 @@
 import { VER } from '../../version';
 import * as THREE from 'three';
 import { canvasForms, rng, StrokeWriter, surfaceStrokes } from '../../paint/strokes';
-import { terrain } from './terrain';
+import { terrain, TERRAIN_GLSL } from './terrain';
 
 /**
  * The village, the asylum, the walled wheat field and the valley's trees, as a
@@ -619,7 +619,7 @@ export async function buildVillage(base: string) {
       const near = c[0].clone().lerp(c[1], u), far = c[3].clone().lerp(c[2], u);
       return near.lerp(far, v);
     };
-    const WHEAT = [0.43, 0.37, 0.2], LAID = [0.33, 0.29, 0.31]; // dull yellow-ochre and violet, as in his moonrise painting of this field
+    const WHEAT = [0.45, 0.33, 0.1], LAID = [0.36, 0.27, 0.1]; // dull yellow-ochre and violet, as in his moonrise painting of this field
     const N = 16;
     for (let i = 0; i < N; i++) {
       for (let j = 0; j < N; j++) {
@@ -720,17 +720,20 @@ export async function buildVillage(base: string) {
           const x = m.x + side.x * sg * e, z = m.y + side.y * sg * e;
           return [x, terrain(x, z) + 0.06, z];
         };
-        quad(v(p, -1), v(p, 1), v(q, 1), v(q, -1), colour);
+        // where the start can see the street it keeps the painting's own dark tone, so the painted view is his
+        quad(v(p, -1), v(p, 1), v(q, 1), v(q, -1), seenFromStart(p.x, terrain(p.x, p.y), p.y) ? data.road.map((c) => c * 0.8) : colour);
       }
     }
   };
-  const roadColour = data.road.map((c) => c * 0.8);
-  for (const rd of roads) strip(rd.pts, rd.half, roadColour);
+  // under the strokes: the street's own sand, the lane's pale grey (his colours, dimmed to a tone)
+  roads.forEach((rd, i) => strip(rd.pts, rd.half, i === roads.length - 1 ? [0.5, 0.52, 0.5] : [0.46, 0.4, 0.28]));
 
   // --- trees: the ones he painted, where he painted them, then groves beyond the frame
   const ico = new THREE.IcosahedronGeometry(1, 1);
   const ip = ico.getAttribute('position');
   const treeAt: THREE.Vector3[] = [];
+  const groundSets: { mesh: THREE.Mesh; x: number; z: number; reach: number }[] = [];
+  const groundGroup = new THREE.Group();
   const boughs = new StrokeWriter();
   const treeTris: number[] = []; // every face of the painted trees, for laying his dark outlines on them
   const tree = (x: number, z: number, wide: number, high: number, colour: number[], skinned = false, paintAt?: number[], dens = 1) => {
@@ -1086,8 +1089,89 @@ export async function buildVillage(base: string) {
   g.setAttribute('aFoldB', new THREE.Float32BufferAttribute(foldB, 4));
   const group = new THREE.Group();
   group.add(canvasForms(g, canvasTex, cam, CAN));
+  group.add(groundGroup);
   group.add(surfaceStrokes(lines.data(), { segments: 2 }));
   group.add(surfaceStrokes(boughs.data(), { segments: 3 }));
+  // THE GROUND, IN HIS PAINT (Study 33). Looked at directly, picture by picture:
+  // - Road with Cypress and Star (his night road): long thin strokes running ALONG the road, pale
+  //   grey-lilac with green and yellow dashes among them; a ragged band of green grass at its edge.
+  // - The Large Plane Trees: the town street is warm sand and ochre, with darker brown-orange drifts.
+  // - The wheat beside that night road: golden-ochre blades, upright and leaning one way, dark gaps
+  //   between, a few pale and blue-grey ones.
+  // Each stroke takes its colour from one point of his paint in those pictures, walked along the
+  // ground. Where the start can see the ground, a stroke takes the Starry Night's own colour there
+  // instead, so the painted view stays his.
+  {
+    const [roadImg, streetImg, vergeImg, wheatImg] = await Promise.all(
+      ['paint_road.jpg', 'paint_street.jpg', 'paint_verge.jpg', 'paint_wheat.jpg'].map((f) => new THREE.ImageLoader().loadAsync(base + f + VER)),
+    );
+    const patch = (im: HTMLImageElement, dim = 1) => {
+      const w = im.width, h = im.height, px = pixels(im, w, h);
+      // metres along and across, walked over the patch and folded back at its edges
+      return (a: number, b: number, scale: number) => {
+        const fold = (t: number) => 1 - Math.abs(1 - (((t % 2) + 2) % 2));
+        const x = Math.min(w - 1, Math.floor(fold((a * scale) / w) * w)), y = Math.min(h - 1, Math.floor(fold((b * scale) / h) * h));
+        const k = (y * w + x) * 4;
+        return [(px[k] / 255) * dim, (px[k + 1] / 255) * dim, (px[k + 2] / 255) * dim];
+      };
+    };
+    const roadPaint = patch(roadImg), streetPaint = patch(streetImg, 0.82), vergePaint = patch(vergeImg), wheatPaint = patch(wheatImg);
+    const fromStart = (x: number, y: number, z: number) => {
+      const q = seenAt([x, y, z]);
+      if (-z < 30 || q[0] < 524 || q[0] > 1265 || q[1] < 624 || q[1] > 1004) return null;
+      return hiddenFromStart(x, y + 0.3, z) ? null : hisPaint(q[0], q[1]).colour;
+    };
+    const flat: { w: StrokeWriter; x: number; z: number }[] = [];
+    const up = new THREE.Vector3(0, 1, 0);
+    roads.forEach((rd, ri) => {
+      const lane = ri === roads.length - 1;
+      const paint = lane ? roadPaint : streetPaint;
+      let run = 0;
+      for (let i = 0; i < rd.pts.length - 1; i++) {
+        const a = rd.pts[i], b = rd.pts[i + 1], L = a.distanceTo(b);
+        const tx = (b.x - a.x) / L, tz = (b.y - a.y) / L;
+        for (let d0 = 0; d0 < L; d0 += 20) {
+          const d1 = Math.min(L, d0 + 20), mid = a.clone().lerp(b, (d0 + d1) / 2 / L);
+          const set = { w: new StrokeWriter(), x: mid.x, z: mid.y };
+          flat.push(set);
+          const lay = (count: number, off0: number, off1: number, len: [number, number], wid: [number, number], wander: number, src: typeof paint, scale: number) => {
+            for (let k = 0; k < count; k++) {
+              const s = r.range(d0, d1), o = r.range(off0, off1);
+              const x = a.x + tx * s - tz * o, z = a.y + tz * s + tx * o;
+              const an = r.range(-wander, wander) + 0.12 * Math.sin((run + s) * 0.21);
+              const t = new THREE.Vector3(tx * Math.cos(an) - tz * Math.sin(an), 0, tz * Math.cos(an) + tx * Math.sin(an));
+              const length = r.range(len[0], len[1]);
+              const colour = fromStart(x, terrain(x, z), z) ?? src(run + s + ri * 37, o + 9, scale);
+              const streak = fromStart(x, terrain(x, z), z) ?? src(run + s + ri * 37 + 0.35, o + 9.2, scale);
+              set.w.add({ p: new THREE.Vector3(x - t.x * length / 2, 0.09 + r.range(0, 0.03), z - t.z * length / 2), t, n: up, length, width: r.range(wid[0], wid[1]), lift: 0, bend: r.range(-0.07, 0.07), colour, streak, seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0, hug: true });
+            }
+          };
+          const area = (d1 - d0) * rd.half * 2.3;
+          lay(Math.round((area * 2.4) / (0.62 * 0.1)), -rd.half * 1.15, rd.half * 1.15, [0.42, 0.85], [0.07, 0.13], lane ? 0.22 : 0.4, paint, 55);
+          if (lane) for (const sg of [-1, 1]) lay(Math.round(((d1 - d0) * 0.5 * 1.6) / (0.24 * 0.08)), sg * rd.half * 1.05, sg * (rd.half * 1.05 + 0.5), [0.16, 0.32], [0.06, 0.1], 0.6, vergePaint, 55);
+        }
+        run += L;
+      }
+    });
+    // the walled field: golden wheat, as it stands beside his night road
+    const fc = [V(-42, -42), V(38, -42), V(38, -88), V(-42, -76)];
+    const wheat = new StrokeWriter();
+    for (let k = 0; k < 17000; k++) {
+      const u = r.next(), v = r.next();
+      const q = fc[0].clone().lerp(fc[1], u).lerp(fc[3].clone().lerp(fc[2], u), v);
+      const laid = Math.sin(u * 14 + 1.3) * Math.cos(v * 11 + u * 5) > 0.35; // where the storm flattened it
+      const lean = (laid ? 1.0 : 0.3) + r.range(-0.15, 0.15), turn = 0.5 + r.range(-0.4, 0.4);
+      const t = new THREE.Vector3(Math.sin(lean) * Math.cos(turn), Math.cos(lean), Math.sin(lean) * Math.sin(turn));
+      const n = new THREE.Vector3(Math.sin(turn + 1.57 + r.range(-0.6, 0.6)), 0, -Math.cos(turn + 1.57)).normalize();
+      n.addScaledVector(t, -n.dot(t)).normalize();
+      const length = r.range(0.55, 1.0);
+      wheat.add({ p: new THREE.Vector3(q.x, terrain(q.x, q.y) + 0.22, q.y), t, n, length, width: r.range(0.07, 0.13), lift: r.range(0, 0.12), bend: r.range(-0.1, 0.1), colour: wheatPaint(q.x + 60, q.y + 100, 26), streak: wheatPaint(q.x + 60.4, q.y + 100.2, 26), seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0.06 * length });
+    }
+    groundSets.push({ mesh: surfaceStrokes(wheat.data(), { segments: 3, fade: [70, 110] }), x: -2, z: -62, reach: 170 });
+    for (const f of flat) groundSets.push({ mesh: surfaceStrokes(f.w.data(), { segments: 2, fade: [42, 62], terrain: TERRAIN_GLSL }), x: f.x, z: f.z, reach: 78 });
+    for (const g of groundSets) { g.mesh.visible = false; groundGroup.add(g.mesh); }
+    console.info('village ground: sets', groundSets.length, 'strokes', flat.reduce((n, f) => n + f.w.data().length / 24, 0) + 17000);
+  }
   // HIS DARK OUTLINES ON THE TREES. tools/starry/tree_strokes.py traces every stroke on that part of
   // the canvas; the dark ones are the contour he drew under and between the trees. Each is laid
   // where he put it: followed along its line of sight from the start onto the tree it meets.
@@ -1218,6 +1302,7 @@ export async function buildVillage(base: string) {
   const bare = new URLSearchParams(location.search).get('skin') === 'bare'; // study option: the skin alone, no raised strokes
   const update = (head: THREE.Vector3) => {
     for (const f of fines) f.mesh.visible = !bare && Math.hypot(head.x - f.x, head.z - f.z) < f.reach;
+    for (const g of groundSets) g.mesh.visible = Math.hypot(head.x - g.x, head.z - g.z) < g.reach;
   };
 
   /** True inside a building or wall: you cannot walk through it. */
