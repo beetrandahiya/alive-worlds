@@ -895,6 +895,35 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       176k ground strokes in all, about 15-25k drawn at once (estimate).
       Start view differs 1% from Study 32. Fields outside the walled one and
       open valley ground are still plain.
+      Study 33 (headset, 2026-11-15): FRAME RATE ABOUT 60 (below target);
+      ground strokes too big ("feels like I am sitting on the ground"); road
+      "alright" but with empty blurry patches. Owner asked for real
+      optimisation research.
+      CAUSES: (1) no stroke set was ever culled: `frustumCulled = false` on
+      every mesh, so paint behind the walker was drawn; plus 240k ground
+      strokes within 62 m. (2) strokes 0.4-0.85 m read as giant at standing
+      height. (3) patches: ground-hugging strokes sat at +0.09 m but the road
+      strip (+0.06, flat 2.5 m quads) rose above them on the convex slope;
+      and strokes on ground "seen from the start" had been given the
+      painting's dark colour.
+      Study 34 PUBLISHED 2026-11-15, AWAITING HEADSET TEST:
+      - `cullable()` in village.ts gives each distance set (house coats, tree
+        coats, ground sets) a bounding ball so the renderer skips what is out
+        of view.
+      - Ground strokes 0.26-0.54 x 0.075-0.125 m, at +0.10 m, 2 segments so
+        they follow the ground; road strip at +0.03 in 1.2 m pieces. Drawn
+        within 48 m, fading 32-20 m (wheat 70-45). 449k ground strokes stored.
+      - Every street stroke is his sand. The street SURFACE where the start
+        sees it shows the painting's dark tone beyond 45-80 m of the walker
+        and sand nearer (`farColour` -> CANVAS_FRAG mode 0, by distance).
+      NEXT IF STILL UNDER 72 (researched options, in order of worth):
+      bake the flat ground strokes once into textures (drawn top-down into a
+      few 2048 tiles at load) so far ground costs nothing and only the
+      nearest 8-10 m uses real strokes; sort sets front to back so nearer
+      paint hides farther paint before it is shaded; one vertex-light
+      "far" version of each house coat (fewer segments, no relief) beyond
+      25 m; raise fixed foveation; build stroke data in a worker to cut the
+      load stall. Measure each on the headset, one at a time.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

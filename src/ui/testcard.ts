@@ -2,11 +2,10 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['The lane', 'Walk down from the start. The lane is now his night road: long pale grey strokes running along it, green and yellow dashes among them, a ragged green verge. Right colours? Right size underfoot?'],
-  ['The wheat field', 'Over the wall: golden wheat from the field beside his night road, standing and leaning, flattened in places. Golden enough? Right height (about knee to waist)?'],
-  ['Village streets', 'Streets are warm sand and ochre strokes from his Large Plane Trees picture, a little dimmed for night. Where the start can see a street it keeps the painting\'s dark colour instead. Does that change of colour show as you walk?'],
-  ['From the start', 'Should look as before.'],
-  ['Frame rate', 'On the lane, by the field, and in a street: still 72? Do the ground strokes pop in as you walk (they appear within about 60 m)?'],
+  ['Frame rate', 'It was about 60. Paint behind you and off to the sides is no longer drawn, and ground strokes are drawn only within about 30 m. What is it now: on the lane, in a street, mid-village?'],
+  ['Standing, not sitting', 'Ground strokes are about a third smaller and lie lower. Does the ground feel at standing height now?'],
+  ['Empty patches', 'The dark, strokeless patches in the streets should be gone: every street stroke is his sand colour now.'],
+  ['Far road', 'Beyond about 30 m a road is a plain tone until you come near. Does that show, or do strokes pop in?'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

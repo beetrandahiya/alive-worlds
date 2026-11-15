@@ -52,6 +52,7 @@ export async function buildVillage(base: string) {
   const foldB: number[] = [];
   const footprints: Footprint[] = [];
 
+  let farColour: number[] | null = null; // for a plain face: the colour it shows from far off (see CANVAS_FRAG)
   // --- small builders
   const tri = (a: number[], b: number[], c: number[], colour: number[]) => {
     const n = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2])
@@ -72,8 +73,8 @@ export async function buildVillage(base: string) {
         else foldB.push(1, foldWidth(fold), 0, 0);
       } else {
         proj.push(0, 0, 0);
-        foldA.push(0, 0, 1, 0);
-        foldB.push(0, 1, 0, 0);
+        if (farColour) { foldA.push(farColour[0], farColour[1], farColour[2], 0); foldB.push(0, 1, 1, 0); }
+        else { foldA.push(0, 0, 1, 0); foldB.push(0, 1, 0, 0); }
       }
     }
   };
@@ -710,7 +711,7 @@ export async function buildVillage(base: string) {
   const strip = (pts: THREE.Vector2[], half: number, colour: number[]) => {
     for (let i = 0; i < pts.length - 1; i++) {
       const a = pts[i], b = pts[i + 1];
-      const n = Math.max(1, Math.ceil(a.distanceTo(b) / 2.5));
+      const n = Math.max(1, Math.ceil(a.distanceTo(b) / 1.2));
       for (let k = 0; k < n; k++) {
         const p = a.clone().lerp(b, k / n), q = a.clone().lerp(b, (k + 1) / n);
         const side = V(-(q.y - p.y), q.x - p.x).normalize().multiplyScalar(half);
@@ -718,10 +719,12 @@ export async function buildVillage(base: string) {
           // each edge wanders on its own, so the street is wider here, narrower there
           const e = 1 + 0.2 * Math.sin(m.x * 0.31 + m.y * 0.23 + sg * 1.7) + 0.1 * Math.sin(m.x * 0.83 - m.y * 0.61 + sg);
           const x = m.x + side.x * sg * e, z = m.y + side.y * sg * e;
-          return [x, terrain(x, z) + 0.06, z];
+          return [x, terrain(x, z) + 0.03, z];
         };
         // where the start can see the street it keeps the painting's own dark tone, so the painted view is his
-        quad(v(p, -1), v(p, 1), v(q, 1), v(q, -1), seenFromStart(p.x, terrain(p.x, p.y), p.y) ? data.road.map((c) => c * 0.8) : colour);
+        farColour = seenFromStart(p.x, terrain(p.x, p.y), p.y) ? data.road.map((c) => c * 0.8) : null;
+        quad(v(p, -1), v(p, 1), v(q, 1), v(q, -1), colour);
+        farColour = null;
       }
     }
   };
@@ -732,6 +735,12 @@ export async function buildVillage(base: string) {
   const ico = new THREE.IcosahedronGeometry(1, 1);
   const ip = ico.getAttribute('position');
   const treeAt: THREE.Vector3[] = [];
+  /** Let the renderer skip a set of strokes when it is behind you or off to the side. */
+  const cullable = (mesh: THREE.Mesh, x: number, z: number, radius: number) => {
+    mesh.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(x, terrain(x, z) + radius * 0.3, z), radius);
+    mesh.frustumCulled = true;
+    return mesh;
+  };
   const groundSets: { mesh: THREE.Mesh; x: number; z: number; reach: number }[] = [];
   const groundGroup = new THREE.Group();
   const boughs = new StrokeWriter();
@@ -1116,11 +1125,6 @@ export async function buildVillage(base: string) {
       };
     };
     const roadPaint = patch(roadImg), streetPaint = patch(streetImg, 0.82), vergePaint = patch(vergeImg), wheatPaint = patch(wheatImg);
-    const fromStart = (x: number, y: number, z: number) => {
-      const q = seenAt([x, y, z]);
-      if (-z < 30 || q[0] < 524 || q[0] > 1265 || q[1] < 624 || q[1] > 1004) return null;
-      return hiddenFromStart(x, y + 0.3, z) ? null : hisPaint(q[0], q[1]).colour;
-    };
     const flat: { w: StrokeWriter; x: number; z: number }[] = [];
     const up = new THREE.Vector3(0, 1, 0);
     roads.forEach((rd, ri) => {
@@ -1141,14 +1145,13 @@ export async function buildVillage(base: string) {
               const an = r.range(-wander, wander) + 0.12 * Math.sin((run + s) * 0.21);
               const t = new THREE.Vector3(tx * Math.cos(an) - tz * Math.sin(an), 0, tz * Math.cos(an) + tx * Math.sin(an));
               const length = r.range(len[0], len[1]);
-              const colour = fromStart(x, terrain(x, z), z) ?? src(run + s + ri * 37, o + 9, scale);
-              const streak = fromStart(x, terrain(x, z), z) ?? src(run + s + ri * 37 + 0.35, o + 9.2, scale);
-              set.w.add({ p: new THREE.Vector3(x - t.x * length / 2, 0.09 + r.range(0, 0.03), z - t.z * length / 2), t, n: up, length, width: r.range(wid[0], wid[1]), lift: 0, bend: r.range(-0.07, 0.07), colour, streak, seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0, hug: true });
+              const colour = src(run + s + ri * 37, o + 9, scale), streak = src(run + s + ri * 37 + 0.35, o + 9.2, scale);
+              set.w.add({ p: new THREE.Vector3(x - t.x * length / 2, 0.1 + r.range(0, 0.02), z - t.z * length / 2), t, n: up, length, width: r.range(wid[0], wid[1]), lift: 0, bend: r.range(-0.07, 0.07), colour, streak, seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0, hug: true });
             }
           };
           const area = (d1 - d0) * rd.half * 2.3;
-          lay(Math.round((area * 2.4) / (0.62 * 0.1)), -rd.half * 1.15, rd.half * 1.15, [0.42, 0.85], [0.07, 0.13], lane ? 0.22 : 0.4, paint, 55);
-          if (lane) for (const sg of [-1, 1]) lay(Math.round(((d1 - d0) * 0.5 * 1.6) / (0.24 * 0.08)), sg * rd.half * 1.05, sg * (rd.half * 1.05 + 0.5), [0.16, 0.32], [0.06, 0.1], 0.6, vergePaint, 55);
+          lay(Math.round((area * 2.0) / (0.4 * 0.065)), -rd.half * 1.15, rd.half * 1.15, [0.26, 0.54], [0.075, 0.125], lane ? 0.22 : 0.4, paint, 55);
+          if (lane) for (const sg of [-1, 1]) lay(Math.round(((d1 - d0) * 0.5 * 1.6) / (0.24 * 0.08)), sg * rd.half * 1.05, sg * (rd.half * 1.05 + 0.5), [0.12, 0.24], [0.04, 0.07], 0.6, vergePaint, 55);
         }
         run += L;
       }
@@ -1167,8 +1170,9 @@ export async function buildVillage(base: string) {
       const length = r.range(0.55, 1.0);
       wheat.add({ p: new THREE.Vector3(q.x, terrain(q.x, q.y) + 0.22, q.y), t, n, length, width: r.range(0.07, 0.13), lift: r.range(0, 0.12), bend: r.range(-0.1, 0.1), colour: wheatPaint(q.x + 60, q.y + 100, 26), streak: wheatPaint(q.x + 60.4, q.y + 100.2, 26), seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0.06 * length });
     }
-    groundSets.push({ mesh: surfaceStrokes(wheat.data(), { segments: 3, fade: [70, 110] }), x: -2, z: -62, reach: 170 });
-    for (const f of flat) groundSets.push({ mesh: surfaceStrokes(f.w.data(), { segments: 2, fade: [42, 62], terrain: TERRAIN_GLSL }), x: f.x, z: f.z, reach: 78 });
+    // Only what is in front of you is drawn: each set knows the ball of space it fills (see `cullable`).
+    groundSets.push({ mesh: cullable(surfaceStrokes(wheat.data(), { segments: 2, fade: [45, 70] }), -2, -62, 62), x: -2, z: -62, reach: 130 });
+    for (const f of flat) groundSets.push({ mesh: cullable(surfaceStrokes(f.w.data(), { segments: 2, fade: [20, 32], terrain: TERRAIN_GLSL }), f.x, f.z, 17), x: f.x, z: f.z, reach: 48 });
     for (const g of groundSets) { g.mesh.visible = false; groundGroup.add(g.mesh); }
     console.info('village ground: sets', groundSets.length, 'strokes', flat.reduce((n, f) => n + f.w.data().length / 24, 0) + 17000);
   }
@@ -1290,7 +1294,7 @@ export async function buildVillage(base: string) {
   console.info('village outline strokes', lines.data().length / 24);
   // each building's and tree's raised strokes are drawn only while you are near it, and fade by distance
   const fines = sets.map((f) => {
-    const mesh = surfaceStrokes(f.w.data(), { segments: 2, fade: f.fade });
+    const mesh = cullable(surfaceStrokes(f.w.data(), { segments: 2, fade: f.fade }), f.x, f.z, f.reach + 22);
     mesh.visible = false;
     group.add(mesh);
     return { mesh, x: f.x, z: f.z, reach: f.reach + f.fade[1] + 2 };

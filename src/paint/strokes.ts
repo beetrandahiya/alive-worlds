@@ -181,6 +181,7 @@ export function canvasForms(g: THREE.BufferGeometry, canvas: THREE.Texture, cam:
       uniforms: {
         uMoon: shared.uMoon,
         uCanvas: { value: canvas },
+        uCentre: shared.uCentre,
         uTreeSoft: { value: new URLSearchParams(location.search).get('trees') === 'his' ? 2.5 : 0 },
         uCam: { value: new THREE.Vector4(cam.F, Math.cos(cam.pitch), Math.sin(cam.pitch), 1.6) },
         uRect: { value: new THREE.Vector4(rect[0], rect[1], rect[2], rect[3]) },

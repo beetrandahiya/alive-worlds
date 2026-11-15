@@ -128,7 +128,9 @@ varying vec3 vN;
 varying vec3 vProj;
 varying vec4 vFoldA;
 varying vec4 vFoldB;
+varying vec3 vAt;
 void main() {
+  vAt = (modelMatrix * vec4(position, 1.0)).xyz;
   vColor = color;
   vN = normal;
   vProj = aProj;
@@ -140,6 +142,8 @@ void main() {
 export const CANVAS_FRAG = /* glsl */ `
 uniform vec3 uMoon;
 uniform sampler2D uCanvas;
+uniform vec3 uCentre;
+varying vec3 vAt;
 uniform float uTreeSoft;
 uniform vec4 uCam;    // focal length, cos pitch, sin pitch, eye height
 uniform vec4 uRect;   // the canvas picture's place in the painting: x0, y0, x1, y1
@@ -153,7 +157,9 @@ void main() {
   if (vFoldB.x < 0.5) {
     vec3 n = normalize(vN) * (gl_FrontFacing ? 1.0 : -1.0);
     float light = 0.74 + 0.2 * max(dot(n, uMoon), 0.0) + 0.06 * n.y;
-    gl_FragColor = vec4(vColor * light, 1.0);
+    // a street the start can see: the painting's dark tone from afar, its own sand when you walk it
+    vec3 base = vFoldB.z > 0.5 ? mix(vColor, vFoldA.xyz, smoothstep(45.0, 80.0, distance(vAt.xz, uCentre.xz))) : vColor;
+    gl_FragColor = vec4(base * light, 1.0);
     return;
   }
   vec3 q = vProj;
