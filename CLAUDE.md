@@ -769,6 +769,15 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       each grove tree is a fan of 5-8 bowed strokes with a dark contour; big
       bushes are concentric shells). Nothing to be built until the owner
       agrees the concept. GROUND: study shown, on hold until trees are right.
+      Owner (2026-11-15): "tree study looks right". FIRST TRY BUILT, stills
+      only, behind `?trees=arch` (default unchanged, not announced as a
+      study): `archTree()` in village.ts: dark heart (80% dome) + 13 hoops of
+      bowed strokes whose crowns step evenly as seen from in front, a dark
+      stroke at each lee foot, shorter hoops within 48 m; colour read from his
+      paint of that tree along the arch. About 3.5k always-drawn strokes for
+      all 47 painted trees. Reads as nested arches, but too dark (heart shows
+      too much), too upright and uniform, stringy up close, and further from
+      his painting from the start than the skinned trees. Shown to owner.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

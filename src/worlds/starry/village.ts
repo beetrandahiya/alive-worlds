@@ -793,6 +793,83 @@ export async function buildVillage(base: string) {
     }
     treeAt.push(new THREE.Vector3(x, 0, z));
   };
+  /**
+   * A TREE AS HE PAINTS ONE (tree study, 2026-11-15; on trial with ?trees=arch).
+   * Not a ball wearing paint: a dark heart, and over it a fan of long bowed
+   * strokes that start low on one side, rise over the crown and come down the
+   * other, all leaning one way. From far that is all there is, as few strokes
+   * as he gave a tree. Near you, shorter bowed strokes come in between.
+   * Each stroke takes its colour from his paint of that tree, read along the arch.
+   */
+  const ARCH = new URLSearchParams(location.search).get('trees') === 'arch';
+  const arches = new StrokeWriter();
+  const archTree = (x: number, z: number, wide: number, high: number, src: number[], srcR: number) => {
+    const y0 = terrain(x, z) - 0.2;
+    const far = Math.hypot(x, z);
+    const vx = x / far, vz = z / far;      // away from the start
+    const lx = -vz, lz = vx;               // to the right, seen from the start: the way his trees lean
+    const H = high * 1.05, lean = 0.22;
+    const k = srcR / wide;
+    const mid = [x, y0 + high * 0.5, z];
+    const paint = (p: THREE.Vector3) => hisPaint(...(seenAt([src[0] + (p.x - mid[0]) * k, src[1] + (p.y - mid[1]) * k, src[2] + (p.z - mid[2]) * k]) as [number, number])).colour;
+    // a point of the dome: c = how far toward the back (-1..1), th = round the arch (0 = windward foot, pi = lee foot)
+    const at = (c: number, th: number, grow = 1) => {
+      const q = Math.sqrt(Math.max(0, 1 - c * c));
+      const a = wide * q * grow, b = H * q * grow;
+      const up = b * Math.sin(th), along = -a * Math.cos(th) + lean * up;
+      return new THREE.Vector3(x + lx * along + vx * c * wide, y0 + up, z + lz * along + vz * c * wide);
+    };
+    // the dark heart, his blue-black, a little inside the strokes
+    const heart = paint(at(0, 2.6)).map((c, i) => c * 0.25 + DARK_LINE[i] * 0.7);
+    for (let i = 0; i < ip.count; i += 3) {
+      const corner = (j: number) => {
+        const px = ip.getX(j), py = Math.max(ip.getY(j), -0.04), pz = ip.getZ(j);
+        const up = py * H * 0.8, along = px * wide * 0.8 + lean * up;
+        return [x + lx * along + vx * pz * wide * 0.8, y0 + up, z + lz * along + vz * pz * wide * 0.8];
+      };
+      tri(corner(i), corner(i + 1), corner(i + 2), heart);
+    }
+    const centre = new THREE.Vector3(x, y0 + H * 0.2, z);
+    const hoop = (c: number, th0: number, th1: number, step: number, wid: number, grow: number, dark: boolean) => {
+      const q = Math.sqrt(Math.max(0.05, 1 - c * c));
+      const R = ((wide + H) / 2) * q * grow;
+      step = Math.min(0.8, Math.max(0.3, (step * wide) / R)); // strokes of about the same length on a small arch as on a big one
+      for (let th = th0; th < th1 - 0.02; th += step * r.range(0.8, 1.05)) {
+        const a = at(c, th, grow), b = at(c, Math.min(th + step * 1.25, th1 + 0.05), grow);
+        // the stroke leaves along the arch's own tangent and bows over to meet the arch again at its far end
+        const t = at(c, th + 0.02, grow).sub(a).normalize();
+        const n = a.clone().sub(centre).normalize();
+        n.addScaledVector(t, -n.dot(t)).normalize();
+        const chord = b.clone().sub(a);
+        const len = Math.max(0.2, chord.dot(t));
+        const bow = chord.dot(n) / len;
+        const m = a.clone().lerp(b, 0.5);
+        const col = dark ? heart.map((v) => v * 0.8) : paint(m).map((v) => v * r.range(0.96, 1.1));
+        const side = new THREE.Vector3(vx, 0, vz).multiplyScalar(wid * 0.6);
+        const streak = dark ? heart : paint(m.clone().add(side));
+        (coat).add({ p: a.clone().addScaledVector(n, 0.05), t, n, length: len, width: wid * r.range(0.85, 1.15), lift: bow, bend: r.range(-0.04, 0.04), colour: col, streak, seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0 });
+      }
+    };
+    // from any distance: the few big arches he painted, and his dark stroke under the lee side of each
+    const keep = coat;
+    coat = arches;
+    // Arches are laid so that, looked at from in front or behind, their crowns step evenly from the
+    // heart of the tree out to its rim (his nested arches), each as wide as the step to the next.
+    for (const q of [0.2, 0.36, 0.52, 0.67, 0.81, 0.93]) {
+      for (const sg of [-1, 1]) {
+        const c = sg * Math.sqrt(1 - q * q) * r.range(0.97, 1.03);
+        const wid = Math.min(wide * 0.36, (wide * 0.165) / Math.max(0.2, Math.abs(c)));
+        hoop(c, 0.14, 2.86, 0.6, wid, 1, false);
+        hoop(c, 2.72, 3.04, 0.4, wid * 1.1, 1.04, true);
+      }
+    }
+    hoop(r.range(-0.08, 0.08), 0.14, 2.86, 0.6, wide * 0.3, 1.01, false);
+    coat = keep;
+    // near you: shorter bowed strokes between them
+    beginSet(x, z, Math.max(wide, H) * 1.1, [30, 48]);
+    for (let i = 0; i < 22; i++) hoop((r.next() < 0.5 ? -1 : 1) * Math.sqrt(1 - r.range(0.15, 0.98) ** 2), r.range(0.12, 0.5), r.range(2.5, 2.95), 0.3, wide * 0.085, r.range(1.0, 1.05), false);
+    treeAt.push(new THREE.Vector3(x, 0, z));
+  };
   // Each painted tree wears his paint of THAT tree: the canvas where he painted it, even if it has
   // had to step aside. A tree that a house hides from the start has no paint of its own, so it
   // wears the paint of the nearest tree of its size that he did show.
@@ -838,7 +915,9 @@ export async function buildVillage(base: string) {
         if (d < best) { best = d; src = o; }
       });
     }
-    tree(x, z, t.r, t.h, t.colour.map((c) => c * 0.85), true, [src.x, terrain(src.x, src.z) + src.h * 0.5, src.z]);
+    const from = [src.x, terrain(src.x, src.z) + src.h * 0.5, src.z];
+    if (ARCH) archTree(x, z, t.r, t.h, from, src.r);
+    else tree(x, z, t.r, t.h, t.colour.map((c) => c * 0.85), true, from);
   });
   const greens = data.trees.slice(0, 5).map((t) => t.colour.map((c) => c * 0.8));
   for (let k = 0; k < 420 && treeAt.length < 190; k++) {
@@ -923,6 +1002,8 @@ export async function buildVillage(base: string) {
   group.add(canvasForms(g, canvasTex, cam, CAN));
   group.add(surfaceStrokes(lines.data(), { segments: 2 }));
   group.add(surfaceStrokes(boughs.data(), { segments: 3 }));
+  if (ARCH) group.add(surfaceStrokes(arches.data(), { segments: 5 }));
+  if (ARCH) console.info('village arch strokes', arches.data().length / 24);
   console.info('village tree boughs', boughs.data().length / 24);
   console.info('village outline strokes', lines.data().length / 24);
   // each building's and tree's raised strokes are drawn only while you are near it, and fade by distance
