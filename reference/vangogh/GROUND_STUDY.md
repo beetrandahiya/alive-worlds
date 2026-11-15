@@ -1,9 +1,8 @@
 # How he paints ground (Saint-Remy, 1889-90)
 
-Looked at as 1280 px Commons thumbnails plus `starry_7000.jpg`. Hexes are
-k-means cluster centres of the named region (share in brackets), so they are
-blends of a few strokes, not single strokes. Metres come from figures taken as
-1.7 m at their own depth; (inferred) = reasoned, not seen.
+From 1280 px Commons thumbnails and `starry_7000.jpg`. Hexes are k-means
+centres of the named region (blends of a few strokes). Metres are scaled from
+figures (1.7 m) at their own depth. (inferred) = reasoned, not seen.
 
 ## A. Country road and verge
 
@@ -11,8 +10,7 @@ Sources: F683 Road with Cypress and Star (a NIGHT picture, so its colours need
 no shift); JH1875 Road at Saint-Remy with Female Figure; F744 Quarry.
 
 - Direction: long strokes run ALONG the road and bend with it, fanning wider
-  toward the viewer like a river current (F683; measured 112 deg where the road
-  runs up-right, agreement 0.37, i.e. loose). Exception: JH1875 lays bars
+  toward the viewer like a river current (F683; loose, agreement 0.37). Exception: JH1875 lays bars
   ACROSS the road (0 deg, agreement 0.58) because those are tree shadows.
   So: along the road for the surface, across it only for cast shadow.
 - Size: F683 strokes 3.4-6.3 cm x 0.45-0.7 cm on canvas; beside the two walkers
@@ -24,11 +22,9 @@ no shift); JH1875 Road at Saint-Remy with Female Figure; F744 Quarry.
   edge. JH1875 (day, shadowed): #38393b #525451 #6e6f64 #908a6d #d0c79b #dcd8c6.
 - Verge (F683): a solid green band 0.3-0.6 m wide, short strokes 0.15-0.3 m
   lying along the edge, #394824 #5d6946 #7f8a6b #0e1d05, pale flecks #a5aa95.
-  A grass tongue also sits IN the road as an island.
 - Edge: one dark line (#181a0e / #0e1d05) between verge and wheat, none
   between road and verge; that join is ragged, strokes interlock. No ruts.
-- Bare earth (F744): flat pale ochre-grey path (not sampled) with thin dark contour and
-  red-brown patch; few broad strokes. Use only for trodden patches.
+- Bare earth (F744): flat pale path, thin dark contour, red-brown patch.
 
 ## B. Field: stubble, wheat, grass
 
@@ -52,8 +48,8 @@ Starry Night field (scan x 3260-3950, y 5180-5520).
   (inferred); accents: poppies (orange-red dots), white umbels, in loose
   clusters near the viewer only. F719 fg: #0d3b2a #215437 #114644 #236a4b
   #184d64.
-- Under trees (F712): broad curved swathes circling each trunk, with blue
-  shadow pools; #adb678 #91a16e #738f7c #5c7568 #405651 #24372e.
+- Under trees (F712): curved swathes circling each trunk, blue shadow pools;
+  #adb678 #91a16e #738f7c #5c7568 #405651.
 - STARRY NIGHT field: dead-level strokes (3 deg, agreement 0.52), very long
   and thin: 4-9 cm x 0.26-0.5 cm of canvas, laid once, dragged dry so weave
   shows; stacked as alternating bands. Palette: #1f2524 #27342f #171817
@@ -63,8 +59,8 @@ Starry Night field (scan x 3260-3950, y 5180-5520).
 - Night shift: keep each source's light/dark pattern, replace hue with the SN
   field set: base ochre -> #1f2524/#27342f, mid -> #354341/#404e5b, pale
   dashes -> #556472/#6d7d8c, rare accent -> dull green ~#3f6a45 or ochre
-  ~#646837 (inferred mapping; F735 shows moonlit stubble stays warm, so wheat
-  may keep a muted ochre #604a23/#8b662a in its accents).
+  ~#646837 (inferred; F735 keeps moonlit
+  stubble warm, so wheat accents may stay muted ochre #604a23/#8b662a).
 
 ## C. Town street
 
@@ -75,7 +71,7 @@ Starry Night bands between house rows (x 5150-5890, y 4590-4650).
   tilting to follow banks and heaps; shadows are separate diagonal bands of
   darker strokes. Around a trunk or heap they wrap its foot.
 - Size: 0.4-1.0 m x 0.08-0.12 m beside the 1.6 m woman (F657); 3.5-9 cm on
-  canvas. Broader and fewer than road strokes; thin paint, weave visible.
+  canvas. Thin paint, weave visible.
 - Palette, day: F657 #ae9767 #978156 #c6b27b #7f6843 #725223 #e2d298; F658
   #c9bb69 #e0d184 #a59e69 #b3b28a #7c7b50. Stone/rubble: #99967e #b4ae98
   #887e5f #66726e #d3ccb6, each stone ringed blue-grey.
@@ -83,8 +79,7 @@ Starry Night bands between house rows (x 5150-5890, y 4590-4650).
   #646837. Streets he shows at night are nearly black-blue with a few pale bars.
 - Edges: dark brown/black contour where wall, trunk, kerb stone or heap meets
   the street; none within the street. No cobbles, no ruts: swept earth.
-- Variation: orange-brown dashes (leaves) in drifts, pink/lilac single
-  strokes, cast-shadow bands.
+- Variation: drifts of orange-brown dashes (leaves), cast-shadow bands.
 
 ## One system (proposal)
 
