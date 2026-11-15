@@ -2,12 +2,12 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['The lit house', 'Third to the right of the church. It was two houses read as one: now the two lamps sit in a wall under a thin dark roof, and the brown-roofed house beside it is its own house. Right?'],
-  ['Blank walls', 'Walls he never showed (backs and ends) now have a door and dark windows, each wearing his own paint of a door or a window. Believable? Too many, too few?'],
-  ['Church gable', 'The stray dark lines down the middle of the gable should be gone. The dark arch is a tall window, as he painted it: it does not reach the ground.'],
-  ['Spire', 'Less sky on its edges?'],
-  ['From the start', 'Nothing should have changed for the worse.'],
-  ['Frame rate', 'Still 72 everywhere?'],
+  ['Church gable', 'The second gable is slimmer now, so its edges are the dark lines he drew and the tall window sits in its middle. Right?'],
+  ['The other houses', 'The houses he did not paint (left of the church, behind the cypress, round the edges) now wear the paint of houses he did paint: wall for wall, roof for roof, with his door and dark windows. Do they belong? Any that look wrong?'],
+  ['Behind the cypress', 'Step to the left of the start so the cypress no longer hides the valley. Better than the blur? What still looks wrong there?'],
+  ['Small trees', 'The small trees round the edges now wear his tree paint too.'],
+  ['From the start', 'Should be unchanged, except the far flat ground between the groves is a little softer.'],
+  ['Frame rate and loading', 'There is more paint to prepare, so loading takes longer. Still 72 everywhere, especially among the hidden houses?'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

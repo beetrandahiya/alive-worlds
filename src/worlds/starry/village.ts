@@ -30,7 +30,7 @@ interface VillageData {
   road: number[];
   field: number[];
 }
-interface Form { name: string; x: number; z: number; yaw: number; w: number; d: number; top: number; faces: { kind: string; p: number[][]; uv: number[][]; n: number[] }[] }
+interface Form { name: string; x: number; z: number; yaw: number; w: number; d: number; top: number; floor?: number; faces: { kind: string; p: number[][]; uv: number[][]; n: number[] }[] }
 interface Footprint { x: number; z: number; yaw: number; w: number; d: number }
 
 /** The asylum behind the start is built (see below) but not shown in this version: owner, 2026-11-15. */
@@ -42,7 +42,7 @@ const STONE = [0.5, 0.5, 0.47];
 
 export async function buildVillage(base: string) {
   const data: VillageData = await fetch(base + 'village.json' + VER).then((r) => r.json());
-  const forms: { buildings: Form[] } = await fetch(base + 'village_forms.json' + VER).then((r) => r.json());
+  const forms: { buildings: Form[]; donors: { wall: number[][]; roof: number[][] }[]; door: number[][]; window: number[][] } = await fetch(base + 'village_forms.json' + VER).then((r) => r.json());
   const r = rng(1890);
   const pos: number[] = [];
   const nor: number[] = [];
@@ -309,8 +309,8 @@ export async function buildVillage(base: string) {
    * Its skin is that piece of canvas; near you, raised strokes lie over it.
    */
   const SINK = 1.6; // walls carry on down into the ground, which dips a little below the floor they were measured on
-  const formFace = (f: Form['faces'][number], LEN: [number, number], WID: [number, number], COVER: number, skin: boolean) => {
-    const P = f.p.map((v) => new THREE.Vector3(v[0], v[1] < -27.99 ? v[1] - SINK : v[1], v[2]));
+  const formFace = (f: Form['faces'][number], LEN: [number, number], WID: [number, number], COVER: number, skin: boolean, floor = -28) => {
+    const P = f.p.map((v) => new THREE.Vector3(v[0], v[1] < floor + 0.01 ? v[1] - SINK : v[1], v[2]));
     const n = new THREE.Vector3(f.n[0], f.n[1], f.n[2]);
     const far = (uv: number[]) => {
       const x = (uv[0] - cam.W / 2) / cam.F, y = -(uv[1] - cam.H / 2) / cam.F;
@@ -484,12 +484,13 @@ export async function buildVillage(base: string) {
   const lines = new StrokeWriter();
   const DARK_LINE = [0.035, 0.045, 0.1];
   const outline = (b: Form) => {
+    const FL = b.floor ?? -28;
     const key = (q: number[]) => q.map((c) => Math.round(c * 20)).join(',');
     const seen = new Map<string, { f: Form['faces'][number]; i: number; n: number }>();
     for (const f of b.faces) {
       for (let i = 0; i < f.p.length; i++) {
         const a = f.p[i], c = f.p[(i + 1) % f.p.length];
-        if (a[1] < -27.99 && c[1] < -27.99) continue; // where the wall meets the ground: no line
+        if (a[1] < FL + 0.01 && c[1] < FL + 0.01) continue; // where the wall meets the ground: no line
         const k = [key(a), key(c)].sort().join('|');
         const had = seen.get(k);
         if (had) {
@@ -502,7 +503,7 @@ export async function buildVillage(base: string) {
     for (const { f, i, n: uses } of seen.values()) {
       if (uses < 0) continue;
       const j = (i + 1) % f.p.length;
-      const sink = (q: number[]) => new THREE.Vector3(q[0], q[1] < -27.99 ? q[1] - 1.6 : q[1], q[2]);
+      const sink = (q: number[]) => new THREE.Vector3(q[0], q[1] < FL + 0.01 ? q[1] - 1.6 : q[1], q[2]);
       const A = sink(f.p[i]), B = sink(f.p[j]);
       const n = new THREE.Vector3(f.n[0], f.n[1], f.n[2]);
       const dir = B.clone().sub(A);
@@ -524,15 +525,76 @@ export async function buildVillage(base: string) {
       }
     }
   };
-  for (const b of forms.buildings) {
+  const paintForm = (b: Form, close = true) => {
+    const FL = b.floor ?? -28;
     outline(b);
     beginSet(b.x, b.z, Math.hypot(b.w, b.d) / 2 + 1, [36, 52]);
-    for (const f of b.faces) formFace(f, [0.34, 0.9], [0.11, 0.24], 1.9, true);
+    for (const f of b.faces) formFace(f, [0.34, 0.9], [0.11, 0.24], 1.9, true, FL);
     // and a closer coat, hand-sized, only when you stand by the wall
     beginSet(b.x, b.z, Math.hypot(b.w, b.d) / 2 + 1, [7, 12]);
-    for (const f of b.faces) if (f.p.every((q) => q[1] < -28 + 9)) formFace(f, [0.14, 0.36], [0.05, 0.1], 1.25, false);
+    if (close) for (const f of b.faces) if (f.p.every((q) => q[1] < FL + 9)) formFace(f, [0.14, 0.36], [0.05, 0.1], 1.25, false, FL);
+  };
+  for (const b of forms.buildings) {
+    paintForm(b);
     footprints.push({ x: b.x, z: b.z, yaw: b.yaw, w: b.w, d: b.d });
   }
+  /**
+   * A house he did not paint. It has no paint of its own on the canvas, so it
+   * wears the paint of one he did: that house's wall on its walls, that
+   * house's roof on its roofs, a door and dark windows as he painted them.
+   * (His lamps stay where he put them: the borrowed wall is its lamp-free stretch.)
+   */
+  const borrowedHouse = (fp: Footprint, wallH: number, rise: number, front: number) => {
+    const y0 = groundUnder(fp);
+    const don = forms.donors[Math.floor(r.next() * forms.donors.length)];
+    const flip = r.next() < 0.5;
+    const P = frame(fp, y0);
+    const w = fp.w / 2, d = fp.d / 2, h = wallH + 0.3;
+    const cx = fp.x, cz = fp.z;
+    const faces: Form['faces'] = [];
+    const add = (kind: string, pts: number[][], uv: number[][]) => {
+      const a = new THREE.Vector3(...pts[0]), n = new THREE.Vector3(...pts[1]).sub(a).cross(new THREE.Vector3(...pts[2]).sub(a)).normalize();
+      const mid = pts.reduce((m, q) => [m[0] + q[0] / pts.length, m[1] + q[1] / pts.length, m[2] + q[2] / pts.length], [0, 0, 0]);
+      if (n.x * (mid[0] - cx) + n.y * 2 + n.z * (mid[2] - cz) < 0) n.negate();
+      faces.push({ kind, p: pts, uv, n: [n.x, n.y, n.z] });
+    };
+    const [wl, wr, wtr, wtl] = flip ? [don.wall[1], don.wall[0], don.wall[3], don.wall[2]] : don.wall;
+    const [rl, rr, rtr, rtl] = flip ? [don.roof[1], don.roof[0], don.roof[3], don.roof[2]] : don.roof;
+    const mix = (a: number[], b: number[], t: number) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    for (const sd of [1, -1]) {
+      // the two long sides and the roof slope above each
+      add('wall', [P(-w * sd, 0, d * sd), P(w * sd, 0, d * sd), P(w * sd, h, d * sd), P(-w * sd, h, d * sd)], [wl, wr, wtr, wtl]);
+      add('roof', [P(-w * sd, h, d * sd), P(w * sd, h, d * sd), P(w * sd, h + rise, 0), P(-w * sd, h + rise, 0)], [rl, rr, rtr, rtl]);
+      // the two ends: the wall carried round the corner, by height, up into the gable
+      const t = Math.min(1, fp.d / fp.w), top = h + rise;
+      const el = mix(wl, wr, sd > 0 ? 0 : 1 - t), er = mix(wl, wr, sd > 0 ? t : 1);
+      const elt = mix(wtl, wtr, sd > 0 ? 0 : 1 - t), ert = mix(wtl, wtr, sd > 0 ? t : 1);
+      const up = (a: number[], b: number[]) => mix(a, b, h / top);
+      add('wall', [P(w * sd, 0, d * sd), P(w * sd, 0, -d * sd), P(w * sd, h, -d * sd), P(w * sd, h, d * sd)], [el, er, up(er, ert), up(el, elt)]);
+      add('wall', [P(w * sd, h, d * sd), P(w * sd, h, -d * sd), P(w * sd, top, 0)], [up(el, elt), up(er, ert), mix(elt, ert, 0.5)]);
+    }
+    // doors and windows, his: a door on the street side, dark windows elsewhere
+    const open = (x: number, y0_: number, y1: number, wd: number, side: number, end: boolean, uv: number[][]) => {
+      const off = 0.06;
+      const q = (a: number, y: number) => (end ? P(side * (w + off), y, a) : P(a, y, side * (d + off)));
+      add('opening', [q(x - wd / 2, y0_), q(x + wd / 2, y0_), q(x + wd / 2, y1), q(x - wd / 2, y1)], uv);
+    };
+    for (const side of [1, -1]) {
+      const n = Math.max(1, Math.round(fp.w / 3.4));
+      const door = Math.floor(r.next() * n);
+      for (let i = 0; i < n; i++) {
+        const x = -w + ((i + 0.5) * fp.w) / n;
+        if (side === front && i === door) open(x, 0, Math.min(2.1, h - 0.25), 1.1, side, false, forms.door);
+        else if (h > 2.3) open(x, 1.1, Math.min(2.35, h - 0.3), 0.9, side, false, forms.window);
+      }
+      if (h > 2.3) open(0, 1.1, Math.min(2.35, h - 0.3), 0.9, side, true, forms.window);
+    }
+    const form: Form = { name: 'borrowed', x: fp.x, z: fp.z, yaw: fp.yaw, w: fp.w, d: fp.d, top: y0 + h + rise, floor: y0, faces };
+    paintForm(form, false); // no hand-sized coat on these yet: it would double the paint the headset has to hold
+    const c = Math.cos(fp.yaw), sn = Math.sin(fp.yaw), k = fp.w * r.range(-0.3, 0.3);
+    walls({ x: fp.x + c * k, z: fp.z + sn * k, yaw: fp.yaw, w: 0.7, d: 0.7 }, y0 + h + rise * 0.45, rise * 0.55 + 1.1, [0.2, 0.18, 0.18]);
+    footprints.push(fp);
+  };
 
   // --- can the start view see a place? (inside the frame and not behind the cypress)
   const seenFromStart = (x: number, y: number, z: number) => {
@@ -614,6 +676,7 @@ export async function buildVillage(base: string) {
   // them, and never in a street or inside another building
   const wallsBorrowed = data.houses.map((h) => h.wallColour);
   const roofsBorrowed = data.houses.map((h) => h.roofColour);
+  void house; void wallsBorrowed; void roofsBorrowed; // the plain-coloured way of building an unpainted house, kept for reference
   let extra = 0;
   for (const rd of roads.slice(0, -1)) {
     const cum = [0];
@@ -637,7 +700,7 @@ export async function buildVillage(base: string) {
         d0 += w + (r.next() < 0.25 ? r.range(3, 9) : 0.3);
         const wallH = r.next() < 0.55 ? r.range(5.4, 6.4) : r.range(3.2, 4.1);
         if (seenFromStart(c.x, terrain(c.x, c.y) + wallH + 2, c.y) || overlaps(fp, 0.2) || onRoad(fp)) continue;
-        house(fp, wallH, r.range(1.6, 3.0), r.pick(wallsBorrowed), r.pick(roofsBorrowed), r.next() < 0.35 ? 1 : 0, -sgn);
+        borrowedHouse(fp, wallH, r.range(1.6, 3.0), -sgn);
         extra++;
       }
     }
@@ -669,7 +732,7 @@ export async function buildVillage(base: string) {
   const ip = ico.getAttribute('position');
   const treeAt: THREE.Vector3[] = [];
   const boughs = new StrokeWriter();
-  const tree = (x: number, z: number, wide: number, high: number, colour: number[], skinned = false, paintAt?: number[]) => {
+  const tree = (x: number, z: number, wide: number, high: number, colour: number[], skinned = false, paintAt?: number[], dens = 1) => {
     const y = terrain(x, z) + high * 0.5;
     const turn = r.next() * 6.28;
     // A painted tree is a clump of rounded masses, not one ball: a body and several boughs pushing out of it.
@@ -705,7 +768,7 @@ export async function buildVillage(base: string) {
         n.normalize();
         if (n.dot(a.clone().addScaledVector(ab, 1 / 3).addScaledVector(ac, 1 / 3).sub(new THREE.Vector3(mid.x + L[0], mid.y + L[1], mid.z + L[2]))) < 0) n.negate();
         const u = ab.clone().normalize(), w2 = n.clone().cross(u);
-        const want = (area * 1.15) / (0.8 * 0.24);
+        const want = (area * 1.15 * dens) / (0.8 * 0.24);
         const count = Math.floor(want) + (r.next() < want % 1 ? 1 : 0);
         for (let k = 0; k < count; k++) {
           let e = r.next(), g2 = r.next();
@@ -713,7 +776,7 @@ export async function buildVillage(base: string) {
           daub(foldAt(F, n), a.clone().addScaledVector(ab, e).addScaledVector(ac, g2), u, w2, n, r.range(0.5, 1.15), r.range(0.17, 0.3), 0.06, undefined, 1);
         }
         // and big boughs of paint that stand off the mass and break its outline, always there
-        const big = (area * 0.19) / (1.4 * 0.4);
+        const big = (area * 0.19 * dens) / (1.4 * 0.4);
         const nb = Math.floor(big) + (r.next() < big % 1 ? 1 : 0);
         const keep = coat;
         coat = boughs;
@@ -777,15 +840,17 @@ export async function buildVillage(base: string) {
     }
     tree(x, z, t.r, t.h, t.colour.map((c) => c * 0.85), true, [src.x, terrain(src.x, src.z) + src.h * 0.5, src.z]);
   });
+  const shownTrees = data.trees.filter((_, i) => shown[i]);
   const greens = data.trees.slice(0, 5).map((t) => t.colour.map((c) => c * 0.8));
-  for (let k = 0; k < 420 && treeAt.length < 190; k++) {
-    const a = r.range(0, Math.PI * 2), d = r.range(110, 330);
+  for (let k = 0; k < 520 && treeAt.length < 225; k++) {
+    const a = r.range(0, Math.PI * 2), d = r.range(110, 400);
     const x = Math.sin(a) * d, z = -Math.cos(a) * d;
     const wide = r.range(2.2, 4.2), high = r.range(3.4, 6);
     if (seenFromStart(x, terrain(x, z) + high, z)) continue;
     const spot: Footprint = { x, z, yaw: 0, w: wide * 2, d: wide * 2 };
     if (overlaps(spot, 1) || onRoad(spot, 0.5) || treeAt.some((t) => Math.hypot(t.x - x, t.z - z) < wide * 2.2)) continue;
-    tree(x, z, wide, high, r.pick(greens));
+    const don = shownTrees[Math.floor(r.next() * shownTrees.length)];
+    tree(x, z, wide, high, r.pick(greens), true, [don.x, terrain(don.x, don.z) + don.h * 0.5, don.z], 0.4);
   }
 
   // --- the asylum behind the start, from his own paintings of it.

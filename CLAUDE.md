@@ -691,6 +691,33 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       built (no skinned ball; made only of standing strokes laid in his
       curling arcs); and next piece = the part of the view behind the cypress
       (hill strip rebake, the 26 unpainted houses, ground).
+      Study 25 (headset, 2026-11-15): spire "looks alright"; the tall window
+      in the gable "makes sense" (keep it); but the church gable's paint only
+      looked shifted sideways: "make the gable slimmer". Owner: now paint the
+      rest of the houses and fill the hills and the land behind the cypress.
+      Study 26 PUBLISHED 2026-11-15, AWAITING HEADSET TEST:
+      - Church: second gable is px 722-757 (was 703-757), apex 740,830, so
+        its edges are his dark lines and the window is centred; the nave's
+        long side now runs to px 722.
+      - The 26 houses he did not paint: `borrowedHouse()` in village.ts builds
+        each as a Form and paints it like the painted ones, wearing the wall
+        and roof paint of a randomly chosen painted house (`donors` in
+        village_forms.json: each house's lamp-free wall stretch and its roof),
+        sometimes mirrored, with his door and dark windows. Raised strokes
+        within 52 m; no hand-sized close coat on these (memory).
+      - Small extra trees wear a painted tree's paint (40% stroke density);
+        up to 225 trees, out to 400 m.
+      - Behind the cypress: FINDING: the hills there are low, so what showed
+        was far flat ground wearing the painting as projected from the start,
+        which streaks from anywhere else. The ground's sharp paint is now
+        kept to the hills only (GROUND shader, by height); far flat ground is
+        soft tone. Start view differs by about 2% of pixels (that softening
+        and the church).
+      - Strokes held in memory rose to about 1.07 million (was about 0.6
+        million when last measured at 72 fps); always-drawn about 158k.
+        Loading time and frame rate UNMEASURED.
+      STILL OPEN: ground inside the village (owner has not chosen); trees
+      rebuilt cypress-style (proposed, no answer yet).
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

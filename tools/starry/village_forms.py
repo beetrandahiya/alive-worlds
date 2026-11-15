@@ -81,6 +81,7 @@ def seen(p, low):
 
 
 buildings = []
+donors = []      # his wall and roof paint, house by house, for the houses he did not paint
 _small = cv2.resize(img, (1280, int(round(H))), interpolation=cv2.INTER_AREA).astype(np.int32)
 _lit = ((_small[..., 2] > 120) & (_small[..., 1] > 105) & (_small[..., 0] < 110) & (_small[..., 2] > _small[..., 0] + 40)).astype(np.uint8)
 _lit = cv2.dilate(_lit, np.ones((5, 7), np.uint8)).astype(np.float32)   # and the glow round each lamp
@@ -215,6 +216,7 @@ def front(name, xl, xr, base, eave, ridge, depth, low=None, roof=True):
         ra, rb = up(a + n * depth / 2, hr), up(b + n * depth / 2, hr)
         ura, urb = list(ridge[0]), list(ridge[1])
         faces += [face("roof", [at, bt, rb, ra], [uat, ubt, urb, ura]), face("roof", [b2t, a2t, ra, rb], [ubt, uat, ura, urb])]
+        donors.append({"wall": [[s0, low], [s1, low], [s1, em + 1], [s0, em + 1]], "roof": [uat, ubt, urb, ura]})
         faces += end_wall(a, a2, at, a2t, ra, [s0, 0], uat, s1 - s0, low, em + 1)
         faces += end_wall(b, b2, bt, b2t, rb, [s1, 0], ubt, s0 - s1, low, em + 1)
         tt = level(b - a)
@@ -272,6 +274,7 @@ def corner(name, xa, xc, xb, base, wg, eaves, apex, ridge_far, low=None, wallsrc
         face("roof", [at, dt, rf, ap], [uct, ubt, urf, uap]),
         face("wall", [a, d, dt, at], [[s0, lw[0][1]], [s1, lw[0][1]], [s1, wt], [s0, wt]]),
     ] + end_wall(b, d, bt, dt, rf, [s0, 0], None, s1 - s0, lw[0][1], wt + 1)
+    donors.append({"wall": [[s0, lw[0][1]], [s1, lw[0][1]], [s1, wt + 1], [s0, wt + 1]], "roof": [uct, ubt, urf, uap]})
     faces += openings(d, a, h - c[1], u) + openings(b, d, h - c[1], v, door=False)
     finish(name, faces, [c, b, d, a])
     print(f"         gable turned {math.degrees(math.acos(min(1, abs(np.dot(u, np.array([-cdir[2], 0, cdir[0]])))))):4.0f} deg from square-on, long side {t:4.1f} m, fit {best[0]:.1f} px")
@@ -322,8 +325,8 @@ front("low", 657, 725, 945, 921, ((662, 903), (727, 903)), 6.0)
 # the church: a small house against its left side, the nave with its gable to us and its roof running
 # back to the right, a second gabled body with the tower standing in its front, the spire
 front("annex", 634, 652, 884, 852, ((636, 828), (660, 827)), 7.0)
-corner("nave", 651, 698, 713, 890, 9.4, (851, 858, 848), (673, 812), (687, 811))
-ba, bb, bn, bap = gablefront("body", 703, 757, 891, 850, (731, 827), 12.0, [(699, 858), (673, 812), (687, 811), (713, 848)])
+corner("nave", 651, 698, 722, 890, 9.4, (851, 858, 850), (673, 812), (694, 811))
+ba, bb, bn, bap = gablefront("body", 722, 757, 891, 850, (740, 830), 12.0, [(699, 858), (673, 812), (687, 811), (713, 848)])
 # The tower does not come down in front of that gable: his dark arched opening is in the gable
 # wall itself. The belfry sits astride the ridge a little way back, and the spire stands on it.
 tq = ba + bn * 2.0
@@ -358,7 +361,7 @@ front("brown", 1024, 1072, 908, 895, ((1026, 874), (1068, 874)), 7.0)
 front("grey", 1026, 1072, 942, 912, ((1024, 900), (1074, 900)), 6.0)
 front("right", 1080, 1152, 946, 921, ((1082, 908), (1150, 908)), 6.0)
 
-out = {"camera": {"F": F, "pitch": PITCH, "W": W, "H": H}, "floor": FLOOR, "buildings": buildings}
+out = {"camera": {"F": F, "pitch": PITCH, "W": W, "H": H}, "floor": FLOOR, "buildings": buildings, "donors": donors, "door": DOOR_UV, "window": WIN_UV}
 (ROOT / "public" / "starry" / "village_forms.json").write_text(json.dumps(out, separators=(",", ":")))
 
 # ---------------------------------------------------------------- a picture to check the reading
