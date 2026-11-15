@@ -2,11 +2,10 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Trees as they were', 'The trees and the land round them are back to how they were when the gable and spire were fixed. Do they look right again from the start?'],
-  ['Groves and hills', 'The far row of trees should meet the hills again, and the pale fields on the right should have his paint and dark outlines, not a blur.'],
-  ['Hills behind the cypress', 'Step left of the start: there should be hills where the cypress stood in your view, not a blurry gap.'],
-  ['Shimmer', 'Any shimmer in the trees behind the town?'],
-  ['Frame rate', 'Still 72?'],
+  ['Dark outlines on the trees', 'His dark contour strokes are traced off the canvas and laid on the trees where he drew them: under each tree, between neighbours, round the big bushes. Enough? Too heavy anywhere? In the right places?'],
+  ['Up close', 'Walk to the big bush by the front houses. The outline strokes sit a little proud of the tree. Do they belong to it?'],
+  ['Everything else', 'Nothing else changed from the last version.'],
+  ['Frame rate', 'Still 72? (About 200 strokes were added.)'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

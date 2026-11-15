@@ -732,6 +732,7 @@ export async function buildVillage(base: string) {
   const ip = ico.getAttribute('position');
   const treeAt: THREE.Vector3[] = [];
   const boughs = new StrokeWriter();
+  const treeTris: number[] = []; // every face of the painted trees, for laying his dark outlines on them
   const tree = (x: number, z: number, wide: number, high: number, colour: number[], skinned = false, paintAt?: number[], dens = 1) => {
     const y = terrain(x, z) + high * 0.5;
     const turn = r.next() * 6.28;
@@ -762,6 +763,7 @@ export async function buildVillage(base: string) {
         L = lp;
         const A = v(i), B = v(i + 1), C = v(i + 2);
         tri(A, B, C, colour);
+        treeTris.push(A[0], A[1], A[2], B[0], B[1], B[2], C[0], C[1], C[2]);
         const a = new THREE.Vector3(...A), ab = new THREE.Vector3(...B).sub(a), ac = new THREE.Vector3(...C).sub(a);
         const n = ab.clone().cross(ac);
         const area = n.length() / 2;
@@ -810,8 +812,9 @@ export async function buildVillage(base: string) {
    * and nothing else on top; the mass beneath wears the same paint.
    */
   const HIS = new URLSearchParams(location.search).get('trees') === 'his';
+  const darkStrokes = new Float32Array((await fetch(base + 'tree_strokes.bin' + VER).then((q) => q.arrayBuffer())) as ArrayBuffer);
   const GROW = 1.12; // his trees fill their rows: each mass a little larger, so neighbours run into one another as he painted them
-  const hisStrokes = HIS ? new Float32Array((await fetch(base + 'tree_strokes.bin' + VER).then((q) => q.arrayBuffer())) as ArrayBuffer) : new Float32Array(0);
+  const hisStrokes = HIS ? darkStrokes : new Float32Array(0);
   const long = new StrokeWriter();
   const usedHis = new Uint8Array(hisStrokes.length / 12);
   const layHis = (x: number, y: number, z: number, wide: number, ry: number, src: number[], srcR: number, srcRy: number) => {
@@ -1067,6 +1070,70 @@ export async function buildVillage(base: string) {
   group.add(canvasForms(g, canvasTex, cam, CAN));
   group.add(surfaceStrokes(lines.data(), { segments: 2 }));
   group.add(surfaceStrokes(boughs.data(), { segments: 3 }));
+  // HIS DARK OUTLINES ON THE TREES. tools/starry/tree_strokes.py traces every stroke on that part of
+  // the canvas; the dark ones are the contour he drew under and between the trees. Each is laid
+  // where he put it: followed along its line of sight from the start onto the tree it meets.
+  if (!HIS && !ARCH) {
+    const T = new Float32Array(treeTris);
+    const contour = new StrokeWriter();
+    const meet = (px: number, py: number) => {
+      const a = (px - cam.W / 2) / cam.F, b = -(py - cam.H / 2) / cam.F;
+      const d = new THREE.Vector3(a, b * CP + SP, -(CP - b * SP)).normalize();
+      let best = Infinity, bn: THREE.Vector3 | null = null;
+      for (let i = 0; i < T.length; i += 9) {
+        // Moller-Trumbore, from the start eye
+        const e1x = T[i + 3] - T[i], e1y = T[i + 4] - T[i + 1], e1z = T[i + 5] - T[i + 2];
+        const e2x = T[i + 6] - T[i], e2y = T[i + 7] - T[i + 1], e2z = T[i + 8] - T[i + 2];
+        const px_ = d.y * e2z - d.z * e2y, py_ = d.z * e2x - d.x * e2z, pz_ = d.x * e2y - d.y * e2x;
+        const det = e1x * px_ + e1y * py_ + e1z * pz_;
+        if (Math.abs(det) < 1e-9) continue;
+        const tx = -T[i], ty = 1.6 - T[i + 1], tz = -T[i + 2];
+        const u = (tx * px_ + ty * py_ + tz * pz_) / det;
+        if (u < 0 || u > 1) continue;
+        const qx = ty * e1z - tz * e1y, qy = tz * e1x - tx * e1z, qz = tx * e1y - ty * e1x;
+        const w = (d.x * qx + d.y * qy + d.z * qz) / det;
+        if (w < 0 || u + w > 1) continue;
+        const t = (e2x * qx + e2y * qy + e2z * qz) / det;
+        if (t > 1 && t < best) {
+          best = t;
+          bn = new THREE.Vector3(e1y * e2z - e1z * e2y, e1z * e2x - e1x * e2z, e1x * e2y - e1y * e2x).normalize();
+        }
+      }
+      if (!bn) return null;
+      if (bn.dot(d) > 0) bn.negate();
+      const p = new THREE.Vector3(d.x * best, 1.6 + d.y * best, d.z * best);
+      return hiddenFromStart(p.x, p.y, p.z) ? null : { p, n: bn, t: best };
+    };
+    for (let i = 0; i < darkStrokes.length; i += 12) {
+      const h = darkStrokes.subarray(i, i + 12);
+      if (h[6] * 0.3 + h[7] * 0.59 + h[8] * 0.11 > 0.2) continue;
+      const cx = h[2] - h[0], cy = h[3] - h[1], L = Math.hypot(cx, cy);
+      const mx = (h[0] + h[2]) / 2 - (cy / L) * h[4] * L, my = (h[1] + h[3]) / 2 + (cx / L) * h[4] * L;
+      const M = meet(mx, my);
+      if (!M) continue;
+      // an end that runs off the tree's edge stops at the edge
+      let A = meet(h[0], h[1]), B = meet(h[2], h[3]);
+      for (let k = 1; k < 5 && !A; k++) A = meet(h[0] + (mx - h[0]) * k * 0.2, h[1] + (my - h[1]) * k * 0.2);
+      for (let k = 1; k < 5 && !B; k++) B = meet(h[2] + (mx - h[2]) * k * 0.2, h[3] + (my - h[3]) * k * 0.2);
+      if (!A || !B || Math.abs(A.t - M.t) > 8 || Math.abs(B.t - M.t) > 8) continue; // all on the one tree
+      const toEye = new THREE.Vector3(-M.p.x, 1.6 - M.p.y, -M.p.z).normalize();
+      const out = 0.18;
+      const a3 = A.p.clone().addScaledVector(toEye, out), b3 = B.p.clone().addScaledVector(toEye, out), m3 = M.p.clone().addScaledVector(toEye, out);
+      const t = b3.clone().sub(a3);
+      const len = t.length();
+      if (len < 0.4) continue;
+      t.normalize();
+      const n = M.n.clone().lerp(toEye, 0.5).normalize();
+      n.addScaledVector(t, -n.dot(t)).normalize();
+      const dev = m3.clone().sub(a3.clone().lerp(b3, 0.5));
+      const side = n.clone().cross(t);
+      dev.addScaledVector(n, -dev.dot(n));
+      const wid = Math.max(0.16, (h[5] * M.t) / cam.F);
+      contour.add({ p: a3, t, n, length: len, width: wid * 1.25, lift: 0, bend: dev.dot(side) / len, colour: [h[6] * 0.8, h[7] * 0.8, h[8] * 0.85], streak: [h[6], h[7], h[8]], seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0 });
+    }
+    group.add(surfaceStrokes(contour.data(), { segments: 6 }));
+    console.info('village tree outline strokes', contour.data().length / 24);
+  }
   if (ARCH) group.add(surfaceStrokes(arches.data(), { segments: 5 }));
   if (HIS) {
     // His strokes on the land between the groves and the hills (the pale fields with their dark

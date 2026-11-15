@@ -827,6 +827,15 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       the new hills stand. Start view matches Study 25's still closely.
       LESSON: when something that was good looks worse, diff against the
       version where it was good BEFORE redesigning it.
+      Study 29 (owner, 2026-11-15): "alright, good". Asked for the black
+      outline on the trees as in the painting, placed exactly where his is.
+      Study 30 PUBLISHED 2026-11-15, AWAITING HEADSET TEST: the dark strokes
+      among the traced ones (`tree_strokes.bin`, luminance under 0.2) are
+      followed along their lines of sight from the start onto the real tree
+      faces (ray against every painted-tree triangle) and laid there as
+      raised bowed strokes, 0.18 m proud, always drawn. Only strokes that
+      land on a tree are used (about 200). Trees otherwise unchanged. Effect
+      from the start is modest in stills.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
