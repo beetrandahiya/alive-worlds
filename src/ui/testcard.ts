@@ -2,12 +2,11 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Church gable', 'The second gable is slimmer now, so its edges are the dark lines he drew and the tall window sits in its middle. Right?'],
-  ['The other houses', 'The houses he did not paint (left of the church, behind the cypress, round the edges) now wear the paint of houses he did paint: wall for wall, roof for roof, with his door and dark windows. Do they belong? Any that look wrong?'],
-  ['Behind the cypress', 'Step to the left of the start so the cypress no longer hides the valley. Better than the blur? What still looks wrong there?'],
-  ['Small trees', 'The small trees round the edges now wear his tree paint too.'],
-  ['From the start', 'Should be unchanged, except the far flat ground between the groves is a little softer.'],
-  ['Frame rate and loading', 'There is more paint to prepare, so loading takes longer. Still 72 everywhere, especially among the hidden houses?'],
+  ['Hills behind the cypress', 'Step left of the start, or look from the valley. The gap in the hills there is filled: the hills now carry on behind the cypress at a gentle height, in his hill paint. Right?'],
+  ['From the start', 'The hills must look exactly as before on both sides of the cypress. The groves have more strokes standing on them now. Still his painting?'],
+  ['Trees, big', 'Every tree is now a mass with strokes of paint standing and curling off it, like the cypress. Walk up to the big one by the front houses. Better than the painted ball?'],
+  ['Trees, small', 'The small trees round the edges wear the whole of one of his trees, not a magnified piece: the horizontal bands should be gone.'],
+  ['Frame rate', 'About 16,000 more strokes are always drawn. Still 72, especially among the groves on the right?'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

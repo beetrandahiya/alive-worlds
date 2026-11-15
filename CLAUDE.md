@@ -718,6 +718,30 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
         Loading time and frame rate UNMEASURED.
       STILL OPEN: ground inside the village (owner has not chosen); trees
       rebuilt cypress-style (proposed, no answer yet).
+      Study 26 (headset, 2026-11-15): frame rate "perfect"; church gable
+      better; other houses "look good, most are nice, some a bit off"; start
+      view all right. NOT FIXED: behind the cypress still a blur ("why don't
+      we just fill the hills there like other places"); small trees show only
+      horizontal bands ("make all the trees well now"). GROUND: owner wants
+      one consolidated system drawn from his several paintings of roads,
+      grass and town streets.
+      Study 27 PUBLISHED 2026-11-15, AWAITING HEADSET TEST:
+      - Hills behind the cypress: the real cause was a GAP IN THE HILLS
+        (RIDGE in analyse.py sank to rows 742-760 across px 190-480, which he
+        hid behind the tree). RIDGE now carries on at rows 712-730 for px
+        195-440 (inside the tree's outline, so the start view is untouched),
+        and land inside the outline is painted like the hills beyond the
+        frame (walked hill paint), not from the filled-in guess. Rebaked.
+      - Trees: `tree()` rebuilt. A tree is an inner mass (84% size, still
+        wearing his paint of a tree so the start view holds) under nothing but
+        standing, curling strokes: a coat always drawn (about 48k strokes in
+        all) and an arm-length coat within 56 m. His WHOLE tree is laid over
+        the whole of each tree (scale carried in the fold mode's fraction), so
+        small trees no longer wear a magnified patch. A first try with a plain
+        dark inner mass made the groves dark from the start and was dropped.
+        LESSON: whatever is under the strokes must itself read as his paint
+        from the start.
+      GROUND STUDY in progress (reference/vangogh/GROUND_STUDY.md).
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

@@ -96,10 +96,14 @@ CYPRESS = poly([
 cyp = np.zeros((H, W), np.uint8)
 cv2.fillPoly(cyp, [CYPRESS], 255)
 cyp_core = cv2.erode(cyp, np.ones((5, 5), np.uint8))
+cyp_in = (cyp_core > 0).astype(np.float32)   # well inside the tree's outline: never seen from the start
 cyp = cv2.dilate(cyp, np.ones((int(15 * SX), int(15 * SX)), np.uint8))
 
 RIDGE = np.array([
-    (0, 735), (100, 750), (190, 760), (480, 742), (520, 702), (560, 690),
+    # behind the cypress (px 195-440, hidden from the start) the hills carry on at a gentle height
+    # instead of sinking to nothing: seen from anywhere else that gap was an empty blur
+    (0, 735), (100, 750), (190, 760), (195, 758), (230, 728), (300, 712), (380, 715), (440, 730),
+    (480, 742), (520, 702), (560, 690),
     (610, 700), (650, 716), (700, 700), (760, 652), (840, 634), (900, 650),
     (950, 664), (1000, 640), (1100, 600), (1150, 570), (1172, 526),
     (1210, 518), (1280, 514)], np.float32) * SX
@@ -462,6 +466,9 @@ def field(d, colour_img, jitter=None, land=False):
     px, py, valid = project(d)
     edge = np.minimum.reduce([px - INSET, W - INSET - px, py - INSET, H - INSET - py])
     w_p = smoothstep(0, FEATHER, edge) * valid
+    # Land hidden by the cypress has no paint of its own on the canvas: it is painted like the
+    # hills beyond the frame, with the painted hills' paint walked along, not with a filled-in guess.
+    w_p = np.where(valid & (el < r_el) & (samp(cyp_in, np.clip(px, 0, W - 1), np.clip(py, 0, H - 1)) > 0.5), 0.0, w_p)
     inside = w_p > 0
     colour = c_ext
     t = t_ext

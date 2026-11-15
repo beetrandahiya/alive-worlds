@@ -164,7 +164,10 @@ void main() {
     float th = atan(sn, e.y / len);
     float k = th > 1.0 ? (0.8415 + 0.5403 * (th - 1.0)) / max(sn, 1e-4) : 1.0;
     q = vec3(vFoldA.x + vFoldA.z * pg * k, vFoldB.z + ry * k, vFoldA.y + vFoldA.w * pg * k);
-    q += vColor;   // for a tree the colour slot carries where its paint is, relative to where it stands
+    // for a tree the colour slot carries the step to his painted tree, and the mode's fraction how much bigger his is:
+    // the whole of his tree is laid over the whole of this one
+    vec3 own = vec3(vFoldA.x, vFoldB.z, vFoldA.y);
+    q = own + (q - own) * ((vFoldB.x - 2.0) * 20.0) + vColor;
   } else {
     float hg = vFoldB.y;
     float gc = dot(q.xz - vFoldA.xy, vFoldA.zw);

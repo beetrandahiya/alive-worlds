@@ -68,7 +68,7 @@ export async function buildVillage(base: string) {
         if (fold.round) proj.push(p[0], p[1], p[2]); // a tree's skin is worked out pixel by pixel
         else proj.push(...lookup(fold, p, [n.x * out, n.y * out, n.z * out]));
         foldA.push(fold.cx, fold.cz, fold.gx, fold.gz);
-        if (fold.round) foldB.push(2, fold.rw!, fold.cy!, fold.ry!);
+        if (fold.round) foldB.push(2 + 0.05 * (fold.k ?? 1), fold.rw!, fold.cy!, fold.ry!);
         else foldB.push(1, foldWidth(fold), 0, 0);
       } else {
         proj.push(0, 0, 0);
@@ -205,7 +205,7 @@ export async function buildVillage(base: string) {
     };
   };
   /** How a building's skin is laid: its middle, the level direction toward the start (f), the direction across (g), half sizes along each. */
-  interface Fold { cx: number; cz: number; fx: number; fz: number; gx: number; gz: number; hf: number; hg: number; round: boolean; cy?: number; rw?: number; ry?: number; off?: number[] }
+  interface Fold { cx: number; cz: number; fx: number; fz: number; gx: number; gz: number; hf: number; hg: number; round: boolean; cy?: number; rw?: number; ry?: number; off?: number[]; k?: number }
   let fold: Fold | null = null;
   const foldOf = (fp: Footprint): Fold => {
     const L = Math.hypot(fp.x, fp.z), ex = -fp.x / L, ez = -fp.z / L;
@@ -302,7 +302,6 @@ export async function buildVillage(base: string) {
     const root = s.clone().addScaledVector(t, -L / 2).addScaledVector(n, rise_ + r.range(0, 0.015));
     coat.add({ p: root, t, n, length: L, width: wid * Math.min(1, 0.5 + (0.5 * L) / want), lift: leaf ? r.range(0.06, 0.38) * leaf : 0, bend: leaf ? (r.next() < 0.5 ? -1 : 1) * r.range(0.15, 0.45) * Math.min(leaf, 1.3) : r.range(-0.08, 0.08), colour: his.colour.map((x) => x * tone), streak: beside, seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: leaf ? 0.03 * L : 0 });
   };
-  const foldAt = (F: Fold, n: THREE.Vector3) => (p: THREE.Vector3) => seenAt(turned(F, lookup(F, [p.x, p.y, p.z], [n.x, n.y, n.z])));
   /**
    * One face of a building he painted (tools/starry/village_forms.py): a flat
    * polygon with, at each corner, the point of his canvas that belongs there.
@@ -479,7 +478,7 @@ export async function buildVillage(base: string) {
     }
   }
   // Every building he painted, as he drew it face by face (see village_forms.py).
-  void foldOf; void painted; void nave; void tower; void wing; void fixed;
+  void foldOf; void turned; void painted; void nave; void tower; void wing; void fixed;
   // His dark line along every roof edge, eave and corner: always drawn, as he drew it.
   const lines = new StrokeWriter();
   const DARK_LINE = [0.035, 0.045, 0.1];
@@ -732,62 +731,76 @@ export async function buildVillage(base: string) {
   const ip = ico.getAttribute('position');
   const treeAt: THREE.Vector3[] = [];
   const boughs = new StrokeWriter();
-  const tree = (x: number, z: number, wide: number, high: number, colour: number[], skinned = false, paintAt?: number[], dens = 1) => {
+  /**
+   * A tree, built the way the cypress is: a dark mass, and over it nothing but
+   * standing strokes of paint that curl off it. Each stroke takes its colour
+   * and the way it runs from his paint of a tree on the canvas (`paintAt`,
+   * `paintR`: where that tree stands and how wide it is), the whole of his
+   * tree laid over the whole of this one whatever their sizes.
+   */
+  const tree = (x: number, z: number, wide: number, high: number, colour: number[], skinned = false, paintAt?: number[], paintR?: number, small = false) => {
     const y = terrain(x, z) + high * 0.5;
     const turn = r.next() * 6.28;
-    // A painted tree is a clump of rounded masses, not one ball: a body and several boughs pushing out of it.
     let L = [0, 0, 0, 1, 0];
-    const v = (i: number) => {
+    const v = (i: number, shrink = 1) => {
       const px = ip.getX(i), py = ip.getY(i), pz = ip.getZ(i);
-      const lump = 1 + 0.16 * Math.sin(px * 5 + turn + L[4]) * Math.cos(pz * 4 + py * 3 + L[4]);
+      const lump = (1 + 0.16 * Math.sin(px * 5 + turn + L[4]) * Math.cos(pz * 4 + py * 3 + L[4])) * shrink;
       const cx = px * Math.cos(turn + L[4]) - pz * Math.sin(turn + L[4]), cz = px * Math.sin(turn + L[4]) + pz * Math.cos(turn + L[4]);
       return [x + L[0] + cx * wide * lump * L[3], y + L[1] + py * high * 0.55 * lump * L[3], z + L[2] + cz * wide * lump * L[3]];
     };
     const lumps: number[][] = [[0, 0, 0, 1, 0]];
     if (skinned) {
-      const n = 4 + Math.floor(r.next() * 3);
+      const n = small ? 2 + Math.floor(r.next() * 2) : 4 + Math.floor(r.next() * 3);
       for (let k = 0; k < n; k++) {
         const a = (k / n) * 6.283 + r.range(-0.5, 0.5), e = r.range(-0.15, 0.75), sz = r.range(0.42, 0.62);
         lumps.push([Math.cos(a) * Math.cos(e) * wide * 0.62, Math.sin(e) * high * 0.55 * 0.6, Math.sin(a) * Math.cos(e) * wide * 0.62, sz, r.next() * 6]);
       }
     }
     if (skinned) {
-      // a tree he painted: skinned with his paint of it, and raised strokes when you stand by it
       const F = roundFold(x, y, z, wide, high * 0.55);
-      if (paintAt) F.off = [paintAt[0] - x, paintAt[1] - y, paintAt[2] - z];
-      fold = F;
-      beginSet(x, z, Math.max(wide, high * 0.55) * 1.2, [22, 34]);
-      const mid = new THREE.Vector3(x, y, z);
+      const src = paintAt ?? [x, y, z], k = (paintR ?? wide) / wide;
+      const his = (n: THREE.Vector3) => (p: THREE.Vector3) => {
+        const q = lookup(F, [p.x, p.y, p.z], [n.x, n.y, n.z]); // (this already carries the step to his tree)
+        return seenAt([src[0] + (q[0] - F.off![0] - x) * k, src[1] + (q[1] - F.off![1] - y) * k, src[2] + (q[2] - F.off![2] - z) * k]);
+      };
+      // the mass under the strokes wears his paint of that tree too, so from far off it is his tree
+      F.off = [src[0] - x, src[1] - y, src[2] - z];
+      F.k = k;
+      const sc = Math.min(1.7, Math.max(0.45, wide / 6));
+      const dens = small ? 0.5 : 1;
+      beginSet(x, z, Math.max(wide, high * 0.55) * 1.2, [34, 56]);
       for (const lp of lumps) for (let i = 0; i < ip.count; i += 3) {
         L = lp;
+        fold = F;
+        tri(v(i, 0.84), v(i + 1, 0.84), v(i + 2, 0.84), colour);
+        fold = null;
         const A = v(i), B = v(i + 1), C = v(i + 2);
-        tri(A, B, C, colour);
         const a = new THREE.Vector3(...A), ab = new THREE.Vector3(...B).sub(a), ac = new THREE.Vector3(...C).sub(a);
         const n = ab.clone().cross(ac);
         const area = n.length() / 2;
         n.normalize();
-        if (n.dot(a.clone().addScaledVector(ab, 1 / 3).addScaledVector(ac, 1 / 3).sub(new THREE.Vector3(mid.x + L[0], mid.y + L[1], mid.z + L[2]))) < 0) n.negate();
+        const centre = a.clone().addScaledVector(ab, 1 / 3).addScaledVector(ac, 1 / 3);
+        if (n.dot(centre.clone().sub(new THREE.Vector3(x + L[0], y + L[1], z + L[2]))) < 0) n.negate();
+        // no paint on a face buried inside a neighbouring bough
+        if (lumps.some((o) => o !== lp && ((centre.x - x - o[0]) / (wide * o[3])) ** 2 + ((centre.y - y - o[1]) / (high * 0.55 * o[3])) ** 2 + ((centre.z - z - o[2]) / (wide * o[3])) ** 2 < 0.72)) continue;
         const u = ab.clone().normalize(), w2 = n.clone().cross(u);
-        const want = (area * 1.15 * dens) / (0.8 * 0.24);
-        const count = Math.floor(want) + (r.next() < want % 1 ? 1 : 0);
-        for (let k = 0; k < count; k++) {
-          let e = r.next(), g2 = r.next();
-          if (e + g2 > 1) { e = 1 - e; g2 = 1 - g2; }
-          daub(foldAt(F, n), a.clone().addScaledVector(ab, e).addScaledVector(ac, g2), u, w2, n, r.range(0.5, 1.15), r.range(0.17, 0.3), 0.06, undefined, 1);
-        }
-        // and big boughs of paint that stand off the mass and break its outline, always there
-        const big = (area * 0.19 * dens) / (1.4 * 0.4);
-        const nb = Math.floor(big) + (r.next() < big % 1 ? 1 : 0);
+        const lay = (cover: number, len: [number, number], wid: [number, number], rise_: number, leaf: number) => {
+          const want = (area * cover * dens) / (((len[0] + len[1]) / 2) * ((wid[0] + wid[1]) / 2));
+          const count = Math.floor(want) + (r.next() < want % 1 ? 1 : 0);
+          for (let q = 0; q < count; q++) {
+            let e = r.next(), g2 = r.next();
+            if (e + g2 > 1) { e = 1 - e; g2 = 1 - g2; }
+            daub(his(n), a.clone().addScaledVector(ab, e).addScaledVector(ac, g2), u, w2, n, r.range(len[0], len[1]), r.range(wid[0], wid[1]), rise_, undefined, leaf);
+          }
+        };
+        // near you: arm-length strokes, thick, curling off the mass
+        lay(1.5, [0.55, 1.2], [0.16, 0.28], 0.06, 1);
+        // always there, from any distance: the big curling strokes that give the tree its shape
         const keep = coat;
         coat = boughs;
-        for (let k = 0; k < nb; k++) {
-          let e = r.next(), g2 = r.next();
-          if (e + g2 > 1) { e = 1 - e; g2 = 1 - g2; }
-          daub(foldAt(F, n), a.clone().addScaledVector(ab, e).addScaledVector(ac, g2), u, w2, n, r.range(1.0, 1.9), r.range(0.3, 0.5), 0.1, undefined, 1.8);
-        }
+        lay(0.62, [1.3 * sc, 2.4 * sc], [0.34 * sc, 0.55 * sc], 0.1, 1.4);
         coat = keep;
       }
-      fold = null;
     } else {
       for (let i = 0; i < ip.count; i += 3) tri(v(i), v(i + 1), v(i + 2), colour);
     }
@@ -838,7 +851,7 @@ export async function buildVillage(base: string) {
         if (d < best) { best = d; src = o; }
       });
     }
-    tree(x, z, t.r, t.h, t.colour.map((c) => c * 0.85), true, [src.x, terrain(src.x, src.z) + src.h * 0.5, src.z]);
+    tree(x, z, t.r, t.h, t.colour.map((c) => c * 0.85), true, [src.x, terrain(src.x, src.z) + src.h * 0.5, src.z], src.r);
   });
   const shownTrees = data.trees.filter((_, i) => shown[i]);
   const greens = data.trees.slice(0, 5).map((t) => t.colour.map((c) => c * 0.8));
@@ -850,7 +863,7 @@ export async function buildVillage(base: string) {
     const spot: Footprint = { x, z, yaw: 0, w: wide * 2, d: wide * 2 };
     if (overlaps(spot, 1) || onRoad(spot, 0.5) || treeAt.some((t) => Math.hypot(t.x - x, t.z - z) < wide * 2.2)) continue;
     const don = shownTrees[Math.floor(r.next() * shownTrees.length)];
-    tree(x, z, wide, high, r.pick(greens), true, [don.x, terrain(don.x, don.z) + don.h * 0.5, don.z], 0.4);
+    tree(x, z, wide, high, r.pick(greens), true, [don.x, terrain(don.x, don.z) + don.h * 0.5, don.z], don.r, true);
   }
 
   // --- the asylum behind the start, from his own paintings of it.
