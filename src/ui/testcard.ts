@@ -2,12 +2,13 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Each stroke is now read from his canvas', 'His painting of each building is laid over it. Every stroke takes its own colour and its own direction from the paint at that very point. No averages.'],
-  ['From the start', 'Compare with the painting in your memory: the church, the lit windows, the striped roofs. Closer?'],
-  ['Up close', 'Do the strokes on a wall now vary the way his do: changing direction, light beside dark?'],
-  ['His windows', 'Lit windows are now only his yellow strokes, where he put them. I removed the window and door shapes from these houses. Miss them?'],
-  ['Sides and backs', 'He painted only the fronts. Sides and backs carry the same paint, mirrored. Does that show?'],
-  ['Frame rate', 'Village centre: still 72?'],
+  ['The village is rebuilt', 'Every building he painted is now built face by face as he drew it, and each face wears his own paint of it. The church is a nave, a second gabled part with the tower, and the spire.'],
+  ['From the start', 'Does the village read as his painting? (The ground between houses is still plain.)'],
+  ['House shapes', 'Walk round the front row and the church. Do the houses stand right: upright, sensible roofs, nothing leaning?'],
+  ['Paint on walls', 'From 50 m, from 10 m, and at arm\'s length. A second, hand-sized coat comes in within about 10 m. Thick paint, or soft?'],
+  ['Lamps and backs', 'A lamp should shine only where he painted it. Do back walls and ends look believable?'],
+  ['Trees', 'The round trees he painted wear his paint of them. Right, or odd anywhere?'],
+  ['Frame rate', 'Standing between two houses, close: still 72? Any flicker as strokes come in?'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */
