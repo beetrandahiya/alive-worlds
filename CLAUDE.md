@@ -872,6 +872,10 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
         45-120 m of the walker (`uCentre` in the GROUND shader).
       In the still the top row and mound now stand with their outlines; a
       small soft patch remains just left of the spire.
+      Study 32 (owner, 2026-11-15): "looks better now, good enough for now".
+      TREES AND OUTLINES PARKED HERE. Next piece proposed: the ground (lane,
+      village streets, fields), per the ground study; concept and lane
+      colours still need the owner's yes.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
