@@ -805,6 +805,15 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       made blurred balls. STILL WRONG: mid gap is unbuilt village ground;
       up close a tree is a striped ball with bare top and sides; long
       strokes still cut by the tracing.
+      Owner (2026-11-15) on the third try: "still shitty"; then: "you had
+      them quite good before we started all this". DECISION: TREES STAY AS IN
+      STUDY 28 (the Study 26 builder: his canvas as the skin on a lumpy mass,
+      a few big strokes standing off; small edge trees plain). The arch and
+      traced-stroke trials stay in the code behind `?trees=arch` / `?trees=his`
+      but are abandoned; do not reopen tree work unless the owner asks.
+      LESSON: rebuilding his paint from parts by my own rules (arches, traced
+      bars) loses what makes it his; where a thing already reads as his from
+      the start, change its SHAPE if the shape is wrong, never its paint.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
