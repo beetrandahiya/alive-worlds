@@ -126,6 +126,34 @@ def finish(name, faces, corners, lit=0):
     print(f"{name:8s} dist {np.hypot(c[0], c[2]):6.1f}  {w:5.1f} x {dep:5.1f} m  top {top - FLOOR:5.1f} m above the floor")
 
 
+DOOR_UV = [[797.5, 1008.5], [806.5, 1008.5], [806.5, 992.0], [797.5, 992.0]]   # a door as he painted one (striped-roof house)
+WIN_UV = [[984.5, 1003.0], [990.5, 1003.0], [990.5, 985.0], [984.5, 985.0]]     # a dark window as he painted one (pale house's gable)
+
+
+def openings(p, q, h, out, door=True):
+    """Doors and dark windows for a wall he could not see, each wearing his own paint of a door or
+    a window: a house must not show a blank wall to the street behind it."""
+    t = q - p
+    length = np.linalg.norm(t)
+    t = t / length
+    n = max(1, int(round(length / 3.4)))
+    res = []
+    for i in range(n):
+        at = (i + 0.5) / n * length
+        is_door = door and i == n // 2
+        if is_door:
+            w, y0, y1, uv = 1.1, 0.0, min(2.1, h - 0.25), DOOR_UV
+        else:
+            if h < 2.3:
+                continue
+            w, y0, y1, uv = 0.9, 1.1, min(2.35, h - 0.3), WIN_UV
+        base = p + t * at + out * 0.06
+        l, r_ = base - t * w / 2, base + t * w / 2
+        up = lambda v, y: np.array([v[0], p[1] + y, v[2]])
+        res.append(face("opening", [up(l, y0), up(r_, y0), up(r_, y1), up(l, y1)], uv))
+    return res
+
+
 def end_wall(a, a2, at, a2t, apex, uv_a, uv_at, slice_px, low_py, high_py):
     """An end wall he did not paint: the wall beside it carried round the corner, by height."""
     y0, y1 = a[1], max(apex[1], at[1], a2t[1])
@@ -189,6 +217,8 @@ def front(name, xl, xr, base, eave, ridge, depth, low=None, roof=True):
         faces += [face("roof", [at, bt, rb, ra], [uat, ubt, urb, ura]), face("roof", [b2t, a2t, ra, rb], [ubt, uat, ura, urb])]
         faces += end_wall(a, a2, at, a2t, ra, [s0, 0], uat, s1 - s0, low, em + 1)
         faces += end_wall(b, b2, bt, b2t, rb, [s1, 0], ubt, s0 - s1, low, em + 1)
+        tt = level(b - a)
+        faces += openings(b2, a2, h - a[1], n) + openings(a2, a, h - a[1], -tt, door=False) + openings(b, b2, h - a[1], tt, door=False)
     else:
         faces += [face("wall", [a, a2, a2t, at], [ua, [ua[0] + sl, ua[1]], [uat[0] + sl, uat[1]], uat]),
                   face("wall", [b, b2, b2t, bt], [ub, [ub[0] - sl, ub[1]], [ubt[0] - sl, ubt[1]], ubt])]
@@ -242,6 +272,7 @@ def corner(name, xa, xc, xb, base, wg, eaves, apex, ridge_far, low=None, wallsrc
         face("roof", [at, dt, rf, ap], [uct, ubt, urf, uap]),
         face("wall", [a, d, dt, at], [[s0, lw[0][1]], [s1, lw[0][1]], [s1, wt], [s0, wt]]),
     ] + end_wall(b, d, bt, dt, rf, [s0, 0], None, s1 - s0, lw[0][1], wt + 1)
+    faces += openings(d, a, h - c[1], u) + openings(b, d, h - c[1], v, door=False)
     finish(name, faces, [c, b, d, a])
     print(f"         gable turned {math.degrees(math.acos(min(1, abs(np.dot(u, np.array([-cdir[2], 0, cdir[0]])))))):4.0f} deg from square-on, long side {t:4.1f} m, fit {best[0]:.1f} px")
 
@@ -311,7 +342,7 @@ grow = lambda p_, q_: p_ + (p_ - q_) * 0.1
 sb = [grow(t01, tb11), grow(t11, tb01), grow(tb11, t01), grow(tb01, t11)]
 sc = np.mean(sb, 0)
 sap = lift(sc, 642)
-suv = [[718.5, 801], [739.5, 801], [721.5, 643]]
+suv = [[720.5, 801], [738.5, 801], [722.5, 644]]
 finish("spire", [face("roof", [sb[i], sb[(i + 1) % 4], sap], suv if i % 2 == 0 else [suv[1], suv[0], suv[2]]) for i in range(4)], sb)
 # left of the church
 front("red", 553, 592, 880, 859, ((565, 841), (600, 837)), 6.0, low=868)
@@ -321,7 +352,9 @@ front("blue", 760, 801, 888, 851, ((757, 823), (797, 823)), 7.0)
 corner("green", 858, 892, 930, 890, 6.5, (860, 862, 862), (873, 838), (926, 836))
 front("far", 930, 968, 851, 831, ((932, 819), (967, 819)), 6.0)
 front("band", 938, 1000, 871, 857, ((940, 846), (1000, 846)), 6.0)
-front("long", 955, 1072, 908, 885, ((960, 871), (1070, 872)), 7.0)
+# two houses in one row: the lit one (its two lamps sit in the wall, under a thin dark roof) and the brown-roofed one
+front("lit", 955, 1023, 908, 877, ((958, 869), (1022, 869)), 7.0, low=897)
+front("brown", 1024, 1072, 908, 895, ((1026, 874), (1068, 874)), 7.0)
 front("grey", 1026, 1072, 942, 912, ((1024, 900), (1074, 900)), 6.0)
 front("right", 1080, 1152, 946, 921, ((1082, 908), (1150, 908)), 6.0)
 

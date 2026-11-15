@@ -2,12 +2,12 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['The church', 'A gable now faces you right under the spire, with his dark arched opening in it. The belfry sits on the roof behind it. Is this the church you meant?'],
-  ['The spire', 'It should now be spire paint all the way up, no sky on it.'],
-  ['Dark lines', 'His dark line runs along every roof edge, eave and corner. Look at the houses in the back rows: do they hold together now? Too heavy anywhere?'],
-  ['Trees', 'Each painted tree is now a clump of rounded masses with big strokes standing off it. From 30 m, and right beside one: closer to the cypress, or still a painted ball?'],
-  ['Behind the start', 'The asylum is hidden. Is the view behind you all right without it?'],
-  ['Frame rate', 'About 27,000 strokes were added that are always drawn. Still 72 everywhere, especially by the trees on the right?'],
+  ['The lit house', 'Third to the right of the church. It was two houses read as one: now the two lamps sit in a wall under a thin dark roof, and the brown-roofed house beside it is its own house. Right?'],
+  ['Blank walls', 'Walls he never showed (backs and ends) now have a door and dark windows, each wearing his own paint of a door or a window. Believable? Too many, too few?'],
+  ['Church gable', 'The stray dark lines down the middle of the gable should be gone. The dark arch is a tall window, as he painted it: it does not reach the ground.'],
+  ['Spire', 'Less sky on its edges?'],
+  ['From the start', 'Nothing should have changed for the worse.'],
+  ['Frame rate', 'Still 72 everywhere?'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

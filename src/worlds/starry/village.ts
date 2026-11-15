@@ -511,6 +511,13 @@ export async function buildVillage(base: string) {
       for (let s0 = -0.15; s0 < len - 0.3; s0 += r.range(0.6, 0.95)) {
         const L2 = Math.min(r.range(1.0, 1.5), len - s0 + 0.15);
         const t = (s0 + L2 / 2) / len;
+        // no line where this edge runs inside a neighbour it is built into (the nave's far end inside the next gable)
+        const mx = A.x + dir.x * (s0 + L2 / 2), my = A.y + dir.y * (s0 + L2 / 2), mz = A.z + dir.z * (s0 + L2 / 2);
+        if (forms.buildings.some((o) => {
+          if (o === b || my > o.top) return false;
+          const dx = mx - o.x, dz = mz - o.z, c = Math.cos(o.yaw), sn = Math.sin(o.yaw);
+          return Math.abs(dx * c + dz * sn) < o.w / 2 + 0.25 && Math.abs(-dx * sn + dz * c) < o.d / 2 + 0.25;
+        })) continue;
         const his = hisPaint(f.uv[i][0] + (f.uv[j][0] - f.uv[i][0]) * t, f.uv[i][1] + (f.uv[j][1] - f.uv[i][1]) * t).colour;
         const colour = his.map((c, q) => c * 0.22 + DARK_LINE[q] * 0.78);
         lines.add({ p: A.clone().addScaledVector(dir, s0).addScaledVector(n, 0.07), t: dir, n, length: L2, width: r.range(0.17, 0.25), lift: 0, bend: r.range(-0.05, 0.05), colour, streak: colour.map((c) => c * 1.25), seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0 });

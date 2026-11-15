@@ -665,6 +665,32 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       - Asylum hidden by `SHOW_ASYLUM = false` in village.ts (code kept).
       - Ground right round the start no longer fans out in spokes (one tone
         within 7-20 m; GROUND shader).
+      Study 24 (headset, 2026-11-15): "looks better now". Faults: the third
+      house right of the church had its lit windows spanning wall and roof and
+      mirrored behind (misread: two houses taken as one, eave too low); some
+      houses show blank walls with no door or window; spire still a little
+      sky at the edges ("not too bad"); stray dark lines down the middle of
+      the church gable (the nave's far end poking into the next gable); the
+      dark arch in that gable does not reach the ground (it is a tall window
+      in the painting; left as he painted it); trees "still big circular
+      blobs with more detail", owner asks if there is a better way; the part
+      of the start view behind the cypress is "a weird blur" (hills filled by
+      stretching there, the 26 unpainted houses, plain ground).
+      Study 25 PUBLISHED 2026-11-15, AWAITING HEADSET TEST:
+      - "long" split into "lit" (px 955-1023, eave 877, lamps in the wall,
+        wall paint stops at row 897 above the tree in front) and "brown"
+        (1024-1072, eave 895).
+      - `openings()` in village_forms.py: every wall he could not see (backs,
+        ends, far gables) gets a door and dark windows as raised panels
+        wearing his own paint of a door (striped house) and a window (pale
+        house's gable). Faces he painted are untouched, so the start view is
+        unchanged.
+      - Outline strokes are not laid where an edge runs inside a neighbouring
+        building. Spire paint narrowed to 720.5..738.5 / 722.5,644.
+      PROPOSED to owner, awaiting answer: build trees the way the cypress is
+      built (no skinned ball; made only of standing strokes laid in his
+      curling arcs); and next piece = the part of the view behind the cypress
+      (hill strip rebake, the 26 unpainted houses, ground).
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
