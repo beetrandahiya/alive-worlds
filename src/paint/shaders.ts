@@ -134,6 +134,7 @@ void main() {
 export const CANVAS_FRAG = /* glsl */ `
 uniform vec3 uMoon;
 uniform sampler2D uCanvas;
+uniform float uTreeSoft;
 uniform vec4 uCam;    // focal length, cos pitch, sin pitch, eye height
 uniform vec4 uRect;   // the canvas picture's place in the painting: x0, y0, x1, y1
 uniform vec2 uSize;   // painting width, height
@@ -181,7 +182,9 @@ void main() {
   vec2 px = vec2(uSize.x * 0.5 + uCam.x * d.x / fwd, uSize.y * 0.5 - uCam.x * up / fwd);
   vec2 uv = (px - uRect.xy) / (uRect.zw - uRect.xy);
   uv = clamp(1.0 - abs(1.0 - mod(uv, 2.0)), 0.0004, 0.9996);   // past the picture's edge the paint turns back
-  gl_FragColor = vec4(texture2D(uCanvas, vec2(uv.x, 1.0 - uv.y)).rgb, 1.0);
+  // under his traced strokes a tree's mass is only the undercoat: his paint there, softened to its tone
+  float soft = (vFoldB.x > 1.5 && vFoldB.x < 2.5) ? uTreeSoft : 0.0;
+  gl_FragColor = vec4(textureLod(uCanvas, vec2(uv.x, 1.0 - uv.y), soft).rgb, 1.0);
 }`;
 
 export const DOME_VERT = /* glsl */ `

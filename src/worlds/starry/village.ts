@@ -739,7 +739,7 @@ export async function buildVillage(base: string) {
     let L = [0, 0, 0, 1, 0];
     const v = (i: number) => {
       const px = ip.getX(i), py = ip.getY(i), pz = ip.getZ(i);
-      const lump = HIS && skinned ? 1 : 1 + 0.16 * Math.sin(px * 5 + turn + L[4]) * Math.cos(pz * 4 + py * 3 + L[4]);
+      const lump = HIS && skinned ? GROW : 1 + 0.16 * Math.sin(px * 5 + turn + L[4]) * Math.cos(pz * 4 + py * 3 + L[4]);
       const cx = px * Math.cos(turn + L[4]) - pz * Math.sin(turn + L[4]), cz = px * Math.sin(turn + L[4]) + pz * Math.cos(turn + L[4]);
       return [x + L[0] + cx * wide * lump * L[3], y + L[1] + py * high * 0.55 * lump * L[3], z + L[2] + cz * wide * lump * L[3]];
     };
@@ -810,8 +810,10 @@ export async function buildVillage(base: string) {
    * and nothing else on top; the mass beneath wears the same paint.
    */
   const HIS = new URLSearchParams(location.search).get('trees') === 'his';
+  const GROW = 1.12; // his trees fill their rows: each mass a little larger, so neighbours run into one another as he painted them
   const hisStrokes = HIS ? new Float32Array((await fetch(base + 'tree_strokes.bin' + VER).then((q) => q.arrayBuffer())) as ArrayBuffer) : new Float32Array(0);
   const long = new StrokeWriter();
+  const usedHis = new Uint8Array(hisStrokes.length / 12);
   const layHis = (x: number, y: number, z: number, wide: number, ry: number, src: number[], srcR: number, srcRy: number) => {
     const ray = (px: number, py: number) => {
       const a = (px - cam.W / 2) / cam.F, b = -(py - cam.H / 2) / cam.F;
@@ -835,6 +837,8 @@ export async function buildVillage(base: string) {
       const mx = (h[0] + h[2]) / 2, my = (h[1] + h[3]) / 2;
       const c = onBall(mx, my);
       if (!c.hit) continue;
+      usedHis[i / 12] = 1;
+      const dark = h[6] * 0.3 + h[7] * 0.59 + h[8] * 0.11 < 0.17; // his dark contour strokes go on last, over the fill
       const cx = h[2] - h[0], cy = h[3] - h[1], L = Math.hypot(cx, cy);
       const a = onBall(h[0], h[1]), b = onBall(h[2], h[3]);
       if (a.miss || b.miss) continue;
@@ -846,7 +850,7 @@ export async function buildVillage(base: string) {
           return new THREE.Vector3(q.x - 2 * along * vx, q.y, q.z - 2 * along * vz);
         };
         const qa = turn(a.q), qb = turn(b.q), qm = turn(m);
-        const A3 = place(qa, 1.03), B3 = place(qb, 1.03), M3 = place(qm, 1.05);
+        const A3 = place(qa, dark ? 1.05 : 1.03), B3 = place(qb, dark ? 1.05 : 1.03), M3 = place(qm, dark ? 1.07 : 1.05);
         const t = B3.clone().sub(A3);
         const len = t.length();
         if (len < 0.25) continue;
@@ -858,7 +862,7 @@ export async function buildVillage(base: string) {
         const wid = Math.max(0.12, (h[5] * Math.hypot(src[0], src[2]) / cam.F) * (wide / srcR));
         // lifted off the ball by as much as the ball swells between the stroke's ends, so it lies along the surface
         const sag = (len * len) / (8 * ((wide + ry) / 2)) + 0.04;
-        long.add({ p: A3.addScaledVector(n, sag * 0.8), t, n, length: len, width: wid * 1.15, lift: 0, bend: dev.dot(side) / len, colour: [h[6], h[7], h[8]], streak: [h[9], h[10], h[11]], seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0 });
+        long.add({ p: A3.addScaledVector(n, sag * 0.8), t, n, length: len, width: wid * (dark ? 1.25 : 1.4), lift: 0, bend: dev.dot(side) / len, colour: [h[6], h[7], h[8]], streak: [h[9], h[10], h[11]], seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0 });
       }
     }
   };
@@ -976,7 +980,7 @@ export async function buildVillage(base: string) {
       });
     }
     const from = [src.x, terrain(src.x, src.z) + src.h * 0.5, src.z];
-    if (HIS) layHis(x, terrain(x, z) + t.h * 0.5, z, t.r, t.h * 0.55, from, src.r, src.h * 0.55);
+    if (HIS) layHis(x, terrain(x, z) + t.h * 0.5, z, t.r * GROW, t.h * 0.55 * GROW, from, src.r * GROW, src.h * 0.55 * GROW);
     if (ARCH) archTree(x, z, t.r, t.h, from, src.r);
     else tree(x, z, t.r, t.h, t.colour.map((c) => c * 0.85), true, from);
   });
@@ -1064,7 +1068,37 @@ export async function buildVillage(base: string) {
   group.add(surfaceStrokes(lines.data(), { segments: 2 }));
   group.add(surfaceStrokes(boughs.data(), { segments: 3 }));
   if (ARCH) group.add(surfaceStrokes(arches.data(), { segments: 5 }));
-  if (HIS) group.add(surfaceStrokes(long.data(), { segments: 6 }));
+  if (HIS) {
+    // His strokes on the land between the groves and the hills (the pale fields with their dark
+    // outlines, the ground the far row stands on): laid flat on ground no walker can reach.
+    for (let i = 0; i < hisStrokes.length; i += 12) {
+      if (usedHis[i / 12]) continue;
+      const h = hisStrokes.subarray(i, i + 12);
+      const hit = (px: number, py: number) => {
+        const a = (px - cam.W / 2) / cam.F, b = -(py - cam.H / 2) / cam.F;
+        const d = new THREE.Vector3(a, b * CP + SP, -(CP - b * SP)).normalize();
+        for (let t = 200; t < 520; t += 2) {
+          const q = new THREE.Vector3(d.x * t, 1.6 + d.y * t, d.z * t);
+          if (q.y < terrain(q.x, q.z)) return q.setY(terrain(q.x, q.z));
+        }
+        return null;
+      };
+      const A = hit(h[0], h[1]), B = hit(h[2], h[3]), M = hit((h[0] + h[2]) / 2, (h[1] + h[3]) / 2);
+      if (!A || !B || !M) continue;
+      const dist = Math.hypot(M.x, M.z);
+      if (dist < 395 || dist > 480 || hiddenFromStart(M.x, M.y + 0.5, M.z)) continue;
+      const t = B.clone().sub(A);
+      const len = t.length();
+      if (len < 1 || len > 60) continue;
+      t.normalize();
+      const n = new THREE.Vector3(0, 1, 0).addScaledVector(t, -t.y).normalize();
+      // seen from the start at a low angle: as deep on the ground as it must be to show at his width
+      const graze = Math.max(0.06, (1.6 - M.y) / dist);
+      const wid = Math.min(14, ((h[5] * dist) / cam.F) / graze);
+      long.add({ p: A.clone().addScaledVector(n, 0.25), t, n, length: len, width: wid, lift: 0, bend: 0, colour: [h[6], h[7], h[8]], streak: [h[9], h[10], h[11]], seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0 });
+    }
+    group.add(surfaceStrokes(long.data(), { segments: 6 }));
+  }
   if (HIS) console.info('village his tree strokes', long.data().length / 24);
   if (ARCH) console.info('village arch strokes', arches.data().length / 24);
   console.info('village tree boughs', boughs.data().length / 24);

@@ -52,14 +52,14 @@ for sx, sy in seeds:
             ux, uy = at(dx, x, y), at(dy, x, y)
             if ux * vx + uy * vy < 0:
                 ux, uy = -ux, -uy
-            if ux * vx + uy * vy < 0.86:                # the paint turns sharply: the stroke has ended
+            if ux * vx + uy * vy < 0.8:                # the paint turns sharply: the stroke has ended
                 break
             vx, vy = ux, uy
             x, y = x + vx * 1.2, y + vy * 1.2
             if not (1 < x < w - 2 and 1 < y < h - 2):
                 break
             d = at(lab, x, y) - c0
-            if abs(d[0]) > 26 or math.hypot(d[1], d[2]) > 15 or at(taken, x, y):
+            if abs(d[0]) > 31 or math.hypot(d[1], d[2]) > 17 or at(taken, x, y):
                 break
             path.append((x, y)) if sign > 0 else path.insert(0, (x, y))
     if len(path) < 14:

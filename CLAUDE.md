@@ -792,6 +792,19 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       Much closer to the painting from the start. Known: tracing cuts his
       longest strokes short (median 1.2 cm, 90% 2.6 cm of canvas; his arches
       run 3-5 cm); form is still a rounded mass. Shown to owner.
+      Owner (2026-11-15) on the second try: "a bit better, coming closer, could
+      be much much better": trees need MORE OUTLINE and CLEANER FILL; marked
+      three places: far grove row behind the spire blurry/empty and not
+      touching the hills; gap between the lit house and trees; right-hand
+      fields lack their outlines.
+      THIRD TRY (stills, `?trees=his`): trees 12% larger (`GROW`) so rows run
+      together; his dark strokes laid last and proud; tree mass softened to
+      tone (`uTreeSoft`, mip 2.5); strokes wider; traced strokes that meet no
+      tree are laid FLAT on ground 395-480 m out (beyond the 340 m walk
+      limit, so never approached). A 28% growth and mip 4.5 were tried and
+      made blurred balls. STILL WRONG: mid gap is unbuilt village ground;
+      up close a tree is a striped ball with bare top and sides; long
+      strokes still cut by the tracing.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
