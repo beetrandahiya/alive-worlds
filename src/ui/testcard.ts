@@ -2,13 +2,12 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['The village is rebuilt', 'Every building he painted is now built face by face as he drew it, and each face wears his own paint of it. The church is a nave, a second gabled part with the tower, and the spire.'],
-  ['From the start', 'Does the village read as his painting? (The ground between houses is still plain.)'],
-  ['House shapes', 'Walk round the front row and the church. Do the houses stand right: upright, sensible roofs, nothing leaning?'],
-  ['Paint on walls', 'From 50 m, from 10 m, and at arm\'s length. A second, hand-sized coat comes in within about 10 m. Thick paint, or soft?'],
-  ['Lamps and backs', 'A lamp should shine only where he painted it. Do back walls and ends look believable?'],
-  ['Trees', 'The round trees he painted wear his paint of them. Right, or odd anywhere?'],
-  ['Frame rate', 'Standing between two houses, close: still 72? Any flicker as strokes come in?'],
+  ['The church', 'A gable now faces you right under the spire, with his dark arched opening in it. The belfry sits on the roof behind it. Is this the church you meant?'],
+  ['The spire', 'It should now be spire paint all the way up, no sky on it.'],
+  ['Dark lines', 'His dark line runs along every roof edge, eave and corner. Look at the houses in the back rows: do they hold together now? Too heavy anywhere?'],
+  ['Trees', 'Each painted tree is now a clump of rounded masses with big strokes standing off it. From 30 m, and right beside one: closer to the cypress, or still a painted ball?'],
+  ['Behind the start', 'The asylum is hidden. Is the view behind you all right without it?'],
+  ['Frame rate', 'About 27,000 strokes were added that are always drawn. Still 72 everywhere, especially by the trees on the right?'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

@@ -73,7 +73,14 @@ void main() {
   // For now only the far hills carry sharp paint. The valley is being
   // rebuilt as a real place and wears a plain soft tone until it is painted.
   float sharp = smoothstep(380.0, 470.0, length(vWorld.xz));
-  gl_FragColor = vec4(mix(textureLod(uGround, uv, 5.0).rgb, texture2D(uGround, uv).rgb, sharp), 1.0);
+  vec3 tone = textureLod(uGround, uv, 5.0).rgb;
+  // Right round the start every compass direction meets in a point, and the tone would fan out
+  // from it like spokes; there the ground takes the one tone of the ring round the start.
+  float ring = log(18.0 / uGroundRange.x) / uGroundRange.y;
+  vec3 hub = (textureLod(uGround, vec2(0.125, ring), 7.0).rgb + textureLod(uGround, vec2(0.375, ring), 7.0).rgb
+            + textureLod(uGround, vec2(0.625, ring), 7.0).rgb + textureLod(uGround, vec2(0.875, ring), 7.0).rgb) * 0.25;
+  tone = mix(hub, tone, smoothstep(7.0, 20.0, length(vWorld.xz)));
+  gl_FragColor = vec4(mix(tone, texture2D(uGround, uv).rgb, sharp), 1.0);
 }`;
 
 /** Plain solid forms, lit a little by the moon so their shapes read. */

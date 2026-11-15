@@ -292,11 +292,27 @@ front("low", 657, 725, 945, 921, ((662, 903), (727, 903)), 6.0)
 # back to the right, a second gabled body with the tower standing in its front, the spire
 front("annex", 634, 652, 884, 852, ((636, 828), (660, 827)), 7.0)
 corner("nave", 651, 698, 713, 890, 9.4, (851, 858, 848), (673, 812), (687, 811))
-gablefront("body", 703, 757, 891, 850, (731, 827), 12.0, [(699, 858), (673, 812), (687, 811), (713, 848)])
-ta, tb, ta2, tb2, tat, tbt, tn = front("tower", 722, 744, 892, 803, None, 4.6, roof=False)
-tat2, tbt2 = tat + tn * 4.6, tbt + tn * 4.6
-grow = lambda p, q: p + (p - q) * 0.14
-spire("spire", [grow(tat, tbt2), grow(tbt, tat2), grow(tbt2, tat), grow(tat2, tbt)], (731, 633))
+ba, bb, bn, bap = gablefront("body", 703, 757, 891, 850, (731, 827), 12.0, [(699, 858), (673, 812), (687, 811), (713, 848)])
+# The tower does not come down in front of that gable: his dark arched opening is in the gable
+# wall itself. The belfry sits astride the ridge a little way back, and the spire stands on it.
+tq = ba + bn * 2.0
+tf = lambda px, py: on_plane(px, py, tq, bn)
+t00, t10 = tf(722, 838), tf(741, 838)
+ttop = (tf(722, 803)[1] + tf(741, 803)[1]) / 2
+upto = lambda q, y: np.array([q[0], y, q[2]])
+t01, t11 = upto(t00, ttop), upto(t10, ttop)
+tb00, tb10, tb01, tb11 = t00 + bn * 3.6, t10 + bn * 3.6, t01 + bn * 3.6, t11 + bn * 3.6
+tuv = [[722, 838], [741, 838], [741, 803], [722, 803]]
+finish("tower", [face("wall", [t00, t10, t11, t01], tuv), face("wall", [tb10, tb00, tb01, tb11], tuv),
+                 face("wall", [t00, tb00, tb01, t01], tuv), face("wall", [t10, tb10, tb11, t11], tuv)], [t00, t10, tb10, tb00])
+# The spire as he painted it is a thin needle leaning left (base 718..740 at row 801, point at
+# 721,642). The form stands upright over the belfry; its faces wear that needle of paint.
+grow = lambda p_, q_: p_ + (p_ - q_) * 0.1
+sb = [grow(t01, tb11), grow(t11, tb01), grow(tb11, t01), grow(tb01, t11)]
+sc = np.mean(sb, 0)
+sap = lift(sc, 642)
+suv = [[718.5, 801], [739.5, 801], [721.5, 643]]
+finish("spire", [face("roof", [sb[i], sb[(i + 1) % 4], sap], suv if i % 2 == 0 else [suv[1], suv[0], suv[2]]) for i in range(4)], sb)
 # left of the church
 front("red", 553, 592, 880, 859, ((565, 841), (600, 837)), 6.0, low=868)
 front("lamp", 600, 634, 888, 851, ((600, 838), (634, 838)), 6.0, low=882)

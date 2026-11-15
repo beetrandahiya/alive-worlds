@@ -640,6 +640,31 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       for now; owner asked how he felt about the asylum and will decide
       whether it stays at all (the plain forms behind the start are still in
       Study 23). Do not work on it until the owner says.
+      Study 23 (headset, 2026-11-15): 72 fps everywhere, also close up. Start
+      view "mostly good"; house shapes good; front houses "beautiful even
+      when you go close"; backs believable. Faults: the church should show a
+      gable (triangle) facing you right under the spire; half the spire wore
+      sky paint; the back-row houses "look kind of off", the dark line on
+      roof edges was missing; trees fine from afar but up close read as his
+      paint laid over a round ball ("horrible"; the cypress is the standard).
+      Owner: HIDE THE ASYLUM in this version but keep its code.
+      Study 24 PUBLISHED 2026-11-15, AWAITING HEADSET TEST:
+      - Church: the tower no longer comes down in front of the second gable;
+        that gable shows whole, with his arched opening in it; the belfry
+        sits astride the ridge 2 m back; spire upright on it.
+      - Spire: his needle traced properly (base 718..740 at row 801, point at
+        721,642); every face wears that paint. (The first reading had put the
+        point at 731,633, half over sky.)
+      - Dark lines: `outline()` in village.ts lays his dark line along every
+        real edge of each painted building (not where a wall meets the ground,
+        not between a wall and the gable above it): 1.7k strokes, always drawn.
+      - Trees: each painted tree is a body plus 4-6 boughs (lumps), its
+        near strokes lift and curl off the surface, and a coat of big
+        standing strokes (`boughs`, about 26k, always drawn) breaks the
+        outline. Still his paint by line of sight; far side mirrors the near.
+      - Asylum hidden by `SHOW_ASYLUM = false` in village.ts (code kept).
+      - Ground right round the start no longer fans out in spokes (one tone
+        within 7-20 m; GROUND shader).
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
