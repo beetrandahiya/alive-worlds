@@ -813,6 +813,7 @@ export async function buildVillage(base: string) {
    */
   const HIS = new URLSearchParams(location.search).get('trees') === 'his';
   const darkStrokes = new Float32Array((await fetch(base + 'tree_strokes.bin' + VER).then((q) => q.arrayBuffer())) as ArrayBuffer);
+  const contourLines = new Float32Array((await fetch(base + 'tree_contours.bin' + VER).then((q) => q.arrayBuffer())) as ArrayBuffer);
   const GROW = 1.12; // his trees fill their rows: each mass a little larger, so neighbours run into one another as he painted them
   const hisStrokes = HIS ? darkStrokes : new Float32Array(0);
   const long = new StrokeWriter();
@@ -1104,33 +1105,49 @@ export async function buildVillage(base: string) {
       const p = new THREE.Vector3(d.x * best, 1.6 + d.y * best, d.z * best);
       return hiddenFromStart(p.x, p.y, p.z) ? null : { p, n: bn, t: best };
     };
-    for (let i = 0; i < darkStrokes.length; i += 12) {
-      const h = darkStrokes.subarray(i, i + 12);
-      if (h[6] * 0.3 + h[7] * 0.59 + h[8] * 0.11 > 0.2) continue;
+    // A line along the top of a tree runs on its very edge as the start sees it, where a line of sight
+    // just misses. Such a point takes the tree beside it: it stands at that tree's distance, on its rim.
+    const rim = (px: number, py: number) => {
+      for (const [ox, oy] of [[0, 0], [0, 2.5], [0, 5], [-3, 3], [3, 3], [0, 8], [-5, 6], [5, 6]]) {
+        const m = meet(px + ox, py + oy);
+        if (!m) continue;
+        if (!ox && !oy) return m;
+        const a = (px - cam.W / 2) / cam.F, b = -(py - cam.H / 2) / cam.F;
+        const d = new THREE.Vector3(a, b * CP + SP, -(CP - b * SP)).normalize();
+        return { p: new THREE.Vector3(d.x * m.t, 1.6 + d.y * m.t, d.z * m.t), n: m.n, t: m.t };
+      }
+      return null;
+    };
+    const layLine = (h: Float32Array, widen: number) => {
       const cx = h[2] - h[0], cy = h[3] - h[1], L = Math.hypot(cx, cy);
       const mx = (h[0] + h[2]) / 2 - (cy / L) * h[4] * L, my = (h[1] + h[3]) / 2 + (cx / L) * h[4] * L;
-      const M = meet(mx, my);
-      if (!M) continue;
-      // an end that runs off the tree's edge stops at the edge
-      let A = meet(h[0], h[1]), B = meet(h[2], h[3]);
-      for (let k = 1; k < 5 && !A; k++) A = meet(h[0] + (mx - h[0]) * k * 0.2, h[1] + (my - h[1]) * k * 0.2);
-      for (let k = 1; k < 5 && !B; k++) B = meet(h[2] + (mx - h[2]) * k * 0.2, h[3] + (my - h[3]) * k * 0.2);
-      if (!A || !B || Math.abs(A.t - M.t) > 8 || Math.abs(B.t - M.t) > 8) continue; // all on the one tree
+      const M = rim(mx, my);
+      if (!M) return;
+      let A = rim(h[0], h[1]), B = rim(h[2], h[3]);
+      for (let k = 1; k < 5 && !A; k++) A = rim(h[0] + (mx - h[0]) * k * 0.2, h[1] + (my - h[1]) * k * 0.2);
+      for (let k = 1; k < 5 && !B; k++) B = rim(h[2] + (mx - h[2]) * k * 0.2, h[3] + (my - h[3]) * k * 0.2);
+      if (!A || !B || Math.abs(A.t - M.t) > 8 || Math.abs(B.t - M.t) > 8) return; // all on the one tree
       const toEye = new THREE.Vector3(-M.p.x, 1.6 - M.p.y, -M.p.z).normalize();
       const out = 0.18;
       const a3 = A.p.clone().addScaledVector(toEye, out), b3 = B.p.clone().addScaledVector(toEye, out), m3 = M.p.clone().addScaledVector(toEye, out);
       const t = b3.clone().sub(a3);
       const len = t.length();
-      if (len < 0.4) continue;
+      if (len < 0.4) return;
       t.normalize();
-      const n = M.n.clone().lerp(toEye, 0.5).normalize();
+      const n = M.n.clone().lerp(toEye, 0.6).normalize();
       n.addScaledVector(t, -n.dot(t)).normalize();
       const dev = m3.clone().sub(a3.clone().lerp(b3, 0.5));
       const side = n.clone().cross(t);
       dev.addScaledVector(n, -dev.dot(n));
       const wid = Math.max(0.16, (h[5] * M.t) / cam.F);
-      contour.add({ p: a3, t, n, length: len, width: wid * 1.25, lift: 0, bend: dev.dot(side) / len, colour: [h[6] * 0.8, h[7] * 0.8, h[8] * 0.85], streak: [h[6], h[7], h[8]], seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0 });
+      contour.add({ p: a3, t, n, length: len, width: wid * widen, lift: 0, bend: dev.dot(side) / len, colour: [h[6] * 0.8, h[7] * 0.8, h[8] * 0.85], streak: [h[6], h[7], h[8]], seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0 });
+    };
+    for (let i = 0; i < darkStrokes.length; i += 12) {
+      const h = darkStrokes.subarray(i, i + 12);
+      if (h[6] * 0.3 + h[7] * 0.59 + h[8] * 0.11 < 0.2) layLine(h, 1.25);
     }
+    // and the thinner lines, black or blue, that are only darker than the paint beside them
+    for (let i = 0; i < contourLines.length; i += 12) layLine(contourLines.subarray(i, i + 12), 1.0);
     group.add(surfaceStrokes(contour.data(), { segments: 6 }));
     console.info('village tree outline strokes', contour.data().length / 24);
   }

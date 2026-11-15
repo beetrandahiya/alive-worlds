@@ -2,10 +2,10 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Dark outlines on the trees', 'His dark contour strokes are traced off the canvas and laid on the trees where he drew them: under each tree, between neighbours, round the big bushes. Enough? Too heavy anywhere? In the right places?'],
-  ['Up close', 'Walk to the big bush by the front houses. The outline strokes sit a little proud of the tree. Do they belong to it?'],
-  ['Everything else', 'Nothing else changed from the last version.'],
-  ['Frame rate', 'Still 72? (About 200 strokes were added.)'],
+  ['The outlines you marked', 'The lines along the tops of the tree rows and between the trees, black and blue, are now traced off the canvas and laid on the trees. Are the ones you marked there? Which are still missing?'],
+  ['Weight', 'Too faint, about right, or too heavy?'],
+  ['Up close', 'By the big bush at the front houses: do the outline strokes belong to the tree?'],
+  ['Frame rate', 'Still 72? (About 340 outline strokes on the trees in all.)'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

@@ -106,3 +106,59 @@ for s in sorted(strokes, key=lambda s: -(s[5])):
     pts = np.array([a + ch * u + n * (4 * s[4] * Lc * u * (1 - u)) for u in np.linspace(0, 1, 9)], np.int32)
     cv2.polylines(re, [pts], False, [int(v * 255) for v in s[6:9][::-1]], max(2, int(s[5] * Z * 0.9)), cv2.LINE_AA)
 cv2.imwrite(str(ROOT / "reference" / "debug_tree_strokes.jpg"), np.vstack([big, re]), [cv2.IMWRITE_JPEG_QUALITY, 82])
+
+# ---------------------------------------------------------------- his contour lines
+# The thin dark lines he drew along the tops of the tree rows and round the bushes are not always
+# black: many are dark blue, only darker than the paint either side. They are found as lines of
+# paint darker than their surroundings and followed along their length for as long as that holds.
+L = lab[..., 0]
+rel = cv2.GaussianBlur(L, (0, 0), 7.0) - cv2.GaussianBlur(L, (0, 0), 1.2)      # how much darker than round about
+rel[L > 135] = 0                                                              # a pale stroke is never a contour
+from skimage.morphology import skeletonize, remove_small_objects
+mask = remove_small_objects(rel > 11.0, 40)
+sk = skeletonize(mask)
+nb = cv2.filter2D(sk.astype(np.uint8), -1, np.ones((3, 3), np.float32)) - sk     # neighbours on the line
+sk[(nb > 2) & sk] = False                                                         # cut at crossings: each piece is one line
+nb = cv2.filter2D(sk.astype(np.uint8), -1, np.ones((3, 3), np.float32)) - sk
+left = sk.copy()
+contours = []
+f = S / K
+ends = list(zip(*np.where(sk & (nb == 1))))
+for ey, ex in ends:
+    if not left[ey, ex]:
+        continue
+    path = [(ex, ey)]
+    left[ey, ex] = False
+    while True:
+        x, y = path[-1]
+        nxt = [(x + i, y + j) for j in (-1, 0, 1) for i in (-1, 0, 1) if (i or j) and 0 <= y + j < h and 0 <= x + i < w and left[y + j, x + i]]
+        if not nxt:
+            break
+        left[nxt[0][1], nxt[0][0]] = False
+        path.append(nxt[0])
+    if len(path) < 18:
+        continue
+    P = np.array(path, np.float32)
+    n_seg = max(1, int(round(len(P) / 30)))
+    for q in range(n_seg):
+        seg = P[q * len(P) // n_seg: min(len(P), (q + 1) * len(P) // n_seg + 3)]
+        a, b = seg[0], seg[-1]
+        ch = b - a
+        Lc = np.hypot(*ch)
+        if Lc < 6:
+            continue
+        nrm = np.array([-ch[1], ch[0]]) / Lc
+        mid = seg[len(seg) // 2]
+        bow = float((mid - (a + b) / 2) @ nrm) / Lc
+        col = np.median(np.array([at(small, x, y) for x, y in seg]), 0)[::-1] / 255
+        contours.append([X0 + a[0] * f, Y0 + a[1] * f, X0 + b[0] * f, Y0 + b[1] * f, bow, 3.4 * f, *col, *col])
+C = np.array(contours, np.float32)
+C.tofile(ROOT / "public" / "starry" / "tree_contours.bin")
+print(len(C), "contour strokes")
+ov = (big * 0.6).astype(np.uint8)
+for s in contours:
+    a = np.array([(s[0] - X0) * Z, (s[1] - Y0) * Z]); b = np.array([(s[2] - X0) * Z, (s[3] - Y0) * Z])
+    ch = b - a; Lc = np.hypot(*ch); n = np.array([-ch[1], ch[0]]) / Lc
+    pts = np.array([a + ch * u + n * (4 * s[4] * Lc * u * (1 - u)) for u in np.linspace(0, 1, 9)], np.int32)
+    cv2.polylines(ov, [pts], False, (0, 255, 255), 2, cv2.LINE_AA)
+cv2.imwrite(str(ROOT / "reference" / "debug_tree_contours.jpg"), np.vstack([big, ov]), [cv2.IMWRITE_JPEG_QUALITY, 82])

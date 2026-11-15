@@ -836,6 +836,22 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       raised bowed strokes, 0.18 m proud, always drawn. Only strokes that
       land on a tree are used (about 200). Trees otherwise unchanged. Effect
       from the start is modest in stills.
+      Study 30 (owner, 2026-11-15): marked in red the outlines still missing:
+      the lines along the TOPS of the grove rows and between trees; "some are
+      black, some are blue". Cause: only strokes dark in absolute terms were
+      used; his contours are often dark blue, only darker than the paint
+      beside them, and they run on the trees' rims where a line of sight
+      just misses.
+      Study 31 PUBLISHED 2026-11-15, AWAITING HEADSET TEST: second pass in
+      `tree_strokes.py`: paint darker than its surroundings (blur 7 minus
+      blur 1.2 of lightness > 11, pale paint excluded) is thinned to lines
+      (scikit-image `skeletonize`, pip-installed, free), cut at crossings,
+      split into bows -> `tree_contours.bin` (437 lines, in his own colours;
+      check picture `reference/debug_tree_contours.jpg`). `layLine()`/`rim()`
+      in village.ts lay both sets on the trees; a point on a tree's rim takes
+      the distance of the tree just below it. 339 outline strokes on trees.
+      In stills the outlines read clearly on the groves; the top edge of the
+      far row against the hills is still weaker than his.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
