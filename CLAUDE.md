@@ -636,6 +636,10 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       (face-by-face forms, canvas skin, raised strokes within 52 m, close
       coat within 12 m, lamp/tree fixes). First headset test of this method.
       Frame rate with the close coat is unmeasured.
+      Owner (2026-11-15): ASYLUM ON HOLD. Do not build or paint it further
+      for now; owner asked how he felt about the asylum and will decide
+      whether it stays at all (the plain forms behind the start are still in
+      Study 23). Do not work on it until the owner says.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
