@@ -924,6 +924,15 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       "far" version of each house coat (fewer segments, no relief) beyond
       25 m; raise fixed foveation; build stroke data in a worker to cut the
       load stall. Measure each on the headset, one at a time.
+      Study 34 (headset, 2026-11-15): REJECTED, angrily: the smaller road
+      strokes are "ugly, tiny little strokes"; Study 33's strokes "looked
+      good, were nice". I had misread "ground strokes feel too close, like
+      sitting on the ground" as "too big". DO NOT SHRINK THE GROUND STROKES.
+      Study 35 PUBLISHED 2026-11-15: stroke sizes and density exactly as
+      Study 33 (0.42-0.85 x 0.07-0.13 m, verge 0.16-0.32); kept from 34: the
+      height fix (no bare patches), sand everywhere, culling; ground drawn
+      within 60 m, fading 45-30 m. What "too close" meant is still unknown:
+      asked the owner.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

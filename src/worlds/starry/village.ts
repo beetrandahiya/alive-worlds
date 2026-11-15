@@ -1150,8 +1150,8 @@ export async function buildVillage(base: string) {
             }
           };
           const area = (d1 - d0) * rd.half * 2.3;
-          lay(Math.round((area * 2.0) / (0.4 * 0.065)), -rd.half * 1.15, rd.half * 1.15, [0.26, 0.54], [0.075, 0.125], lane ? 0.22 : 0.4, paint, 55);
-          if (lane) for (const sg of [-1, 1]) lay(Math.round(((d1 - d0) * 0.5 * 1.6) / (0.24 * 0.08)), sg * rd.half * 1.05, sg * (rd.half * 1.05 + 0.5), [0.12, 0.24], [0.04, 0.07], 0.6, vergePaint, 55);
+          lay(Math.round((area * 2.4) / (0.62 * 0.1)), -rd.half * 1.15, rd.half * 1.15, [0.42, 0.85], [0.07, 0.13], lane ? 0.22 : 0.4, paint, 55);
+          if (lane) for (const sg of [-1, 1]) lay(Math.round(((d1 - d0) * 0.5 * 1.6) / (0.24 * 0.08)), sg * rd.half * 1.05, sg * (rd.half * 1.05 + 0.5), [0.16, 0.32], [0.06, 0.1], 0.6, vergePaint, 55);
         }
         run += L;
       }
@@ -1172,7 +1172,7 @@ export async function buildVillage(base: string) {
     }
     // Only what is in front of you is drawn: each set knows the ball of space it fills (see `cullable`).
     groundSets.push({ mesh: cullable(surfaceStrokes(wheat.data(), { segments: 2, fade: [45, 70] }), -2, -62, 62), x: -2, z: -62, reach: 130 });
-    for (const f of flat) groundSets.push({ mesh: cullable(surfaceStrokes(f.w.data(), { segments: 2, fade: [20, 32], terrain: TERRAIN_GLSL }), f.x, f.z, 17), x: f.x, z: f.z, reach: 48 });
+    for (const f of flat) groundSets.push({ mesh: cullable(surfaceStrokes(f.w.data(), { segments: 2, fade: [30, 45], terrain: TERRAIN_GLSL }), f.x, f.z, 17), x: f.x, z: f.z, reach: 60 });
     for (const g of groundSets) { g.mesh.visible = false; groundGroup.add(g.mesh); }
     console.info('village ground: sets', groundSets.length, 'strokes', flat.reduce((n, f) => n + f.w.data().length / 24, 0) + 17000);
   }

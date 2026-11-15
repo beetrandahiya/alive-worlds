@@ -2,10 +2,10 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Frame rate', 'It was about 60. Paint behind you and off to the sides is no longer drawn, and ground strokes are drawn only within about 30 m. What is it now: on the lane, in a street, mid-village?'],
-  ['Standing, not sitting', 'Ground strokes are about a third smaller and lie lower. Does the ground feel at standing height now?'],
-  ['Empty patches', 'The dark, strokeless patches in the streets should be gone: every street stroke is his sand colour now.'],
-  ['Far road', 'Beyond about 30 m a road is a plain tone until you come near. Does that show, or do strokes pop in?'],
+  ['Road strokes', 'The road and street strokes are back to the size you liked. Good again?'],
+  ['Empty patches', 'The strokeless patches should still be gone.'],
+  ['Frame rate', 'Paint out of view is no longer drawn. What is it now on the lane, in a street, mid-village?'],
+  ['Too close?', 'Last time the ground felt too close, like sitting. Is that still so? If yes: is it the ground itself that seems near, or the strokes standing up off it?'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */
