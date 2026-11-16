@@ -981,6 +981,22 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       but streaky, "like water". Start view differs about 3% of pixels from
       Study 35. Strokes held: 1.53 million (Study 35: 1.43); 60k more are
       always processed. FRAME RATE UNMEASURED.
+      Study 36 (owner, 2026-11-16): "everything is good"; only fault: a blur
+      spot in the hill line behind the cypress. "Just interpolate the hills on
+      this blur part; don't touch anything else."
+      Study 37 PUBLISHED 2026-11-16, AWAITING HEADSET TEST: the gap was the dip
+      at the cypress's LEFT edge (compass -0.51..-0.40 rad from the start, px
+      60-200; hills there were 1.5-12 m). Both point lists in analyse.py now
+      run (60,738) (100,728) (150,716) (190,711) (200,709): heights 15-31 m,
+      joining their neighbours. Only that span was taken from the rebake:
+      `ridge.bin`, hill strokes with compass -0.58..-0.34 and those columns of
+      `ground_col.jpg`; every other data file is Study 36's, byte for byte.
+      Start view differs by 0.18% of pixels, all low down just left of the
+      cypress (the flat blue block there is hill paint now, a little pale).
+      The smaller dip at the tree's right edge (px 480, 10 m) is untouched.
+      HOW TO REBAKE ONE SPAN: keep a copy of public/starry, run analyse.py,
+      `git checkout` the sky, land, terrain and json files, then merge hill
+      strokes and ground_col columns by compass span (done inline this session).
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

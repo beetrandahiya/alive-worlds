@@ -2,12 +2,9 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Frame rate first', 'Much more ground is painted now. What is the number at the start, in the open valley, and mid-village? If it is under 72, add ?field=15000 to the address (fewer ground strokes) and tell me the number again.'],
-  ['Open ground', 'Walk off the lane into the valley fields, onto the brown stubble slope, and across the hilltop. Does the ground read as his paint? Any place blurred, smeared or shimmering in the middle distance?'],
-  ['Village ground', 'Between the houses the ground is now his blue, in level strokes. Right, or too much?'],
-  ['Start view', 'The streets no longer show from the start, and the ground among the houses is painted. Closer to the painting, or worse?'],
-  ['Wall, hut, small trees', 'The field wall is painted as stones, the hut like a house, the small trees at the edges in strokes. Anything ugly?'],
-  ['Stubble colour', 'The slope beside the wheat is dull brown-ochre stubble from his moonrise picture. Keep, or should the slopes be his night blue-green too?'],
+  ['The hill line', 'From the lane beside the start, look past the cypress to the hills left of the village. The blurred flat gap in the hill line should be hills now. Gone?'],
+  ['Start view', 'Just left of the cypress, low down, the flat blue block is hill paint now. All right?'],
+  ['Nothing else', 'Nothing else was changed. Tell me if anything else looks different.'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */
