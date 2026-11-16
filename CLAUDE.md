@@ -979,7 +979,7 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       50 m reads as stretched streaks where the map shows between strokes;
       strokes too uniform in direction; start-view ground bluer than before
       but streaky, "like water". Start view differs about 3% of pixels from
-      Study 35. Strokes held: 1.47 million (Study 35: 1.43); 60k more are
+      Study 35. Strokes held: 1.53 million (Study 35: 1.43); 60k more are
       always processed. FRAME RATE UNMEASURED.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
