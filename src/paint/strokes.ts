@@ -31,6 +31,14 @@ export const shared = {
   uRidge: { value: null as THREE.Texture | null },
   uGround: { value: null as THREE.Texture | null },
   uGroundRange: { value: new THREE.Vector2(1, 1) },
+  // The open ground painted in its own space, seen from above (tools/starry/ground_map.py):
+  // the paint, the way its strokes run, and where raised ground strokes may not lie.
+  uField: { value: null as THREE.Texture | null },
+  uLie: { value: null as THREE.Texture | null },
+  uMask: { value: null as THREE.Texture | null },
+  uRegion: { value: null as THREE.Texture | null },   // which ground: village plot, stubble, knoll grass
+  uPatches: { value: null as THREE.Texture | null },  // his four ground paints, one above the other
+  uFieldBox: { value: new THREE.Vector3(-380, -420, 760) },
 };
 
 /** A strip of quads; the shaders bend it into a stroke. */
@@ -101,6 +109,8 @@ export interface SurfaceOptions {
   terrain?: string;
   /** 0..1: how much strokes take the colour of the ground they stand on. */
   tint?: number;
+  /** Ground strokes that run the way the painted ground map runs. 1: coloured from the map; 2: each from one point of his own paint for that ground. */
+  field?: number;
   /**
    * Paint these over everything already drawn, in their own order (broad
    * coats first; a higher number is a later coat), instead of sorting by depth. For coats that lie on top of
@@ -131,6 +141,13 @@ export function surfaceStrokes(data: Float32Array, o: SurfaceOptions): THREE.Mes
       uGround: shared.uGround,
       uGroundRange: shared.uGroundRange,
       uTint: { value: o.tint ?? 0 },
+      uField: shared.uField,
+      uLie: shared.uLie,
+      uMask: shared.uMask,
+      uRegion: shared.uRegion,
+      uPatches: shared.uPatches,
+      uFieldBox: shared.uFieldBox,
+      uFieldOn: { value: o.field ?? 0 },
       uEdgeFade: { value: o.overlay !== undefined ? 1 : 0 },
       uNear: { value: new THREE.Vector2(...(o.near ?? [-2, -1])) },
     },
@@ -199,7 +216,7 @@ export function groundUndercoat(g: THREE.BufferGeometry): THREE.Mesh {
   const m = new THREE.ShaderMaterial({
     vertexShader: GROUND_VERT,
     fragmentShader: GROUND_FRAG,
-    uniforms: { uGround: shared.uGround, uGroundRange: shared.uGroundRange, uCentre: shared.uCentre },
+    uniforms: { uGround: shared.uGround, uGroundRange: shared.uGroundRange, uCentre: shared.uCentre, uField: shared.uField, uFieldBox: shared.uFieldBox },
     side: THREE.DoubleSide,
     // No depth offset here: on far mountains it would push the ground onto the
     // sky's depth and let sky strokes speckle through. Coats laid on the land

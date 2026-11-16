@@ -169,6 +169,9 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
 - `tools/starry/lift_strokes.py` — lifts real strokes from the scan into the
   stroke atlas `public/starry/strokes.png` (replaces `make_strokes.py`).
 - `tools/starry/skyline.py` — real skyline from elevation data (run once).
+- `tools/starry/ground_map.py` — paints the open ground as a map seen from
+  above (`ground_paint.jpg`, `ground_flow.png`, `ground_region.png`). Takes
+  about two minutes.
 - `tools/starry/analyse.py` — measures the scan (stroke direction, flow sense,
   colour, palettes) and bakes `public/starry/*`. Re-run after changing it
   (needs numpy, scipy, opencv).
@@ -933,6 +936,51 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       height fix (no bare patches), sand everywhere, culling; ground drawn
       within 60 m, fading 45-30 m. What "too close" meant is still unknown:
       asked the owner.
+      Owner (2026-11-16): "just do a long shot and start building and finish
+      the rest of the painting"; use small Opus/Sonnet agents to JUDGE stills
+      and Fable agents to RESEARCH, and always research by looking at the
+      pictures (vision), never by script. STANDING WAY OF WORKING: do not stop
+      after each small step.
+      Study 36 PUBLISHED 2026-11-16, AWAITING HEADSET TEST: THE OPEN GROUND.
+      Research by eye (35 enlarged crops of F735, F720, F719, F683, F712 and
+      the Starry Night): flat ground is level bars, stubble runs in bending
+      streams, nothing stands but grass blades and wheat; every ground is a
+      warm and a cool about 85:15; walls are courses of short dabs with dark
+      lines at top and foot.
+      - `tools/starry/ground_map.py` paints the valley floor and knoll IN THE
+        GROUND'S OWN SPACE: 2.7 million strokes set down one by one on a map
+        seen from above (760 m square, 4096 px, `ground_paint.jpg`), each
+        coloured from one point of his paint: valley fields = the level field
+        bars of the Starry Night (`paint_field.jpg`, scan x .905-.985 y
+        .727-.775); ground inside the village = his blue ground behind the
+        roofs left of the church (`paint_plot.jpg`, x .415-.505 y .788-.815);
+        knoll slopes = F735 stubble, dulled and darkened for night
+        (`paint_stubble.jpg` x .28-.72 y .80-.99); knoll top = the field paint
+        at 80%. Strokes run level as the start sees them (across the line of
+        sight) and wander. Also writes `ground_flow.png` (direction) and
+        `ground_region.png` (which ground). GROUND shader: land within 300 m
+        of the start wears this map instead of the plain tone.
+      - Raised strokes round the walker, on tiles that follow them (fixed in
+        the world, as the old grass tiles were): 30k lane-sized strokes within
+        10-17 m, each taking one point of his own paint for that ground
+        (`uPatches`); 21k map-sized strokes (1.3-2.6 m) from 7 to 27 m and 9k
+        broad ones (2.6-5 m) from 17 to 56 m, coloured from the map. All take
+        their direction from the map and are kept off streets, houses and the
+        wheat by a mask drawn at load. `?field=N` sets the count (0 = none).
+      - Streets the start can see are not drawn from afar (dithered away
+        beyond 45-80 m of the walker), so the start view has no roads.
+      - Field wall: about 11k dabs from his wall in F735 (`paint_wall.jpg`),
+        dark lines top and foot. Hut: built and painted like a borrowed house.
+      - Small edge trees: a dark mass under raised strokes whose colours come
+        from one of his five biggest bushes wrapped round the tree. (His
+        canvas stretched over them gave blurred bands twice more: so small a
+        piece of canvas cannot skin a near tree.)
+      Judges (Sonnet, stills only) still fault: ground between about 10 and
+      50 m reads as stretched streaks where the map shows between strokes;
+      strokes too uniform in direction; start-view ground bluer than before
+      but streaky, "like water". Start view differs about 3% of pixels from
+      Study 35. Strokes held: 1.47 million (Study 35: 1.43); 60k more are
+      always processed. FRAME RATE UNMEASURED.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

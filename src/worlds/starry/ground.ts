@@ -38,6 +38,26 @@ export async function buildGround(base: string, meta: StarryMeta) {
   map.needsUpdate = true;
   shared.uGround.value = map;
   shared.uGroundRange.value.set(rMin, Math.log(rMax / rMin));
+  // The open ground's own paint, seen from above, and the way its strokes run.
+  const [field, lie, region] = await Promise.all(
+    ['ground_paint.jpg', 'ground_flow.png', 'ground_region.png'].map((f) => new THREE.TextureLoader().loadAsync(base + f + VER)),
+  );
+  for (const t of [field, lie, region]) { t.colorSpace = THREE.NoColorSpace; t.flipY = false; t.needsUpdate = true; }
+  field.generateMipmaps = true;
+  field.minFilter = THREE.LinearMipmapLinearFilter;
+  field.anisotropy = 8;
+  lie.generateMipmaps = false;
+  lie.minFilter = THREE.LinearFilter;
+  shared.uField.value = field;
+  shared.uLie.value = lie;
+  region.generateMipmaps = false;
+  region.minFilter = THREE.LinearFilter;
+  shared.uRegion.value = region;
+  if (!shared.uMask.value) {
+    const white = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
+    white.needsUpdate = true;
+    shared.uMask.value = white;
+  }
 
   // --- undercoat: rings round the viewpoint, finer near it
   const na = 1536;

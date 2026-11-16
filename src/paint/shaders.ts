@@ -60,6 +60,8 @@ export const GROUND_FRAG = /* glsl */ `
 uniform sampler2D uGround;
 uniform vec2 uGroundRange;
 uniform vec3 uCentre;
+uniform sampler2D uField;
+uniform vec3 uFieldBox;
 varying vec3 vWorld;
 void main() {
   float d = max(length(vWorld.xz), uGroundRange.x);
@@ -88,6 +90,11 @@ void main() {
   vec3 hub = (textureLod(uGround, vec2(0.125, ring), 7.0).rgb + textureLod(uGround, vec2(0.375, ring), 7.0).rgb
             + textureLod(uGround, vec2(0.625, ring), 7.0).rgb + textureLod(uGround, vec2(0.875, ring), 7.0).rgb) * 0.25;
   tone = mix(hub, tone, smoothstep(7.0, 20.0, length(vWorld.xz)));
+  // The valley floor and the knoll wear paint laid in the ground's own space: his field, stubble
+  // and grass strokes, set down one by one on a map of the land (tools/starry/ground_map.py).
+  vec2 fuv = (vWorld.xz - uFieldBox.xy) / uFieldBox.z;
+  float own = 1.0 - smoothstep(300.0, 345.0, length(vWorld.xz));
+  tone = mix(tone, texture2D(uField, fuv).rgb, own);
   gl_FragColor = vec4(mix(tone, texture2D(uGround, uv).rgb, sharp), 1.0);
 }`;
 
@@ -157,8 +164,13 @@ void main() {
   if (vFoldB.x < 0.5) {
     vec3 n = normalize(vN) * (gl_FrontFacing ? 1.0 : -1.0);
     float light = 0.74 + 0.2 * max(dot(n, uMoon), 0.0) + 0.06 * n.y;
-    // a street the start can see: the painting's dark tone from afar, its own sand when you walk it
-    vec3 base = vFoldB.z > 0.5 ? mix(vColor, vFoldA.xyz, smoothstep(45.0, 80.0, distance(vAt.xz, uCentre.xz))) : vColor;
+    // A street the start can see is not in his painting: from afar it is not drawn at all and the
+    // painted ground shows; it comes in, grain by grain, as you walk toward it.
+    if (vFoldB.z > 0.5) {
+      float far = smoothstep(45.0, 80.0, distance(vAt.xz, uCentre.xz));
+      if (far > fract(52.9829 * fract(dot(gl_FragCoord.xy, vec2(0.06711, 0.00584))))) discard;
+    }
+    vec3 base = vColor;
     gl_FragColor = vec4(base * light, 1.0);
     return;
   }
@@ -308,6 +320,13 @@ uniform vec3 uMoon;
 uniform sampler2D uGround;   // the ground's own colour, seen from above
 uniform vec2 uGroundRange;  // nearest ring (m), log of farthest / nearest
 uniform float uTint;        // how much strokes take the colour of the ground they stand on
+uniform sampler2D uField;   // the open ground's paint, seen from above
+uniform sampler2D uLie;     // the way its strokes run
+uniform sampler2D uMask;    // 0 where raised ground strokes may not lie (roads, houses, the wheat)
+uniform vec3 uFieldBox;     // the map's corner (x, z) and its size in metres
+uniform float uFieldOn;
+uniform sampler2D uRegion;
+uniform sampler2D uPatches;
 uniform float uEdgeFade;    // 1: strokes seen edge-on thin away instead of ghosting
 varying vec2 vUv;
 varying vec3 vCol;
@@ -332,6 +351,14 @@ void main() {
   grow *= (1.0 - smoothstep(uFade.x, uFade.y, dist)) * smoothstep(uNear.x, uNear.y, dist);
 
   vec3 T = iT.xyz, N = iN.xyz;
+  vec2 fuv = (root.xz - uFieldBox.xy) / uFieldBox.z;
+  if (uFieldOn > 0.5) {
+    // Ground strokes round the walker run the way the painted ground beneath them runs.
+    vec3 lie = textureLod(uLie, fuv, 0.0).rgb;
+    vec2 dir = normalize(lie.xy * 2.0 - 1.0);
+    T = vec3(dir.x * iT.x - dir.y * iT.z, 0.0, dir.y * iT.x + dir.x * iT.z);
+    grow *= step(0.5, textureLod(uMask, fuv, 0.0).r) * mix(1.0, 0.72, lie.b);
+  }
   vec3 B = normalize(cross(N, T));
   if (uEdgeFade > 0.5) {
     vec3 at = vec3(root.x, iW.w > 0.5 ? terrain(root.xz) : root.y, root.z);
@@ -363,6 +390,27 @@ void main() {
     float own = dot(iC.rgb, vec3(0.333)) - 0.16;   // each stroke keeps its own lightness
     vCol = mix(iC.rgb, earth + own * 0.8, uTint);
     vCol2 = mix(iC2.rgb, earth * 0.82, uTint);
+  }
+  if (uFieldOn > 0.5) {
+    // ...and each takes the colour of the paint it lies on.
+    // (from a point a stride or so away, different for each stroke, so neighbours differ as his do)
+    vec2 hop = (vec2(fract(iC.w * 91.7), fract(iC.w * 37.3)) - 0.5) * (2.6 / uFieldBox.z);
+    vCol = textureLod(uField, fuv + hop, 0.0).rgb;
+    vCol2 = textureLod(uField, fuv + hop + B.xz * (0.3 / uFieldBox.z), 0.0).rgb;
+    if (uFieldOn > 1.5) {
+      // The strokes at your feet go to his paint itself: each takes one point of the picture that
+      // ground is painted from, walked round the start and outward from it as the map is.
+      vec3 w = textureLod(uRegion, fuv, 0.0).rgb;
+      float pick = fract(iC.w * 53.7);
+      float k = pick < w.r ? 1.0 : pick < w.r + w.g ? 2.0 : pick < w.r + w.g + w.b ? 3.0 : 0.0;
+      vec2 span = k < 0.5 ? vec2(18.0, 30.0) : k < 1.5 ? vec2(16.0, 14.0) : k < 2.5 ? vec2(10.0, 3.4) : vec2(18.0, 30.0);
+      vec2 walk = (k > 1.5 && k < 2.5) ? root.xz : vec2(atan(root.x, -root.z) * 170.0, length(root.xz));
+      walk += (vec2(fract(iC.w * 91.7), fract(iC.w * 37.3)) - 0.5) * 1.2;
+      vec2 f = 1.0 - abs(1.0 - mod(walk / span, 2.0));
+      vec2 f2 = 1.0 - abs(1.0 - mod((walk + vec2(0.3, 0.17)) / span, 2.0));
+      vCol = textureLod(uPatches, vec2(f.x, (k + 0.03 + 0.94 * f.y) / 4.0), 0.0).rgb;
+      vCol2 = textureLod(uPatches, vec2(f2.x, (k + 0.03 + 0.94 * f2.y) / 4.0), 0.0).rgb;
+    }
   }
   vShape = iC2.w;
   vLight = vec2(dot(uMoon, T), dot(uMoon, B));

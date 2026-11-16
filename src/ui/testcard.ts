@@ -2,10 +2,12 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['Road strokes', 'The road and street strokes are back to the size you liked. Good again?'],
-  ['Empty patches', 'The strokeless patches should still be gone.'],
-  ['Frame rate', 'Paint out of view is no longer drawn. What is it now on the lane, in a street, mid-village?'],
-  ['Too close?', 'Last time the ground felt too close, like sitting. Is that still so? If yes: is it the ground itself that seems near, or the strokes standing up off it?'],
+  ['Frame rate first', 'Much more ground is painted now. What is the number at the start, in the open valley, and mid-village? If it is under 72, add ?field=15000 to the address (fewer ground strokes) and tell me the number again.'],
+  ['Open ground', 'Walk off the lane into the valley fields, onto the brown stubble slope, and across the hilltop. Does the ground read as his paint? Any place blurred, smeared or shimmering in the middle distance?'],
+  ['Village ground', 'Between the houses the ground is now his blue, in level strokes. Right, or too much?'],
+  ['Start view', 'The streets no longer show from the start, and the ground among the houses is painted. Closer to the painting, or worse?'],
+  ['Wall, hut, small trees', 'The field wall is painted as stones, the hut like a house, the small trees at the edges in strokes. Anything ugly?'],
+  ['Stubble colour', 'The slope beside the wheat is dull brown-ochre stubble from his moonrise picture. Keep, or should the slopes be his night blue-green too?'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

@@ -1,6 +1,6 @@
 import { VER } from '../../version';
 import * as THREE from 'three';
-import { canvasForms, rng, StrokeWriter, surfaceStrokes } from '../../paint/strokes';
+import { canvasForms, rng, shared, StrokeWriter, surfaceStrokes } from '../../paint/strokes';
 import { terrain, TERRAIN_GLSL } from './terrain';
 
 /**
@@ -38,7 +38,6 @@ const SHOW_ASYLUM = false;
 const LIT = [0.93, 0.78, 0.22];
 const DARK = [0.08, 0.1, 0.18];
 const DOOR = [0.16, 0.14, 0.14];
-const STONE = [0.5, 0.5, 0.47];
 
 export async function buildVillage(base: string) {
   const data: VillageData = await fetch(base + 'village.json' + VER).then((r) => r.json());
@@ -51,6 +50,8 @@ export async function buildVillage(base: string) {
   const foldA: number[] = [];
   const foldB: number[] = [];
   const footprints: Footprint[] = [];
+  let hutAt: Footprint | null = null;
+  const wallRuns: { a: THREE.Vector2; b: THREE.Vector2 }[] = []; // the field wall, for its paint
 
   let farColour: number[] | null = null; // for a plain face: the colour it shows from far off (see CANVAS_FRAG)
   // --- small builders
@@ -237,7 +238,8 @@ export async function buildVillage(base: string) {
       const dy = ry / F.ry!, df = Math.abs(pf) / F.rw!, dg = pg / F.rw!;
       const sin = Math.hypot(dy, dg) / (Math.hypot(dy, df, dg) || 1), th = Math.atan2(sin, df / (Math.hypot(dy, df, dg) || 1));
       const k = th > 1 ? (0.8415 + 0.5403 * (th - 1)) / Math.max(sin, 1e-4) : 1;
-      return [F.cx + F.gx * pg * k + F.off![0], F.cy! + ry * k + F.off![1], F.cz + F.gz * pg * k + F.off![2]];
+      const K = F.k ?? 1; // how much bigger his painted tree is than this one
+      return [F.cx + F.gx * pg * k * K + F.off![0], F.cy! + ry * k * K + F.off![1], F.cz + F.gz * pg * k * K + F.off![2]];
     } else {
       const nf = n[0] * F.fx + n[2] * F.fz, ng = n[0] * F.gx + n[2] * F.gz;
       if (Math.abs(nf) >= Math.abs(ng)) {
@@ -635,11 +637,12 @@ export async function buildVillage(base: string) {
     // Walls on three sides only: the near side was closed by the asylum itself.
     // One continuous low wall that rides the ground, as he painted it: pale
     // blue-grey, about waist high above the field all the way round (F720, F735).
-    const WALL = [0.4, 0.42, 0.5];
+    const WALL = [0.42, 0.39, 0.34]; // the general tone of his wall in the moonrise picture; its strokes are laid in the ground block
     for (let i = 1; i < 4; i++) {
       const a = c[i], b = c[(i + 1) % 4];
       const len = a.distanceTo(b), n = Math.ceil(len / 1.2);
       const nrm = V(-(b.y - a.y), b.x - a.x).normalize().multiplyScalar(0.28);
+      wallRuns.push({ a, b });
       const post = (t: number) => {
         const m = a.clone().lerp(b, t);
         const g = terrain(m.x, m.y);
@@ -665,11 +668,8 @@ export async function buildVillage(base: string) {
       }
     }
     const hut: Footprint = { x: 33.5, z: -83.5, yaw: Math.atan2(c[2].y - c[3].y, c[2].x - c[3].x), w: 4.2, d: 3.2 };
-    const yh = groundUnder(hut);
-    walls(hut, yh, 2.7, STONE);
-    gable(hut, yh, 2.7, 1.1, [0.42, 0.2, 0.15], STONE); // a red tiled roof, as in F720
-    panel(hut, yh, 0, 0.3, 0.9, 1.8, -1, DOOR);
     footprints.push(hut);
+    hutAt = hut; // painted later, like the houses he did not paint (see the ground block)
   }
 
   // --- the rest of the village: houses shoulder to shoulder along the same
@@ -722,7 +722,7 @@ export async function buildVillage(base: string) {
           return [x, terrain(x, z) + 0.03, z];
         };
         // where the start can see the street it keeps the painting's own dark tone, so the painted view is his
-        farColour = seenFromStart(p.x, terrain(p.x, p.y), p.y) ? data.road.map((c) => c * 0.8) : null;
+        farColour = seenFromStart(p.x, terrain(p.x, p.y), p.y) ? [0.15, 0.19, 0.2] : null; // the dark of his ground between the houses
         quad(v(p, -1), v(p, 1), v(q, 1), v(q, -1), colour);
         farColour = null;
       }
@@ -745,7 +745,7 @@ export async function buildVillage(base: string) {
   const groundGroup = new THREE.Group();
   const boughs = new StrokeWriter();
   const treeTris: number[] = []; // every face of the painted trees, for laying his dark outlines on them
-  const tree = (x: number, z: number, wide: number, high: number, colour: number[], skinned = false, paintAt?: number[], dens = 1) => {
+  const tree = (x: number, z: number, wide: number, high: number, colour: number[], skinned = false, paintAt?: number[], dens = 1, wrap?: { x: number; y: number; hw: number; hh: number }) => {
     const y = terrain(x, z) + high * 0.5;
     const turn = r.next() * 6.28;
     // A painted tree is a clump of rounded masses, not one ball: a body and several boughs pushing out of it.
@@ -768,14 +768,30 @@ export async function buildVillage(base: string) {
       // a tree he painted: skinned with his paint of it, and raised strokes when you stand by it
       const F = roundFold(x, y, z, wide, high * 0.55);
       if (paintAt) F.off = [paintAt[0] - x, paintAt[1] - y, paintAt[2] - z];
-      fold = F;
+      fold = wrap ? null : F;
+      // A tree he did not paint is a dark mass under raised strokes, as the cypress is. Each stroke
+      // takes its colour and its turn from one point of one of his big bushes, the bush wrapped
+      // round the tree (round the trunk and back again, crown to middle: lower down his bushes
+      // are hidden by roofs). His canvas itself is not stretched over it: so small a piece of
+      // canvas, blown up to a tree, is a few blurred bands.
+      const around = wrap
+        ? (q: THREE.Vector3) => {
+            const th = Math.atan2(q.z - z, q.x - x) + turn;
+            const v = THREE.MathUtils.clamp((q.y - y) / (high * 0.55 * 1.25), -1, 1);
+            return [wrap.x + wrap.hw * (2 / Math.PI) * Math.asin(Math.sin(th)), wrap.y - wrap.hh * (0.5 + 0.5 * v)];
+          }
+        : null;
       beginSet(x, z, Math.max(wide, high * 0.55) * 1.2, [22, 34]);
       const mid = new THREE.Vector3(x, y, z);
       for (const lp of lumps) for (let i = 0; i < ip.count; i += 3) {
         L = lp;
         const A = v(i), B = v(i + 1), C = v(i + 2);
-        tri(A, B, C, colour);
-        treeTris.push(A[0], A[1], A[2], B[0], B[1], B[2], C[0], C[1], C[2]);
+        if (wrap) {
+          tri(A, B, C, colour); // a dark mass; its paint is all raised strokes
+        } else {
+          tri(A, B, C, colour);
+          treeTris.push(A[0], A[1], A[2], B[0], B[1], B[2], C[0], C[1], C[2]);
+        }
         const a = new THREE.Vector3(...A), ab = new THREE.Vector3(...B).sub(a), ac = new THREE.Vector3(...C).sub(a);
         const n = ab.clone().cross(ac);
         const area = n.length() / 2;
@@ -787,17 +803,17 @@ export async function buildVillage(base: string) {
         for (let k = 0; k < count; k++) {
           let e = r.next(), g2 = r.next();
           if (e + g2 > 1) { e = 1 - e; g2 = 1 - g2; }
-          daub(foldAt(F, n), a.clone().addScaledVector(ab, e).addScaledVector(ac, g2), u, w2, n, r.range(0.5, 1.15), r.range(0.17, 0.3), 0.06, undefined, 1);
+          daub(around ?? foldAt(F, n), a.clone().addScaledVector(ab, e).addScaledVector(ac, g2), u, w2, n, r.range(0.5, 1.15), r.range(0.17, 0.3), 0.06, undefined, 1);
         }
         // and big boughs of paint that stand off the mass and break its outline, always there
-        const big = HIS ? 0 : (area * 0.19 * dens) / (1.4 * 0.4);
+        const big = HIS ? 0 : (area * (wrap ? 1.5 : 0.19 * dens)) / (1.4 * 0.4);
         const nb = Math.floor(big) + (r.next() < big % 1 ? 1 : 0);
         const keep = coat;
         coat = boughs;
         for (let k = 0; k < nb; k++) {
           let e = r.next(), g2 = r.next();
           if (e + g2 > 1) { e = 1 - e; g2 = 1 - g2; }
-          daub(foldAt(F, n), a.clone().addScaledVector(ab, e).addScaledVector(ac, g2), u, w2, n, r.range(1.0, 1.9), r.range(0.3, 0.5), 0.1, undefined, 1.8);
+          daub(around ?? foldAt(F, n), a.clone().addScaledVector(ab, e).addScaledVector(ac, g2), u, w2, n, r.range(1.0, 1.9), r.range(0.3, 0.5), 0.1, undefined, wrap ? 0.7 : 1.8);
         }
         coat = keep;
       }
@@ -1017,7 +1033,8 @@ export async function buildVillage(base: string) {
     if (ARCH) archTree(x, z, t.r, t.h, from, src.r);
     else tree(x, z, t.r, t.h, t.colour.map((c) => c * 0.85), true, from);
   });
-  const greens = data.trees.slice(0, 5).map((t) => t.colour.map((c) => c * 0.8));
+  // his trees that fill the most canvas, as the start sees them
+  const bigOnes = data.trees.filter((_, i) => shown[i]).sort((p, q) => q.r / Math.hypot(q.x, q.z) - p.r / Math.hypot(p.x, p.z)).slice(0, 5);
   for (let k = 0; k < 420 && treeAt.length < 190; k++) {
     const a = r.range(0, Math.PI * 2), d = r.range(110, 330);
     const x = Math.sin(a) * d, z = -Math.cos(a) * d;
@@ -1025,8 +1042,13 @@ export async function buildVillage(base: string) {
     if (seenFromStart(x, terrain(x, z) + high, z)) continue;
     const spot: Footprint = { x, z, yaw: 0, w: wide * 2, d: wide * 2 };
     if (overlaps(spot, 1) || onRoad(spot, 0.5) || treeAt.some((t) => Math.hypot(t.x - x, t.z - z) < wide * 2.2)) continue;
-    // plain for now: wearing a piece of one of his trees gave them stripes; they wait for the tree study
-    tree(x, z, wide, high, r.pick(greens));
+    // Each wears the WHOLE of one of his big front bushes (the ones he gave the most strokes), laid
+    // over the whole of it; a piece of a far tree blown up gave stripes.
+    const src = bigOnes[Math.floor(r.next() * bigOnes.length)];
+    const sy = terrain(src.x, src.z) + src.h * 0.5, sd = Math.hypot(src.x, sy - 1.6, src.z);
+    const mid = seenAt([src.x, sy, src.z]);
+    const dark = hisPaint(mid[0], mid[1]).colour.map((v) => v * 0.45);
+    tree(x, z, wide, high, dark, true, undefined, 0.5, { x: mid[0], y: mid[1], hw: (cam.F * src.r * 0.7) / sd, hh: (cam.F * src.h * 0.55 * 0.8) / sd });
   }
 
   // --- the asylum behind the start, from his own paintings of it.
@@ -1089,6 +1111,7 @@ export async function buildVillage(base: string) {
     footprints.push(wing, nave, aisle, apse, belfry);
   }
 
+  if (hutAt) borrowedHouse(hutAt, 2.7, 1.1, -1); // the hut at the field's corner (last, so the village's own dice are not disturbed)
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
@@ -1170,10 +1193,137 @@ export async function buildVillage(base: string) {
       const length = r.range(0.55, 1.0);
       wheat.add({ p: new THREE.Vector3(q.x, terrain(q.x, q.y) + 0.22, q.y), t, n, length, width: r.range(0.07, 0.13), lift: r.range(0, 0.12), bend: r.range(-0.1, 0.1), colour: wheatPaint(q.x + 60, q.y + 100, 26), streak: wheatPaint(q.x + 60.4, q.y + 100.2, 26), seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0.06 * length });
     }
+    // THE FIELD WALL, as in Wheat Sheaves and Rising Moon (looked at directly): three to five courses
+    // of short level dabs that read as stones, cream, pale blue-grey, rust-pink and grey-green; a thin
+    // dark line along its foot and its top. Each dab takes one point of his wall, walked along ours.
+    {
+      const wallImg = await new THREE.ImageLoader().loadAsync(base + 'paint_wall.jpg' + VER);
+      const wallPaint = patch(wallImg, 0.8);
+      const DARK = [0.13, 0.15, 0.18];
+      let run = 0;
+      for (const wr of wallRuns) {
+        const len = wr.a.distanceTo(wr.b), dir = wr.b.clone().sub(wr.a).normalize();
+        for (let d0 = 0; d0 < len; d0 += 20) {
+          const d1 = Math.min(len, d0 + 20), mid = wr.a.clone().lerp(wr.b, (d0 + d1) / 2 / len);
+          const w = new StrokeWriter();
+          const put = (s: number, h: number, sg: number, length: number, width: number, colour: number[], streak: number[], out: number) => {
+            const m = wr.a.clone().addScaledVector(dir, s), m2 = wr.a.clone().addScaledVector(dir, Math.min(len, s + length));
+            const g0 = terrain(m.x, m.y), g1 = terrain(m2.x, m2.y);
+            const t = new THREE.Vector3(m2.x - m.x, g1 - g0, m2.y - m.y).normalize();
+            const n = sg === 0 ? up : new THREE.Vector3(-dir.y * sg, 0, dir.x * sg);
+            const side = sg === 0 ? r.range(-0.2, 0.2) : sg * (0.29 + out);
+            w.add({ p: new THREE.Vector3(m.x - dir.y * side, g0 + h + (sg === 0 ? out : 0), m.y + dir.x * side), t, n, length, width, lift: 0, bend: r.range(-0.05, 0.05), colour, streak, seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0 });
+          };
+          const span = d1 - d0;
+          for (const sg of [-1, 1]) {
+            for (let k = 0; k < Math.round((span * 0.9 * 2.3) / (0.55 * 0.17)); k++) {
+              const s = r.range(d0 - 0.2, d1 - 0.2), h = r.range(0.06, 0.88), L = r.range(0.32, 0.8);
+              put(Math.max(0, s), h, sg, L, r.range(0.13, 0.21), wallPaint(run + s, h + 0.1, 57), wallPaint(run + s + 0.2, h + 0.2, 57), r.range(0.01, 0.03));
+            }
+            for (let s = d0; s < d1; s += 0.55) { // the dark lines he draws along a wall's top and foot
+              put(s, 0.94, sg, r.range(0.6, 0.9), 0.06, DARK, DARK, 0.04);
+              if (r.next() < 0.8) put(s, 0.03, sg, r.range(0.6, 0.9), 0.07, DARK.map((v) => v * 1.3), DARK, 0.04);
+            }
+          }
+          for (let k = 0; k < Math.round((span * 0.56 * 2.0) / (0.5 * 0.16)); k++) { // its top
+            const s = r.range(d0, d1 - 0.3);
+            put(s, 0.955 + 0.06 * Math.sin((s / len) * len * 0.9), 0, r.range(0.3, 0.7), r.range(0.12, 0.2), wallPaint(run + s, 0.5, 57).map((v) => v * 1.1), wallPaint(run + s + 0.2, 0.6, 57), r.range(0.01, 0.03));
+          }
+          groundSets.push({ mesh: cullable(surfaceStrokes(w.data(), { segments: 2, fade: [50, 70] }), mid.x, mid.y, 13), x: mid.x, z: mid.y, reach: 85 });
+        }
+        run += len;
+      }
+    }
     // Only what is in front of you is drawn: each set knows the ball of space it fills (see `cullable`).
     groundSets.push({ mesh: cullable(surfaceStrokes(wheat.data(), { segments: 2, fade: [45, 70] }), -2, -62, 62), x: -2, z: -62, reach: 130 });
     for (const f of flat) groundSets.push({ mesh: cullable(surfaceStrokes(f.w.data(), { segments: 2, fade: [30, 45], terrain: TERRAIN_GLSL }), f.x, f.z, 17), x: f.x, z: f.z, reach: 60 });
     for (const g of groundSets) { g.mesh.visible = false; groundGroup.add(g.mesh); }
+    // THE OPEN GROUND ROUND THE WALKER. Far off, the valley floor and the knoll wear the painted
+    // ground map. Within a few strides real raised strokes lie over it, the size of the lane's, each
+    // taking its colour and its direction from the paint it lies on. They may not lie on streets,
+    // in houses or in the wheat: a map of those, seen from above, keeps them off.
+    {
+      const B = shared.uFieldBox.value, M = 1024;
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = M;
+      const c = cv.getContext('2d')!;
+      const X = (x: number) => ((x - B.x) / B.z) * M, Z = (z: number) => ((z - B.y) / B.z) * M;
+      c.fillStyle = '#fff';
+      c.fillRect(0, 0, M, M);
+      c.fillStyle = c.strokeStyle = '#000';
+      c.lineCap = c.lineJoin = 'round';
+      for (const rd of roads) {
+        c.lineWidth = ((rd.half * 2.3 + 1.0) / B.z) * M;
+        c.beginPath();
+        rd.pts.forEach((q, i) => (i ? c.lineTo(X(q.x), Z(q.y)) : c.moveTo(X(q.x), Z(q.y))));
+        c.stroke();
+      }
+      c.lineWidth = (1.6 / B.z) * M;
+      c.beginPath();
+      fc.forEach((q, i) => (i ? c.lineTo(X(q.x), Z(q.y)) : c.moveTo(X(q.x), Z(q.y))));
+      c.closePath();
+      c.fill();
+      c.stroke();
+      for (const fp of footprints) {
+        const cs = cornersOf(fp, 0.1);
+        c.beginPath();
+        cs.forEach((q, i) => (i ? c.lineTo(X(q.x), Z(q.y)) : c.moveTo(X(q.x), Z(q.y))));
+        c.closePath();
+        c.fill();
+      }
+      const mask = new THREE.CanvasTexture(cv);
+      mask.colorSpace = THREE.NoColorSpace;
+      mask.flipY = false;
+      mask.generateMipmaps = false;
+      mask.minFilter = mask.magFilter = THREE.LinearFilter;
+      shared.uMask.value = mask;
+      // his four ground paints, one above the other (field, village plot, stubble, knoll grass), toned
+      // exactly as the map's are (tools/starry/ground_map.py)
+      {
+        const [fi, pl, st] = await Promise.all(['paint_field.jpg', 'paint_plot.jpg', 'paint_stubble.jpg'].map((f) => new THREE.ImageLoader().loadAsync(base + f + VER)));
+        const pc = document.createElement('canvas');
+        pc.width = 512;
+        pc.height = 1024;
+        const px = pc.getContext('2d', { willReadFrequently: true })!;
+        [fi, pl, st, fi].forEach((im, k) => px.drawImage(im, 0, k * 256, 512, 256));
+        const id = px.getImageData(0, 0, 512, 1024), d = id.data;
+        for (let i = 512 * 512 * 4; i < d.length; i += 4) {
+          if (i < 768 * 512 * 4) {
+            const g = (d[i] + d[i + 1] + d[i + 2]) / 3;
+            for (let c2 = 0; c2 < 3; c2++) d[i + c2] = (d[i + c2] * 0.62 + g * 0.38) * 0.56;
+          } else for (let c2 = 0; c2 < 3; c2++) d[i + c2] *= 0.8;
+        }
+        px.putImageData(id, 0, 0);
+        const pt = new THREE.CanvasTexture(pc);
+        pt.colorSpace = THREE.NoColorSpace;
+        pt.flipY = false;
+        pt.generateMipmaps = false;
+        pt.minFilter = pt.magFilter = THREE.LinearFilter;
+        shared.uPatches.value = pt;
+      }
+      const TILE = 36, count = Number(new URLSearchParams(location.search).get('field') ?? 30000);
+      const w = new StrokeWriter();
+      for (let k = 0; k < count; k++) {
+        const j = r.range(-0.28, 0.28);
+        w.add({ p: new THREE.Vector3(r.next() * TILE, 0.1 + r.range(0, 0.02), r.next() * TILE), t: new THREE.Vector3(Math.cos(j), 0, Math.sin(j)), n: up, length: r.range(0.55, 1.1), width: r.range(0.09, 0.15), lift: 0, bend: r.range(-0.08, 0.08), colour: [0.3, 0.35, 0.3], streak: [0.25, 0.3, 0.3], seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0, hug: true });
+      }
+      if (count > 0) group.add(surfaceStrokes(w.data(), { segments: 2, tile: TILE, fade: [10, 17], terrain: TERRAIN_GLSL, field: 2 }));
+      // Beyond them, out to some twenty-five metres, broader strokes the size of the map's own keep
+      // the ground crisp where the map alone would be seen stretched and soft.
+      const w2 = new StrokeWriter(), T2 = 72;
+      for (let k = 0; k < Math.round(count * 0.7); k++) {
+        const j = r.range(-0.2, 0.2);
+        w2.add({ p: new THREE.Vector3(r.next() * T2, 0.08 + r.range(0, 0.02), r.next() * T2), t: new THREE.Vector3(Math.cos(j), 0, Math.sin(j)), n: up, length: r.range(1.3, 2.6), width: r.range(0.28, 0.44), lift: 0, bend: r.range(-0.08, 0.08), colour: [0.3, 0.35, 0.3], streak: [0.25, 0.3, 0.3], seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0, hug: true });
+      }
+      if (count > 0) group.add(surfaceStrokes(w2.data(), { segments: 3, tile: T2, near: [7, 13], fade: [20, 27], terrain: TERRAIN_GLSL, field: 1 }));
+      // ...and beyond those, to some fifty metres, a few strokes broader still, as broad as the ones on the houses.
+      const w3 = new StrokeWriter(), T3 = 130;
+      for (let k = 0; k < Math.round(count * 0.3); k++) {
+        const j = r.range(-0.16, 0.16);
+        w3.add({ p: new THREE.Vector3(r.next() * T3, 0.06 + r.range(0, 0.02), r.next() * T3), t: new THREE.Vector3(Math.cos(j), 0, Math.sin(j)), n: up, length: r.range(2.6, 5.0), width: r.range(0.85, 1.35), lift: 0, bend: r.range(-0.07, 0.07), colour: [0.3, 0.35, 0.3], streak: [0.25, 0.3, 0.3], seed: r.next(), shape: Math.floor(r.next() * 8), sway: 0, tipSway: 0, hug: true });
+      }
+      if (count > 0) group.add(surfaceStrokes(w3.data(), { segments: 4, tile: T3, near: [17, 25], fade: [44, 56], terrain: TERRAIN_GLSL, field: 1 }));
+    }
     console.info('village ground: sets', groundSets.length, 'strokes', flat.reduce((n, f) => n + f.w.data().length / 24, 0) + 17000);
   }
   // HIS DARK OUTLINES ON THE TREES. tools/starry/tree_strokes.py traces every stroke on that part of
