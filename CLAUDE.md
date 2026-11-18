@@ -997,6 +997,52 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       HOW TO REBAKE ONE SPAN: keep a copy of public/starry, run analyse.py,
       `git checkout` the sky, land, terrain and json files, then merge hill
       strokes and ground_col columns by compass span (done inline this session).
+      Owner (2026-11-18): next piece = PAINTED HANDS, "full deep research,
+      start from very basics". RESEARCH DONE 2026-11-18 (three agents; their
+      findings checked by eye; page for the owner:
+      https://claude.ai/artifact/69gBtnmBt1phqk81MrezCf). Nothing built yet.
+      - His hands (Saint-Remy, looked at directly; pictures saved in
+        `reference/vangogh/hands/`: F689 Thresher, F688 Reaper, F693
+        Sheaf-Binder, F700 Binding Sheaves, F647 Evening: The Watch, F677
+        Lazarus; Wikimedia refused many downloads, so no Good Samaritan, sharp
+        Pieta or Trabuc): 6-10 finger-wide strokes per hand, count kept when
+        the hand is bigger; a mitten split by 2-3 mid-green strokes, no nails
+        or creases, one pale knuckle stroke; strokes along fingers on an open
+        hand, across the back following the curl on a fist; broken navy-black
+        outline (about (35,38,48)), a third to half a finger wide, heaviest
+        on the shadow side and underneath, never black between fingers;
+        NEVER PINK: grey-green (140,150,110) 45%, cream-green (195,200,150)
+        20%, slate shadow (85,105,90) 15%, outline 10%, ochre (190,150,70)
+        5-8%, a rare red stroke; paint on hands thin and flat, weave showing
+        (Lazarus the exception). Night (The Watch, lamp): one greenish-grey
+        key, olive-pink, warm red-brown outline, very low contrast. No
+        moonlit hand exists in his work. Best sources: Thresher fist (F689
+        crop .336,.146,.477,.228), Reaper fist (F688 .703,.761,.859,.865),
+        Sheaf-Binder back (F693 .461,.518,.594,.610) and palm (.289,.512,
+        .422,.599). Every hand comes out of a blue sleeve.
+      - Technique: hand model = WebXR input profiles generic-hand
+        (left/right.glb, MIT (c) 2019 Amazon, 1,360 vertices, 2,314 tris, UVs,
+        25 joints named as WebXR hand joints, flat hierarchy, rest = open flat
+        hand, about 18 cm). Poses: Meta's Immersive Web SDK
+        (`@iwsdk/xr-input` 1.1.0, MIT, animated-controller-hand.js) has
+        25-joint default/pressed poses in grip space for that model (wrist at
+        about (0.059,0.039,0.073) m from grip); index from trigger, others from
+        squeeze, smoothing alpha += (target-alpha)*dt*20, left = mirror.
+        Gamepad xr-standard on Touch Plus: 0 trigger, 1 squeeze (analog), 3
+        stick click, 4 A/X, 5 B/Y, 6 thumbrest; whether Quest Browser reports
+        `touched` (point / thumbs-up) is UNCONFIRMED: log on device. Grip
+        hides itself on tracking loss; hide hands on visibility blurred.
+        Rendering: skinned undercoat mesh + instanced strokes skinned per
+        vertex (bend at knuckles), outline = fixed strokes on the hand's edges
+        (no screen effect), frustumCulled false. Near plane 0.1 m is fine
+        unless a hand touches the face.
+      PROPOSED, AWAITING OWNER'S FOUR CHOICES: (1) stroke count: his ~15
+      finger-wide per hand / finer ~300 / both with an in-headset toggle
+      (recommended); (2) flat as he painted hands vs lightly raised
+      (recommended); (3) colour: his greens as painted (recommended) vs pulled
+      toward night blue (inference); (4) a short blue sleeve cuff
+      (recommended) vs the hand fraying away at the wrist. First study: both
+      hands only, wrist readout logs which buttons report touch.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.
