@@ -1043,6 +1043,23 @@ URL options: `?res=1.2` sharper (costs frame rate), `?fov=0..1` edge blur
       toward night blue (inference); (4) a short blue sleeve cuff
       (recommended) vs the hand fraying away at the wrist. First study: both
       hands only, wrist readout logs which buttons report touch.
+      Owner (2026-11-19): "show me what they look like" (no headset to
+      hand); then "you're spending way too long, just make them very simple".
+      Study 38 PUBLISHED 2026-11-19, AWAITING HEADSET TEST: SIMPLE HANDS, on by
+      default (`src/xr/hands.ts`, `src/xr/handPoses.ts`, `public/hands/`).
+      generic-hand model posed once with Meta's poses (grip 0.6, trigger 0.45;
+      FINGERS DO NOT MOVE YET), undercoat in his mid tones, about 50 finger-
+      wide strokes per hand laid on the surface until covered (colours picked
+      from his paint by light/mid/shadow: back = Sheaf-Binder back of hand,
+      palm = Sheaf-Binder raised hand), slate strokes between fingers, one
+      pale knuckle stroke, his broken navy outline as a thin dark shell
+      (inverted hull, thickness varying over the hand, heavier away from the
+      moon), and a blue smock sleeve from the Sheaf-Binder. Options: ?hands=
+      fine (~400 smaller strokes) | 0 (off), &raised=0, &night=1, &sleeve=0.
+      Stills: ?hands=few&vfov=80&pitch=40 (your view) or &hpos=x,y,z&hrot=
+      x,y,z (one hand close). The four choices were not answered; defaults
+      used: his count, lightly raised, his greens, sleeve. Frame rate
+      unmeasured.
 - [ ] Step 3: village and church, windows.
 - [ ] Step 4: human-scale repaint everywhere, full locomotion, fast travel, wrap.
 - [ ] Step 5: life — wind, fireflies, bird, cat, touch response, small events.

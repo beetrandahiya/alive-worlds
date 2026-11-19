@@ -2,9 +2,10 @@ import * as THREE from 'three';
 
 /** What the owner should judge in this study. Shown on the page and in the headset. */
 export const TEST_LIST: [string, string][] = [
-  ['The hill line', 'From the lane beside the start, look past the cypress to the hills left of the village. The blurred flat gap in the hill line should be hills now. Gone?'],
-  ['Start view', 'Just left of the cypress, low down, the flat blue block is hill paint now. All right?'],
-  ['Nothing else', 'Nothing else was changed. Tell me if anything else looks different.'],
+  ['Your hands', 'Look at your hands. They are painted with his strokes, his grey-green, his navy outline, in a blue sleeve. Right, or wrong?'],
+  ['Where they sit', 'Do they sit where your real hands are, round the controllers? Too big, too small, shifted?'],
+  ['Fingers do not move yet', 'This is the simple version: the fingers are fixed in a resting grip.'],
+  ['Frame rate', 'Any drop with the hands in view, or held close to your face?'],
 ];
 
 /** Study-only card above the left hand listing what to test. Y shows and hides it. */

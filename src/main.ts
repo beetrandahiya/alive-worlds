@@ -9,6 +9,7 @@ import { buildVillage } from './worlds/starry/village';
 import { buildSky, type StarryMeta } from './worlds/starry/sky';
 import { loadTerrain, terrain, WALK_RADIUS } from './worlds/starry/terrain';
 import { Rig } from './xr/rig';
+import { buildHand, shotGrip, type HandLook } from './xr/hands';
 
 declare const __BUILD__: string;
 
@@ -52,6 +53,20 @@ async function start() {
   console.info('village', village.houses, 'houses', village.trees, 'trees');
   scene.add(sky.group, cypress.group, ground.group, village.group);
 
+  // ---- the walker's hands (?hands=few|fine|0, &raised=0, &night=1, &sleeve=0)
+  const handsKind = params.get('hands') ?? 'few'; // on by default; ?hands=0 hides them
+  const handGroups: Partial<Record<'left' | 'right', THREE.Group>> = {};
+  if (handsKind !== '0') {
+    const look: HandLook = {
+      strokes: handsKind === 'fine' ? 'fine' : 'few',
+      raised: params.get('raised') !== '0',
+      night: params.get('night') === '1',
+      sleeve: params.get('sleeve') !== '0',
+    };
+    const grip = Number(params.get('grip') ?? 0.6), trigger = Number(params.get('trigger') ?? 0.45);
+    for (const side of ['left', 'right'] as const) handGroups[side] = await buildHand(import.meta.env.BASE_URL, side, look, grip, trigger);
+  }
+
   // ---- study controls
   const wrist = new WristReadout(__BUILD__);
   const card = testCard();
@@ -61,7 +76,9 @@ async function start() {
   for (const i of [0, 1]) {
     const grip = renderer.xr.getControllerGrip(i);
     grip.addEventListener('connected', (e) => {
-      if ((e as unknown as { data: XRInputSource }).data.handedness === 'left') grip.add(wrist.mesh, card);
+      const hand = (e as unknown as { data: XRInputSource }).data.handedness;
+      if (hand === 'left') grip.add(wrist.mesh, card);
+      if (hand === 'left' || hand === 'right') { const g = handGroups[hand]; if (g) grip.add(g); }
     });
     rig.group.add(grip);
   }
@@ -77,12 +94,32 @@ async function start() {
     // Not in VR: frame the view as the painting does.
     const half = Math.tan(THREE.MathUtils.degToRad(meta.hfovDeg / 2));
     camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(half / Math.max(camera.aspect, meta.aspect)));
+    if (params.has('vfov')) camera.fov = Number(params.get('vfov')); // stills of the hands: the headset's wide view
     camera.updateProjectionMatrix();
   };
   addEventListener('resize', resize);
   resize();
   rig.look(Number(params.get('yaw') ?? 0), Number(params.get('pitch') ?? -meta.pitchDeg));
   if (params.has('x')) rig.group.position.set(Number(params.get('x')), 0, Number(params.get('z') ?? 0));
+  if (shot && params.has('hands')) for (const side of ['left', 'right'] as const) {
+    const g = handGroups[side];
+    if (!g) continue;
+    g.matrixAutoUpdate = false;
+    g.matrix.copy(shotGrip(side));
+    // a close look at one hand: ?hpos=x,y,z puts the right hand there (camera space), turned by ?hrot=x,y,z degrees
+    const hp = params.get('hpos');
+    if (hp) {
+      if (side === 'left') continue;
+      const [x, y, z] = hp.split(',').map(Number), [rx, ry, rz] = (params.get('hrot') ?? '0,0,0').split(',').map((v) => THREE.MathUtils.degToRad(Number(v)));
+      g.matrix.premultiply(new THREE.Matrix4().makeTranslation(-0.17, 0.4, 0.36)).premultiply(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rx, ry, rz))).premultiply(new THREE.Matrix4().makeTranslation(x, y, z));
+    }
+    if (hp) camera.add(g);
+    else {
+      // held at chest height below your head, whichever way you look
+      g.matrix.premultiply(new THREE.Matrix4().makeRotationY(THREE.MathUtils.degToRad(-Number(params.get('yaw') ?? 0))).setPosition(camera.position));
+      rig.group.add(g);
+    }
+  }
   if (params.has('up')) camera.position.y = Number(params.get('up')); // a bird's-eye view, for checking plans off-headset
 
   const veil = $('veil');
